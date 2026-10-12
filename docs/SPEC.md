@@ -131,3 +131,24 @@ columns.
 | D       | 40   | price change         |
 | E       | 50   | retirement announced |
 | F       | 60   | censored             |
+
+## 7. Traceability
+
+| Item | Verified by | Method |
+|---|---|---|
+| REQ-S1 | `test_req_s1_day_one_models_are_excluded` | test |
+| REQ-S2 | `test_req_s2_only_the_first_appearance_counts` | test |
+| REQ-S3 | `test_req_s3_removal_wins_a_tie` | test |
+| REQ-S4 | `test_req_s11_known_answer`, `test_drill_two_exits_on_the_same_day` | test |
+| REQ-S5 | `test_req_s5_totals_sum_to_one`; also checked on every run | test |
+| REQ-S6 | the rows of `data/survival.csv` | inspection |
+| REQ-S7 | `test_req_s7_too_few_at_risk_is_not_reported` | test |
+| REQ-S8 | `test_req_s8_s9_intervals_are_ordered_and_repeatable` | test |
+| REQ-S9 | `test_req_s8_s9_intervals_are_ordered_and_repeatable` | test |
+| REQ-S10 | `test_req_s10_definitions_differ_as_specified` | test |
+| REQ-S11 | `test_req_s11_known_answer` | test |
+| REQ-S12 | the header of `data/survival.csv` | inspection, not yet automated |
+| D5 | `test_d5_a_new_price_field_is_not_a_price_change` | test |
+| D6 | `test_d6_only_a_first_retirement_date_is_an_exit` | test |
+
+All tests run on every pull request (`.github/workflows/tests.yml`).
