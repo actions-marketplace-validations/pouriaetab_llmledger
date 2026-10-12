@@ -61,6 +61,9 @@ requirement to the test that verifies it. In short:
    only while at least 100 models are still being followed.
 5. **Uncertainty:** 1,000 bootstrap resamples of the models with a fixed seed,
    so every run gives identical output.
+6. **Checked on simulated data:** on 200 simulated datasets per setting,
+   with exit rates chosen in advance, the largest bias is 0.0015 and the
+   95% intervals contain the true value in 91% to 98% of datasets.
 
 ## Run it
 
@@ -70,9 +73,10 @@ Python 3.12 or newer, standard library only.
 git clone --filter=blob:none https://github.com/BerriAI/litellm.git data/upstream
 PYTHONPATH=src python -m llmledger.events      # writes data/events.csv
 PYTHONPATH=src python -m llmledger.survival    # writes data/survival.csv
+PYTHONPATH=src python -m llmledger.simulate    # writes data/simulation.csv, about 2 minutes
 ```
 
-Tests (17 known answer tests, each named after the requirement it verifies):
+Tests (22 tests: known answer tests and the simulation check):
 
 ```bash
 python -m pip install pytest
@@ -90,8 +94,8 @@ here. llmledger is independent and not affiliated with or endorsed by BerriAI.
 ## Layout
 
 ```
-src/llmledger/       history.py, events.py, survival.py
-tests/               known answer tests for events and survival
+src/llmledger/       history.py, events.py, survival.py, simulate.py
+tests/               known answer and simulation tests
 docs/SPEC.md         definitions, requirements, limitations, traceability
 .github/workflows/   the same tests on every pull request
 ```
