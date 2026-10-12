@@ -106,6 +106,19 @@ definition, time point and outcome.
 Verified by: a test that reads the file and checks its
 columns.
 
+**REQ-S13 Known truth.** On data simulated with constant exit rates,
+where the true cumulative incidence is (rate of the exit / total rate)
+× (1 − e^(−total rate × days)), the estimate at 365 days from 50,000
+simulated models shall be within 0.01 of the truth for every outcome,
+for both rate sets in `src/llmledger/simulate.py`.
+Verified by: an automated test.
+
+**REQ-S14 Interval coverage.** Over 200 simulated datasets of 2,000
+models each, the 95% bootstrap intervals (200 resamples) shall contain
+the true value in at least 90% and at most 99% of datasets, for every
+outcome at 90, 180 and 365 days.
+Verified by: analysis of `data/simulation.csv`.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
@@ -120,6 +133,9 @@ columns.
   (REQ-S2).
 - **L6** Models present in the first version are excluded
   (REQ-S1).
+- **L7** The simulation check assumes constant exit rates. Real rates
+  may change as a model ages, so it shows that the estimator works, not
+  that the real data follows constant rates.
 
 ## 6. Known-answer example
 
@@ -150,5 +166,7 @@ columns.
 | REQ-S12 | the header of `data/survival.csv` | inspection, not yet automated |
 | D5 | `test_d5_a_new_price_field_is_not_a_price_change` | test |
 | D6 | `test_d6_only_a_first_retirement_date_is_an_exit` | test |
+| REQ-S13 | `test_req_s13_estimator_recovers_known_truth` | test |
+| REQ-S14 | `data/simulation.csv` from `python -m llmledger.simulate` | analysis |
 
 All tests run on every pull request (`.github/workflows/tests.yml`).
