@@ -8,6 +8,7 @@ on:
     branches: [main]
 
 permissions:
+  actions: write
   contents: read
   pages: write
   id-token: write
@@ -20,6 +21,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # GitHub turns off a schedule after 60 days without a commit.
+      # Turning it on again from here resets that clock, so the page keeps
+      # refreshing after the code is frozen.
+      - name: Keep the daily schedule on
+        if: github.event_name == 'schedule'
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/refresh.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
