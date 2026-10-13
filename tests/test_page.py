@@ -45,3 +45,11 @@ def test_every_placeholder_is_filled(tmp_path):
 
 def test_page_data_cannot_close_its_script_tag():
     assert "</script>" not in data_script({"name": "</script>"})
+
+
+def test_req_s21_page_compares_every_change_with_real_changes(tmp_path):
+    source = tmp_path / "survival.csv"
+    source.write_text(ROWS + ROWS.split("\n", 1)[1].replace("main,", "real_only,"))
+    page = render(load(source), INFO)
+    assert "<tr><th>Real changes only</th><td>15.3%<small>14.1 to 16.6" in page
+    assert "<tr><th>Leaving out corrections</th>" in page

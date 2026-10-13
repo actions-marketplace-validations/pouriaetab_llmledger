@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from llmledger.catalog import model_records, recent
+from llmledger.flags import mark
 
 
 def row(day, model, kind, field="", old="null", new="null"):
@@ -41,3 +42,15 @@ def test_req_s19_last_seven_days_lists_every_change():
         ("2026-01-05", "a", "price"),
         ("2026-01-09", "a", "removed"),
     ]
+
+
+def test_req_s20_corrections_are_tagged_and_not_counted():
+    rows = mark([
+        row(1, "a", "added"),
+        row(2, "a", "price", "input_cost_per_token", "1e-06", "0.0001"),
+        row(3, "a", "price", "input_cost_per_token", "0.0001", "2e-06"),
+    ])
+    records, events = model_records(rows, {}, END)
+    assert records[0][11] == 1
+    assert [e[5] for e in events["a"]] == ["", "unit", ""]
+    assert [r[6] for r in recent(rows, END, days=30)] == ["", "unit", ""]

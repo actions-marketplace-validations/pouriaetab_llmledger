@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from llmledger import outlook, survival
+from llmledger import flags, outlook, survival
 from llmledger.names import canonical
 
 MIN_GROUP = 200
@@ -71,6 +71,7 @@ def model_records(rows, last, end):
         removed = "" if listed else _day(history[-1]["when"])
         repriced = [
             row for row in history if row["kind"] == "price"
+            and not row.get("flag")
             and _number(json.loads(row["old"])) is not None
             and _number(json.loads(row["new"])) is not None
         ]
@@ -91,13 +92,15 @@ def model_records(rows, last, end):
         ])
         events[key] = [
             [_day(row["when"]), row["kind"], row["field"],
-             json.loads(row["old"]), json.loads(row["new"])]
+             json.loads(row["old"]), json.loads(row["new"]),
+             row.get("flag", "")]
             for row in history
         ]
     return records, events
 
 
 def build(rows, last, end, resamples=1000):
+    flags.mark(rows)
     records, events = model_records(rows, last, end)
     groups = {"all": rows}
     members = defaultdict(set)
@@ -137,7 +140,7 @@ def recent(rows, end, days=7):
     kinds = {"added", "removed", "price", "deprecation"}
     return [
         [_day(row["when"]), row["model"], row["kind"], row["field"],
-         json.loads(row["old"]), json.loads(row["new"])]
+         json.loads(row["old"]), json.loads(row["new"]), row.get("flag", "")]
         for row in rows
         if row["kind"] in kinds
         and datetime.fromisoformat(row["when"]) > cutoff

@@ -113,6 +113,10 @@ section td, section th { text-align: left; }
 td:has(> a[data-model]), td:has(> a[data-group]) { min-width: 240px;
   white-space: normal; overflow-wrap: anywhere; }
 td:has(> a[data-model]) + td, td:has(> a[data-group]) + td { white-space: normal; }
+.tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px;
+       background: var(--raised); border: 1px solid var(--line); color: var(--muted);
+       font-size: 0.75rem; white-space: nowrap; }
+.check { display: inline-flex; gap: 6px; align-items: center; }
 @media (max-width: 560px) {
   .tiles { grid-template-columns: 1fr; }
   .row { grid-template-columns: 72px 1fr; }
@@ -173,7 +177,9 @@ claude-3.5-sonnet). The <b>host</b> is LiteLLM's own provider field.</p>
 <h2>Changed in the last 7 days</h2>
 <p class="muted">Every price change, retirement date, removal and addition in the
 catalogue in the 7 days before the latest data. A single clean up can remove
-hundreds of rows at once.</p>
+hundreds of rows at once. Tags mark <b>bulk clean ups</b> (50 or more models
+removed on the same day), <b>unit fixes</b> (a price made 100 times larger or
+smaller) and <b>reverted</b> changes (undone within 30 days).</p>
 <div class="controls" id="week-filters"></div>
 <div id="week-table"></div>
 </section>
@@ -189,7 +195,8 @@ hundreds of rows at once.</p>
 </div>
 <h2>Most repriced</h2>
 <p class="muted">Counts changes from one price to another. A price appearing
-for the first time is not counted.</p>
+for the first time is not counted, and neither are unit fixes or changes undone
+within 30 days.</p>
 <div id="top-repriced"></div>
 <h2>Hosts ranked by chance of a price change within 1 year</h2>
 <p class="muted">Only hosts with at least 100 models still followed at one
@@ -207,7 +214,8 @@ year are ranked; smaller hosts would give unreliable numbers.</p>
 </div>
 $bars
 <p class="muted">Removals include bulk clean ups of the catalogue, not only
-retired models. Hover over a bar to see its value.</p>
+retired models; the last table below shows the numbers without them. Hover
+over a bar to see its value.</p>
 
 <h2>The numbers, with 95% confidence intervals</h2>
 <div class="scroll">$table</div>
@@ -218,6 +226,14 @@ a model is removed, its price can no longer change.
 
 <h2>Does the definition matter?</h2>
 <div class="scroll">$sensitivity</div>
+
+<h2>Every change, or real changes only?</h2>
+<p class="muted">Some edits fix the catalogue rather than change a model. Real
+changes only leaves out unit fixes (a price made 100 times larger or smaller)
+and price changes undone within 30 days, and treats a model removed in a bulk
+clean up (50 or more models removed on the same day) as still followed until
+that day rather than removed.</p>
+<div class="scroll">$corrections</div>
 
 </section>
 
