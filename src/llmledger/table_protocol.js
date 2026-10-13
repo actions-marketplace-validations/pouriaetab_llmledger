@@ -1,8 +1,4 @@
-/* Table protocol for plain HTML pages (no framework). FRONTEND_UX.md C, F17.
- *
- * Pouria, 2026-10-10: "for all the tables ... I always want to be able to sort by the columns ... when the
- * table is very long ... the header row to come down as well ... And also being able to move the column, change
- * their positions. These are like the three things I always ask."
+/* Table protocol for plain HTML pages (no framework).
  *
  * Every <table> on the page gets, with no change to its HTML:
  *   1. Sort: click a header (or Enter/Space on it): ascending, again: descending. Numbers sort as numbers
@@ -15,7 +11,7 @@
  *      Give a table that is redrawn a stable name with data-key="..." so its memory follows it.
  * Opt out with <table data-plain>. Tables added later are picked up too (MutationObserver).
  * React apps: do not use this on tables React renders (it moves DOM nodes React owns). Render from a columns
- * array and keep sort key, direction and column order in state instead (FRONTEND_UX.md F17).
+ * array and keep sort key, direction and column order in state instead.
  */
 (function () {
   if (window.__tableProtocol) return;
