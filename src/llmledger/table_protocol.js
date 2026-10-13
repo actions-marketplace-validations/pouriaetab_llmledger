@@ -11,6 +11,8 @@
  *   2. Header row stays in view: <th> cells are sticky. A table inside a sideways-scrolling wrapper gets
  *      that wrapper capped at 80% of the window height, because sticky only works inside the box that scrolls.
  *   3. Move columns: drag a header onto another header. The order is remembered per table in this browser.
+ *   4. The last sort is remembered too, and comes back when the table is redrawn or the page is reloaded.
+ *      Give a table that is redrawn a stable name with data-key="..." so its memory follows it.
  * Opt out with <table data-plain>. Tables added later are picked up too (MutationObserver).
  * React apps: do not use this on tables React renders (it moves DOM nodes React owns). Render from a columns
  * array and keep sort key, direction and column order in state instead (FRONTEND_UX.md F17).
@@ -66,7 +68,8 @@
   function key(table, idx) {
     var head = headerRow(table);
     var sig = head ? Array.prototype.map.call(head.cells, function (c) { return c.textContent.trim(); }).sort().join('|') : '';
-    return 'tp:' + location.pathname + ':' + idx + ':' + sig;
+    var id = table.getAttribute('data-key') || idx;   // a stable name survives tables being redrawn
+    return 'tp:' + location.pathname + ':' + id + ':' + sig;
   }
 
   function moveColumn(table, from, to) {
@@ -100,10 +103,23 @@
     });
   }
 
-  function sortBy(table, th) {
+  function saveSort(table, th, dir) {
+    try { localStorage.setItem(table.__tpKey + ':sort', JSON.stringify([th.__tpLabel, dir])); } catch (e) { /* not remembered */ }
+  }
+
+  function restoreSort(table) {
+    var saved;
+    try { saved = JSON.parse(localStorage.getItem(table.__tpKey + ':sort') || 'null'); } catch (e) { saved = null; }
+    if (!Array.isArray(saved)) return;
+    var th = Array.prototype.find.call(headerRow(table).cells, function (c) { return c.__tpLabel === saved[0]; });
+    if (th) sortBy(table, th, saved[1]);
+  }
+
+  function sortBy(table, th, wanted) {
     var head = headerRow(table);
     var col = Array.prototype.indexOf.call(head.cells, th);
-    var dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending';
+    var dir = wanted || (th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending');
+    if (!wanted) saveSort(table, th, dir);
     Array.prototype.forEach.call(head.cells, function (c) {
       c.removeAttribute('aria-sort');
       var a = c.querySelector('.tp-arrow'); if (a) a.textContent = '↕';
@@ -173,6 +189,7 @@
       });
     });
     restoreOrder(table);
+    restoreSort(table);
     fixScrollBox(table);
   }
 
