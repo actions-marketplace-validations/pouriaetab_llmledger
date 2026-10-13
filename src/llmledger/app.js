@@ -49,28 +49,54 @@
     return "Price change: " + esc(field);
   }
 
-  function table(head, rows, opts = {}) {
+  function table(head, rows, key) {
     const th = head.map(h => "<th>" + h + "</th>").join("");
     const body = rows.map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("");
-    return '<div class="scroll"><table' + (opts.plain ? " data-plain" : "") + "><thead><tr>" + th +
+    return '<div class="scroll"><table data-key="' + key + '"><thead><tr>' + th +
       "</tr></thead><tbody>" + body + "</tbody></table></div>";
   }
+
+  /* ---------- remembered settings (this browser only) ---------- */
+  const STORE = "llmledger:page";
+  const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "{}"); } catch (e) { return {}; } })();
+  function remember() {
+    try {
+      localStorage.setItem(STORE, JSON.stringify({
+        tab: currentTab, grouped: $("view-grouped").checked, maker: $("maker").value, host: $("host").value,
+        status: $("status").value, search: $("search").value, compare, weekKind,
+        topN: $("top-n").value, topGrouped: $("top-grouped").checked,
+      }));
+    } catch (e) { /* storage off: settings are just not remembered */ }
+  }
+
+  /* ---------- one model's outlook ---------- */
+  function chanceRow(m, horizon) {
+    if (m.status !== "listed" || !m.added || m.exit || m.age == null) return null;
+    const group = D.curves[m.host] ? m.host : "all";
+    const start = Math.floor(m.age / STEP) * STEP;
+    return (D.curves[group][horizon] || []).find(r => r[0] === start) || null;
+  }
+  const chance = (m, horizon) => { const r = chanceRow(m, horizon); return r ? pct(r[2]) : "–"; };
 
   const modelLink = m => '<a href="#" data-model="' + esc(m.key) + '">' + esc(m.key) + "</a>";
   const groupLink = id => '<a href="#" data-group="' + esc(id) + '">' + esc(id) + "</a>";
 
   /* ---------- tabs ---------- */
   const TABS = ["lookup", "week", "top", "overview"];
+  let currentTab = "lookup";
   function showTab(name) {
     if (!TABS.includes(name)) name = "lookup";
+    currentTab = name;
     for (const t of TABS) {
       $("tab-" + t).hidden = t !== name;
       document.querySelector('[data-tab="' + t + '"]').setAttribute("aria-selected", t === name);
     }
   }
   document.querySelectorAll("[data-tab]").forEach(b =>
-    b.addEventListener("click", () => { history.replaceState(null, "", "#" + b.dataset.tab); showTab(b.dataset.tab); }));
-  showTab(location.hash.slice(1));
+    b.addEventListener("click", () => {
+      history.replaceState(null, "", "#" + b.dataset.tab); showTab(b.dataset.tab); remember();
+    }));
+  showTab(location.hash.slice(1) || saved.tab);
 
   /* ---------- look up ---------- */
   function fillSelect(select, counts, all) {
@@ -88,8 +114,8 @@
     if (maker && m.maker !== maker) return false;
     if (host && m.host !== host) return false;
     if (status && m.status !== status) return false;
-    const hay = norm(m.key + " " + m.name + " " + m.host + " " + m.maker);
-    return words.every(w => hay.includes(w));
+    const hay = norm(m.key + " " + m.name + " " + m.host + " " + m.maker).split(" ");
+    return words.every(w => hay.some(token => token.startsWith(w)));
   }
 
   function renderResults() {
@@ -110,16 +136,20 @@
       html = '<p class="muted">' + ids.length.toLocaleString() + " models match" +
         (ids.length > SHOWN ? "; showing the first " + SHOWN + ". Narrow the search to see more." : ".") +
         " Grouped by naming rules, which can be wrong; switch to <b>As listed</b> to see LiteLLM's own names.</p>" +
-        table(["Model (grouped)", "Listings", "Hosts", "Listed now", "Input $/1M", "Output $/1M", "Price changes", "Last change"], rows);
+        table(["Model (grouped)", "Listings", "Hosts", "Listed now", "Input $/1M", "Output $/1M", "Price changes", "Last change"], rows, "results-grouped");
     } else {
       const rows = hits.slice(0, SHOWN).map(m => [
         '<input type="checkbox" data-compare="' + esc(m.key) + '"' + (compare.includes(m.key) ? " checked" : "") +
         ' aria-label="Compare ' + esc(m.key) + '">',
         modelLink(m), esc(m.host), esc(m.maker), m.status, money(m.input), money(m.output),
-        m.repriced, m.last]);
+        chance(m, "90"), chance(m, "365"), m.repriced, m.last]);
       html = '<p class="muted">' + hits.length.toLocaleString() + " listings match" +
         (hits.length > SHOWN ? "; showing the first " + SHOWN + ". Narrow the search to see more." : ".") + "</p>" +
-        table(["Compare", "Model as listed", "Host", "Maker", "Status", "Input $/1M", "Output $/1M", "Price changes", "Last change"], rows);
+        table(["Compare", "Model as listed", "Host", "Maker", "Status", "Input $/1M", "Output $/1M",
+          "Price change chance, 90 days", "Price change chance, 1 year", "Price changes", "Last change"],
+        rows, "results-listed") +
+        '<p class="muted">The chances are shown for listed models that have not changed since they were added; ' +
+        "click a model for the full outlook with ranges.</p>";
     }
     $("results").innerHTML = html;
   }
@@ -131,10 +161,9 @@
       "). The outlook covers a model's first change only.</p>";
     if (m.age == null) return "<p>No outlook available.</p>";
     const group = D.curves[m.host] ? m.host : "all";
-    const start = Math.floor(m.age / STEP) * STEP;
     const parts = [];
     for (const h of ["90", "365"]) {
-      const row = (D.curves[group][h] || []).find(r => r[0] === start);
+      const row = chanceRow(m, h);
       const label = h === "90" ? "next 90 days" : "next year";
       if (!row) { parts.push("<li>" + label + ": not enough models of this age to estimate.</li>"); continue; }
       const cell = i => pct(row[i]) + ' <span class="muted">(' + range(row[i + 1], row[i + 2]) + ")</span>";
@@ -168,7 +197,7 @@
       "<div><span>Price changes</span>" + m.repriced + "</div></div>" +
       '<p><button type="button" data-add="' + esc(key) + '">Add to compare</button></p>' +
       "<h4>Outlook</h4>" + outlookFor(m) +
-      "<h4>Timeline</h4>" + table(["Date", "Change", "Before", "After"], events);
+      "<h4>Timeline</h4>" + table(["Date", "Change", "Before", "After"], events, "timeline");
     $("detail").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -180,24 +209,22 @@
       '<p class="muted">' + all.length + " listings on " + new Set(all.map(m => m.host)).size + " hosts, " +
       all.filter(m => m.status === "listed").length + " listed now. Grouped by naming rules, which can be wrong: " +
       "every listing is shown below under LiteLLM's own name.</p>" +
-      table(["Model as listed", "Host", "Status", "Input $/1M", "Output $/1M", "Price changes", "Last change"], rows);
+      table(["Model as listed", "Host", "Status", "Input $/1M", "Output $/1M", "Price changes", "Last change"], rows, "group-listings");
     $("detail").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function renderCompare() {
     const box = $("compare");
     if (!compare.length) { box.innerHTML = ""; return; }
-    const rows = compare.map(k => byKey.get(k)).map(m => {
-      const group = D.curves[m.host] ? m.host : "all";
-      const start = m.age == null ? null : Math.floor(m.age / STEP) * STEP;
-      const row = start == null ? null : (D.curves[group]["90"] || []).find(r => r[0] === start);
+    const rows = compare.map(k => byKey.get(k)).filter(Boolean).map(m => {
       return [modelLink(m), esc(m.host), m.status, m.added || "before Sept 2023", money(m.input), money(m.output),
-        m.repriced, m.last, esc(m.retire || "–"), row ? pct(row[2]) : "–",
+        m.repriced, m.last, esc(m.retire || "–"), chance(m, "90"), chance(m, "365"),
         '<button type="button" data-remove="' + esc(m.key) + '">Remove</button>'];
     });
     box.innerHTML = "<h3>Compare (" + compare.length + " of " + MAX_COMPARE + ")</h3>" +
       table(["Model", "Host", "Status", "Added", "Input $/1M", "Output $/1M", "Price changes", "Last change",
-        "Retirement date", "Price change chance, next 90 days", ""], rows) +
+        "Retirement date", "Price change chance, 90 days", "Price change chance, 1 year", ""],
+        rows, "compare") +
       '<p><button type="button" id="clear-compare">Clear</button></p>';
   }
 
@@ -209,6 +236,7 @@
     }
     if (!on && at >= 0) compare.splice(at, 1);
     renderCompare();
+    remember();
     return true;
   }
 
@@ -223,19 +251,27 @@
     else if (t.dataset.group) { e.preventDefault(); showGroup(t.dataset.group); }
     else if (t.dataset.add) { toggleCompare(t.dataset.add, true); renderResults(); }
     else if (t.dataset.remove) { toggleCompare(t.dataset.remove, false); renderResults(); }
-    else if (t.id === "clear-compare") { compare.length = 0; renderCompare(); renderResults(); }
+    else if (t.id === "clear-compare") { compare.length = 0; renderCompare(); renderResults(); remember(); }
   });
   document.addEventListener("change", e => {
     const t = e.target;
     if (t.dataset.compare) { if (!toggleCompare(t.dataset.compare, t.checked)) t.checked = false; }
   });
   ["search", "maker", "host", "status", "view-listed", "view-grouped"].forEach(id =>
-    $(id).addEventListener("input", renderResults));
+    $(id).addEventListener("input", () => { renderResults(); remember(); }));
+  if (saved.grouped) $("view-grouped").checked = true;
+  for (const id of ["maker", "host", "status", "search"]) {
+    if (typeof saved[id] === "string" && (id === "search" || [...$(id).options].some(o => o.value === saved[id]))) {
+      $(id).value = saved[id];
+    }
+  }
+  for (const k of saved.compare || []) if (byKey.has(k) && compare.length < MAX_COMPARE) compare.push(k);
+  renderCompare();
   renderResults();
 
   /* ---------- last 7 days ---------- */
   const KINDS = { price: "Price changes", deprecation: "Retirement dates", removed: "Removed", added: "Added" };
-  let weekKind = "", weekAll = false;
+  let weekKind = KINDS[saved.weekKind] ? saved.weekKind : "", weekAll = false;
   function renderWeek() {
     const counts = {};
     for (const r of D.recent) counts[r[2]] = (counts[r[2]] || 0) + 1;
@@ -248,12 +284,12 @@
     $("week-table").innerHTML = table(["Date", "Model", "Host", "Change", "Before", "After"], shown.map(r => {
       const m = byKey.get(r[1]) || { key: r[1], host: "" };
       return [r[0], modelLink(m), esc(m.host), change(r[2], r[3], r[4], r[5]), value(r[3], r[4]), value(r[3], r[5])];
-    })) + (rows.length > shown.length ? '<p><button type="button" id="week-all">Show all ' +
+    }), "week") + (rows.length > shown.length ? '<p><button type="button" id="week-all">Show all ' +
       rows.length.toLocaleString() + "</button></p>" : "");
   }
   $("week-filters").addEventListener("click", e => {
     if (e.target.dataset.kind === undefined) return;
-    weekKind = e.target.dataset.kind; weekAll = false; renderWeek();
+    weekKind = e.target.dataset.kind; weekAll = false; renderWeek(); remember();
   });
   $("week-table").addEventListener("click", e => { if (e.target.id === "week-all") { weekAll = true; renderWeek(); } });
   renderWeek();
@@ -266,11 +302,11 @@
       rows = [...groups.entries()].map(([id, all]) => [id, all.reduce((s, m) => s + m.repriced, 0), all])
         .filter(r => r[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, n)
         .map((r, i) => [i + 1, groupLink(r[0]), r[2].length, r[1], r[2].map(m => m.last).sort().pop()]);
-      $("top-repriced").innerHTML = table(["Rank", "Model (grouped)", "Listings", "Price changes", "Last change"], rows);
+      $("top-repriced").innerHTML = table(["Rank", "Model (grouped)", "Listings", "Price changes", "Last change"], rows, "top-grouped");
     } else {
       rows = models.filter(m => m.repriced > 0).sort((a, b) => b.repriced - a.repriced).slice(0, n)
         .map((m, i) => [i + 1, modelLink(m), esc(m.host), m.repriced, m.last]);
-      $("top-repriced").innerHTML = table(["Rank", "Model as listed", "Host", "Price changes", "Last change"], rows);
+      $("top-repriced").innerHTML = table(["Rank", "Model as listed", "Host", "Price changes", "Last change"], rows, "top-listed");
     }
     const ranked = D.providers.slice().sort((a, b) => b[3] - a[3]).slice(0, n).map((p, i) => [
       i + 1, esc(p[0]), p[1].toLocaleString(), p[2].toLocaleString(),
@@ -278,8 +314,10 @@
       pct(p[6]) + "<small>" + range(p[7], p[8]) + "</small>",
       pct(p[9]) + "<small>" + range(p[10], p[11]) + "</small>"]);
     $("top-hosts").innerHTML = table(["Rank", "Host", "Models followed", "Still followed at 1 year",
-      "Price change within 1 year", "Retirement date within 1 year", "Removed within 1 year"], ranked);
+      "Price change within 1 year", "Retirement date within 1 year", "Removed within 1 year"], ranked, "top-hosts");
   }
-  ["top-n", "top-listed", "top-grouped"].forEach(id => $(id).addEventListener("input", renderTop));
+  ["top-n", "top-listed", "top-grouped"].forEach(id => $(id).addEventListener("input", () => { renderTop(); remember(); }));
+  if (["10", "20", "all"].includes(saved.topN)) $("top-n").value = saved.topN;
+  if (saved.topGrouped) $("top-grouped").checked = true;
   renderTop();
 })();

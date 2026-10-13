@@ -31,10 +31,11 @@ removed, within 30 days to 2 years.
 4. **Publishes the results.** Rebuilds the results page from LiteLLM's latest
    history every day (`site/index.html`).
 5. **Looks up any model.** Search by name, maker or host, under LiteLLM's own
-   names or grouped by model, to see a model's timeline, its outlook for the
-   next 90 days and year, and a side by side comparison of up to five models.
-   The page also lists every change in the last 7 days and the most repriced
-   models.
+   names or grouped by model, to see each listing's chance of a price change in
+   the next 90 days and year, its timeline and full outlook, and a side by side
+   comparison of up to five models. The page also lists every change in the
+   last 7 days and the most repriced models. Every table sorts, keeps its
+   header in view and lets you move columns, and remembers all of it.
 
 ## First results
 
