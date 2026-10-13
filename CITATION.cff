@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: "Emami Tabrizi"
     given-names: "Pouria"
-version: 1.1.0
+version: 1.2.0
 date-released: 2026-10-13
 license: MIT
 doi: 10.5281/zenodo.23330454
@@ -16,8 +16,9 @@ abstract: >-
   with competing risks survival analysis (Aalen-Johansen with bootstrap
   intervals), how likely a newly added model is to have its price changed,
   get a retirement date, or be removed. Results are republished daily, with a
-  lookup for every model, a prompt cost calculator, flags for corrections and
-  bulk clean ups, and an independent SQL cross-check.
+  lookup for every model, a cost calculator for text, images, video and speech,
+  a best value finder using Arena ratings, flags for corrections and bulk
+  clean ups, and an independent SQL cross-check.
 keywords:
   - survival analysis
   - competing risks

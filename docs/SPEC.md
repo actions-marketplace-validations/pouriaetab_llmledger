@@ -196,6 +196,39 @@ stored.
 Verified by: automated known answer tests of `cost.js`, and the page in
 a browser.
 
+**REQ-S24 Media and choices.** For a text answer, the page shall add the
+cost of attached images, PDF pages, audio and video, using the model's own
+per-image or per-second price when LiteLLM lists one and otherwise about
+1,000 tokens per image, 1,500 per PDF page, 32 per second of audio and 300
+per second of video, and shall show only models that can take that input
+in. It shall also price making images (per image), video (per second) and
+speech (per character or per second). Answer length shall be offered as
+Short (250 tokens), Medium (800), Long (2,000), Very long (6,000) or a
+number. Models shall be filterable by skill, prompt size, maker, model,
+version and host, each with an All option.
+Verified by: automated known answer tests of `cost.js`, and the page in
+a browser.
+
+**REQ-S25 Best value.** The page shall show, for each task in Arena's
+leaderboard that it offers, the Arena rating and 95% range of every model
+it can match to the catalogue, the cost of the user's prompt on the
+cheapest listing of that model, and mark as best value the cheapest model
+whose range overlaps the top model's. If Arena cannot be reached, the page
+shall be built without ratings.
+Verified by: automated tests of name matching, of the best value rule,
+and of a failed download.
+
+**REQ-S26 Licences.** Every run shall read the current licence of each
+outside source (LiteLLM's licence file, the Arena dataset card, and the
+test tools on PyPI) and accept only licences open for business use (MIT,
+Apache-2.0, BSD, ISC, CC BY 4.0, CC0). If LiteLLM's is not, the run shall
+stop before publishing. If Arena's is not, or cannot be read, the page
+shall be built without ratings. Every problem shall be written to
+`data/licence-problems.txt`, from which the daily refresh opens a GitHub
+issue, and the licences found shall be shown on the page.
+Verified by: automated tests with each source open, closed and
+unreachable.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
@@ -234,7 +267,15 @@ a browser.
   way, often 10 to 30% differently from 4 characters per token, and
   caching, batch discounts, long prompt prices and taxes are left out.
   Modes come from LiteLLM; a few embedding and image models listed as
-  chat are left out by name, and others may remain.
+  chat are left out by name, and others may remain. Tokens for images,
+  PDF pages, audio and video vary a lot by model and by file.
+- **L14** Arena ratings measure which answer people preferred, not
+  whether it was correct. Arena names are matched to the catalogue by
+  naming rules, so some models are left out and a few may be matched to
+  the wrong listing. A rating is for the version Arena tested, often with
+  high reasoning effort, which uses more answer tokens than the default.
+  Overlapping 95% ranges mean the votes cannot tell two models apart, not
+  that they are equal.
 
 ## 6. Known-answer example
 
@@ -279,5 +320,8 @@ a browser.
 | REQ-S21 | `test_req_s21_real_changes_only`, `test_req_s21_page_compares_every_change_with_real_changes` | test |
 | REQ-S22 | `test_req_s22_sql_and_python_agree`, `test_req_s22_sql_known_answer`, `test_req_s22_a_disagreement_stops_the_check`; the "SQL check" line in every daily run | test, demonstration |
 | REQ-S23 | `test_req_s23_tokens_are_estimated_at_four_characters`, `test_req_s23_cost_known_answer`, `test_req_s23_cheapest_listing_per_model`, `test_req_s23_only_text_models_are_priced`; the Prompt cost tab | test, demonstration |
+| REQ-S24 | `test_req_s24_answer_lengths_are_fixed_sizes`, `test_req_s24_attachments_add_cost_and_need_the_skill`, `test_req_s24_listed_per_unit_prices_win_over_estimates`, `test_req_s24_images_video_and_speech_out`, `test_req_s24_family_and_version_from_a_grouped_name`, `test_req_s24_records_carry_skills_size_and_media_prices`; the Prompt cost tab | test, demonstration |
+| REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
+| REQ-S25 | `test_req_s25_arena_names_are_tried_longest_first`, `test_req_s25_matching_prefers_the_arena_maker`, `test_req_s25_best_variant_kept_and_unmatched_left_out`, `test_req_s25_arena_down_means_no_ratings`, `test_req_s25_best_value_is_the_cheapest_tied_with_the_top`; the Best value tab | test, demonstration |
 
 All tests run on every pull request and before every daily refresh.

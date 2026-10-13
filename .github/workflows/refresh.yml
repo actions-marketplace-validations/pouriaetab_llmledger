@@ -10,6 +10,7 @@ on:
 permissions:
   actions: write
   contents: read
+  issues: write
   pages: write
   id-token: write
 
@@ -38,6 +39,18 @@ jobs:
       - run: python -m llmledger.pipeline
         env:
           PYTHONPATH: src
+      # The pipeline checks every outside source's licence and writes any
+      # problem to this file. Open one issue about it (not one a day).
+      - name: Report licence problems
+        if: always()
+        run: |
+          [ -f data/licence-problems.txt ] || exit 0
+          open=$(gh issue list --state open --search "Licence check in:title" --json number --jq length)
+          [ "$open" = "0" ] || exit 0
+          gh issue create --title "Licence check: an outside source changed" --body-file data/licence-problems.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site

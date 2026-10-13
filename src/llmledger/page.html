@@ -119,6 +119,13 @@ td:has(> a[data-model]) + td, td:has(> a[data-group]) + td { white-space: normal
        background: var(--raised); border: 1px solid var(--line); color: var(--muted);
        font-size: 0.75rem; white-space: nowrap; }
 .check { display: inline-flex; gap: 6px; align-items: center; }
+details { margin: 10px 0; }
+summary { cursor: pointer; color: var(--muted); }
+.pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
+.pick .list { max-height: 220px; overflow-y: auto; border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; }
+.pick label { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 700px) { .pick { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) {
   .tiles { grid-template-columns: 1fr; }
   .row { grid-template-columns: 72px 1fr; }
@@ -146,6 +153,7 @@ to a public catalogue, not what any model costs you.
 <nav class="tabs" role="tablist">
   <button type="button" role="tab" data-tab="lookup">Look up a model</button>
   <button type="button" role="tab" data-tab="cost">Prompt cost</button>
+  <button type="button" role="tab" data-tab="value">Best value</button>
   <button type="button" role="tab" data-tab="week">Last 7 days</button>
   <button type="button" role="tab" data-tab="top">Top lists</button>
   <button type="button" role="tab" data-tab="overview">All models</button>
@@ -177,32 +185,80 @@ claude-3.5-sonnet). The <b>host</b> is LiteLLM's own provider field.</p>
 </section>
 
 <section id="tab-cost" hidden>
-<h2>What would one prompt cost on each model?</h2>
+<h2>What would it cost?</h2>
 <p class="muted">Paste a prompt, or type how many tokens it has. Your text stays in
 this page: it is not sent anywhere or saved.</p>
 <textarea id="cost-text" rows="5" placeholder="Paste a prompt here" aria-label="Prompt"></textarea>
 <div class="controls">
+  <label>You want back <select id="cost-want">
+    <option value="text">A text answer</option>
+    <option value="image">Images</option>
+    <option value="video">Video</option>
+    <option value="speech">Speech (read aloud)</option>
+  </select></label>
   <label>Prompt tokens <input type="number" id="cost-in" min="0" step="1" value="0"></label>
-  <label>Answer tokens <input type="number" id="cost-out" min="0" step="1" value="500"></label>
-  <label>Calls <input type="number" id="cost-calls" min="1" step="1" value="1"></label>
+  <label class="for-text">Answer length <select id="cost-len"></select></label>
+  <label id="cost-out-box" hidden>Answer tokens <input type="number" id="cost-out" min="0" step="1" value="800"></label>
+  <label class="for-media" hidden><span id="cost-count-label">Images</span>
+    <input type="number" id="cost-count" min="0" step="1" value="1"></label>
+  <label>How many times <input type="number" id="cost-calls" min="1" step="1" value="1"></label>
 </div>
+<details class="for-text">
+<summary>Add images, documents, audio or video to the prompt</summary>
+<div class="controls">
+  <label>Images <input type="number" id="att-images" min="0" step="1" value="0"></label>
+  <label>PDF pages <input type="number" id="att-pages" min="0" step="1" value="0"></label>
+  <label>Audio minutes <input type="number" id="att-audio" min="0" step="0.5" value="0"></label>
+  <label>Video minutes <input type="number" id="att-video" min="0" step="0.5" value="0"></label>
+</div>
+<p class="muted">Only models that can take these in are shown. When LiteLLM has no
+per-image or per-second price for a model, an image counts as about 1,000 tokens,
+a PDF page about 1,500, a second of audio about 32 and a second of video about 300.</p>
+</details>
+<details class="for-text">
+<summary>The model must be able to</summary>
+<div class="controls" id="skill-boxes"></div>
+<div class="controls"><label>Prompt size at least <select id="cost-size">
+  <option value="0">Any</option><option value="32000">32,000 tokens</option>
+  <option value="128000">128,000 tokens</option><option value="200000">200,000 tokens</option>
+  <option value="1000000">1 million tokens</option></select></label></div>
+</details>
+<div data-pick-slot></div>
 <div class="controls">
   <span class="toggle" role="radiogroup" aria-label="Rows">
     <label><input type="radio" name="cost-view" id="cost-cheapest" checked> Cheapest listing per model</label>
     <label><input type="radio" name="cost-view" id="cost-every"> Every listing</label>
   </span>
-  <select id="cost-maker" aria-label="Maker"></select>
   <input type="search" id="cost-search" placeholder="Filter, for example claude" aria-label="Filter models">
   <label class="check"><input type="checkbox" id="cost-free"> Show free listings (price 0)</label>
 </div>
 <p class="muted" id="cost-note"></p>
 <div id="cost-table"></div>
-<p class="muted">Prompt tokens are estimated at about 4 characters per token, a common
-rule of thumb for English; each model counts tokens its own way, often 10 to 30%
-differently. Costs use the catalogue's standard input and output prices for chat
-models; caching, batch discounts and long prompt prices are left out. The chance
-of a price change is shown for listings that have not changed since they were
-added.</p>
+<p class="muted">These are estimates. Prompt tokens are counted at about 4
+characters per token, a common rule of thumb for English; each model counts its
+own way, often 10 to 30% differently. You cannot know the answer length in
+advance, so pick the closest size. Thinking models also bill their hidden
+reasoning as answer tokens, often several times the visible answer. "How many
+times" is how often you send this prompt, for example 1,000 customer questions a
+day; in a chat, each message also re-sends the conversation so far. Caching,
+batch discounts and long prompt prices are left out.</p>
+</section>
+
+<section id="tab-value" hidden>
+<h2>Best value for a task</h2>
+<p class="muted">Quality comes from the Arena leaderboard, where people compare
+two anonymous answers to the same prompt and vote for the better one. Each rating
+has a 95% range. <b>Best value</b> is the cheapest model whose range overlaps the
+top model's, so the votes cannot tell it apart from the best.</p>
+<div class="controls">
+  <label>Task <select id="value-task"></select></label>
+  <label class="check"><input type="checkbox" id="value-tied"> Only models tied with the top</label>
+</div>
+<p class="muted" id="value-using"></p>
+<div data-pick-slot></div>
+<div id="value-best"></div>
+<div id="value-table"></div>
+<p class="muted" id="value-credit"></p>
 </section>
 
 <section id="tab-week" hidden>
@@ -215,6 +271,18 @@ smaller) and <b>reverted</b> changes (undone within 30 days).</p>
 <div class="controls" id="week-filters"></div>
 <div id="week-table"></div>
 </section>
+
+<details id="pick">
+<summary id="pick-summary">Choose makers, models, versions and hosts</summary>
+<div class="pick">
+  <div><b>Makers</b><div class="list" id="pick-makers"></div></div>
+  <div><b>Models</b><div class="list" id="pick-families"></div></div>
+  <div><b>Versions</b><div class="list" id="pick-versions"></div></div>
+  <div><b>Hosts</b><div class="list" id="pick-hosts"></div></div>
+</div>
+<p class="muted">Leave a list on All to include everything. Models and versions
+are split from the grouped names by naming rules, which can be wrong.</p>
+</details>
 
 <section id="tab-top" hidden>
 <div class="controls">
@@ -273,6 +341,7 @@ that day rather than removed.</p>
 <p>Data: LiteLLM <code>main</code> at
 <a href="$litellm/commit/$sha">$short</a>, last price file change
 $data_date. Page built $built with Python $python.</p>
+<p id="licences"></p>
 <p>Method, specification and tests: <a href="$repo">llmledger on GitHub</a>.
 MIT licence.</p>
 </footer>

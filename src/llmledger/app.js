@@ -1,11 +1,11 @@
-/* llmledger results page: model lookup, compare, prompt cost, last 7 days, top lists.
+/* llmledger results page: model lookup, compare, prompt cost, best value, last 7 days, top lists.
    Reads window.LLMLEDGER, written by page.py from the daily pipeline, and
    window.LLMCOST from cost.js. */
 (function () {
   const D = window.LLMLEDGER;
   if (!D) return;
   const FIELDS = ["key", "maker", "name", "host", "mode", "status", "added",
-    "removed", "retire", "input", "output", "repriced", "last", "exit", "age"];
+    "removed", "retire", "input", "output", "repriced", "last", "exit", "age", "skills", "size", "media"];
   const models = D.models.map(r => Object.fromEntries(FIELDS.map((f, i) => [f, r[i]])));
   const byKey = new Map(models.map(m => [m.key, m]));
   const groups = new Map();
@@ -67,14 +67,14 @@
   /* ---------- remembered settings (this browser only) ---------- */
   const STORE = "llmledger:page";
   const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "{}"); } catch (e) { return {}; } })();
+  let costSettings = () => ({});   // filled in by the prompt cost section
+  let onTab = () => {};            // likewise: moves the shared model picker
   function remember() {
     try {
       localStorage.setItem(STORE, JSON.stringify({
         tab: currentTab, grouped: $("view-grouped").checked, maker: $("maker").value, host: $("host").value,
         status: $("status").value, search: $("search").value, compare, weekKind, weekReal,
-        topN: $("top-n").value, topGrouped: $("top-grouped").checked,
-        costOut: $("cost-out").value, costCalls: $("cost-calls").value, costEvery: $("cost-every").checked,
-        costMaker: $("cost-maker").value, costSearch: $("cost-search").value, costFree: $("cost-free").checked,
+        topN: $("top-n").value, topGrouped: $("top-grouped").checked, ...costSettings(),
       }));
     } catch (e) { /* storage off: settings are just not remembered */ }
   }
@@ -92,7 +92,7 @@
   const groupLink = id => '<a href="#" data-group="' + esc(id) + '">' + esc(id) + "</a>";
 
   /* ---------- tabs ---------- */
-  const TABS = ["lookup", "cost", "week", "top", "overview"];
+  const TABS = ["lookup", "cost", "value", "week", "top", "overview"];
   let currentTab = "lookup";
   function showTab(name) {
     if (!TABS.includes(name)) name = "lookup";
@@ -101,6 +101,7 @@
       $("tab-" + t).hidden = t !== name;
       document.querySelector('[data-tab="' + t + '"]').setAttribute("aria-selected", t === name);
     }
+    onTab(name);
   }
   document.querySelectorAll("[data-tab]").forEach(b =>
     b.addEventListener("click", () => {
@@ -279,64 +280,251 @@
   renderCompare();
   renderResults();
 
-  /* ---------- prompt cost ---------- */
+  /* ---------- prompt cost and best value ---------- */
   // The prompt text never leaves this page and is not remembered; only the numbers are.
   const C = window.LLMCOST;
-  const textModels = models.filter(m => m.status === "listed" && C.isTextModel(m.key, m.mode) &&
-    m.input != null && m.output != null);
-  const isText = new Set(textModels);
+  const SKILL_LABELS = { vision: "Read images", pdf: "Read PDFs", audio: "Hear audio", video: "Watch video",
+    tools: "Use tools", reasoning: "Think step by step", web: "Search the web", schema: "Return JSON",
+    cache: "Cache prompts", computer: "Use a computer" };
+  const WANTS = {
+    text: { noun: "text answer", count: null, unit: null },
+    image: { noun: ["image", "images"], count: "Images", unit: ["Price per image", 1] },
+    video: { noun: ["second of video", "seconds of video"], count: "Seconds of video", unit: ["Price per second", 1] },
+    speech: { noun: ["character to read aloud", "characters to read aloud"], count: "Characters to read aloud",
+      unit: ["Price per 1,000 characters", 1000] },
+  };
+  const listed = models.filter(m => m.status === "listed");
   const dollars = v => v == null ? "–" : v === 0 ? "$0" : "$" + (v >= 1
     ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : v.toFixed(Math.min(20, 2 - Math.floor(Math.log10(v)))));
   const whole = (id, low) => Math.max(low, Math.floor(Number($(id).value) || 0));
+  const amount = id => Math.max(0, Number($(id).value) || 0);
+  const familyKey = m => { const [f, v] = C.familyOf(m.name); return [m.maker + " / " + f, m.maker + " / " + f + " / " + v, f, v]; };
+  const pick = { makers: null, families: null, versions: null, hosts: null };   // null means all
+  for (const k of Object.keys(pick)) if (Array.isArray(saved["pick_" + k]) && saved["pick_" + k].length) pick[k] = new Set(saved["pick_" + k]);
   let costAll = false;
 
+  function query(want) {
+    const len = $("cost-len").value;
+    return {
+      want: want || $("cost-want").value, inTok: whole("cost-in", 0),
+      outTok: len === "custom" ? whole("cost-out", 0) : C.ANSWERS[len].tokens,
+      images: amount("att-images"), pages: amount("att-pages"),
+      audioSeconds: amount("att-audio") * 60, videoSeconds: amount("att-video") * 60,
+      count: whole("cost-count", 0), calls: whole("cost-calls", 1),
+    };
+  }
+  const needs = () => [...document.querySelectorAll("#skill-boxes input:checked")].map(b => b.value);
+  const eligible = (m, want) => C.priceFor(m, { want, inTok: 0, outTok: 0, count: 1 }) != null;
+  function passes(m, q, words) {
+    if (pick.makers && !pick.makers.has(m.maker)) return false;
+    if (pick.hosts && !pick.hosts.has(m.host)) return false;
+    const [fam, ver] = familyKey(m);
+    if (pick.families && !pick.families.has(fam)) return false;
+    if (pick.versions && !pick.versions.has(ver)) return false;
+    if (q.want === "text") {
+      const size = Number($("cost-size").value);
+      if (size && !(m.size >= size)) return false;
+      if (!needs().every(s => (m.skills || []).includes(s))) return false;
+    }
+    return matches(m, words, "", "", "");
+  }
+  function priced(q, search = true) {
+    const words = search ? norm($("cost-search").value).split(" ").filter(Boolean) : [];
+    const free = $("cost-free").checked;
+    let hidden = 0;
+    const rows = [];
+    for (const m of listed) {
+      if (!passes(m, q, words)) continue;
+      const cost = C.priceFor(m, q);
+      if (cost == null) continue;
+      if (cost === 0 && !free) { hidden++; continue; }
+      rows.push({ m, cost });
+    }
+    return { rows, hidden };
+  }
+  function describe(q) {
+    if (q.want !== "text") return q.count.toLocaleString() + " " + WANTS[q.want].noun[q.count === 1 ? 0 : 1];
+    const extra = [["images", "image"], ["pages", "PDF page"]].filter(([k]) => q[k] > 0)
+      .map(([k, n]) => q[k] + " " + n + (q[k] === 1 ? "" : "s"))
+      .concat(q.audioSeconds > 0 ? [q.audioSeconds / 60 + " min of audio"] : [])
+      .concat(q.videoSeconds > 0 ? [q.videoSeconds / 60 + " min of video"] : []);
+    const must = needs().map(s => SKILL_LABELS[s].toLowerCase());
+    return q.inTok.toLocaleString() + " prompt tokens and " + q.outTok.toLocaleString() + " answer tokens" +
+      (extra.length ? ", with " + extra.join(", ") : "") + (must.length ? "; must " + must.join(", ") : "");
+  }
+
+  // ----- makers, models, versions and hosts: All or some -----
+  function renderPick() {
+    const want = currentTab === "value" ? "text" : $("cost-want").value;
+    const pool = listed.filter(m => eligible(m, want));
+    const counts = (rows, keyOf) => { const c = new Map(); for (const m of rows) { const k = keyOf(m); c.set(k, (c.get(k) || 0) + 1); } return c; };
+    const list = (id, level, counter, show) => {
+      const items = [...counter.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+      const chosen = pick[level];
+      $(id).innerHTML = '<label><input type="checkbox" data-pick="' + level + '" value=""' + (chosen ? "" : " checked") +
+        "> <b>All</b></label>" + items.map(([k, n]) => '<label><input type="checkbox" data-pick="' + level +
+        '" value="' + esc(k) + '"' + (chosen && chosen.has(k) ? " checked" : "") + "> " + show(k) + ' <span class="muted">' + n + "</span></label>").join("");
+    };
+    list("pick-makers", "makers", counts(pool, m => m.maker), esc);
+    const inMakers = pool.filter(m => !pick.makers || pick.makers.has(m.maker));
+    list("pick-families", "families", counts(inMakers, m => familyKey(m)[0]), k => esc(k.split(" / ")[1]));
+    const inFamilies = inMakers.filter(m => !pick.families || pick.families.has(familyKey(m)[0]));
+    list("pick-versions", "versions", counts(inFamilies, m => familyKey(m)[1]),
+      k => { const [, f, v] = k.split(" / "); return esc(f) + " " + (v ? esc(v) : '<span class="muted">(no number)</span>'); });
+    list("pick-hosts", "hosts", counts(pool, m => m.host), k => esc(k || "unknown"));
+    const n = Object.values(pick).filter(Boolean).length;
+    $("pick-summary").textContent = "Choose makers, models, versions and hosts (" + (n ? n + " narrowed" : "all") + ")";
+  }
+  $("pick").addEventListener("change", e => {
+    const level = e.target.dataset.pick;
+    if (!level) return;
+    if (e.target.value === "") pick[level] = null;
+    else {
+      const set = pick[level] || new Set();
+      if (e.target.checked) set.add(e.target.value); else set.delete(e.target.value);
+      pick[level] = set.size ? set : null;
+    }
+    if (level === "makers") { pick.families = null; pick.versions = null; }
+    if (level === "families") pick.versions = null;
+    costAll = false; renderPick(); renderCost(); renderValue(); remember();
+  });
+
+  // ----- prompt cost -----
   function renderCost() {
-    const inT = whole("cost-in", 0), outT = whole("cost-out", 0), calls = whole("cost-calls", 1);
-    const words = norm($("cost-search").value).split(" ").filter(Boolean);
-    const every = $("cost-every").checked, free = $("cost-free").checked;
-    const found = textModels.filter(m => matches(m, words, $("cost-maker").value, "", ""));
-    const pool = found.filter(m => free || m.input > 0 || m.output > 0);
-    const price = m => C.costOf(m.input, m.output, inT, outT);
-    const ranked = every
-      ? C.cheapestPerGroup(pool, m => m.key, price)
-      : C.cheapestPerGroup(pool, m => m.maker + " / " + m.name, price);
+    const q = query();
+    const want = WANTS[q.want];
+    document.querySelectorAll(".for-text").forEach(el => { el.hidden = q.want !== "text"; });
+    document.querySelectorAll(".for-media").forEach(el => { el.hidden = q.want === "text"; });
+    $("cost-out-box").hidden = q.want !== "text" || $("cost-len").value !== "custom";
+    if (want.count) $("cost-count-label").textContent = want.count;
+    const every = $("cost-every").checked;
+    const { rows, hidden } = priced(q);
+    const ranked = every ? C.cheapestPerGroup(rows, r => r.m.key, r => r.cost)
+      : C.cheapestPerGroup(rows, r => r.m.maker + " / " + r.m.name, r => r.cost);
     const shown = costAll ? ranked : ranked.slice(0, SHOWN);
-    const callsLabel = calls === 1 ? "Cost for 1 call" : "Cost for " + calls.toLocaleString() + " calls";
-    const rows = shown.map((r, i) => {
-      const m = r.row;
+    const timesLabel = q.calls === 1 ? "Cost for 1 time" : "Cost for " + q.calls.toLocaleString() + " times";
+    const priceHead = want.unit ? [want.unit[0]] : ["Input $/1M", "Output $/1M"];
+    const body = shown.map((r, i) => {
+      const m = r.row.m;
       const start = every ? [i + 1, modelLink(m), esc(m.host)]
-        : [i + 1, groupLink(r.id), modelLink(m), groups.get(r.id).filter(g => isText.has(g)).length];
-      return start.concat([money(m.input), money(m.output), dollars(r.cost), dollars(r.cost * calls),
-        chance(m, "90"), esc(m.retire || "–")]);
+        : [i + 1, groupLink(r.id), modelLink(m), groups.get(r.id).filter(g => g.status === "listed").length];
+      const price = want.unit ? [dollars(C.priceFor(m, { want: q.want, count: want.unit[1] }))] : [money(m.input), money(m.output)];
+      return start.concat(price, [dollars(r.cost), dollars(r.cost * q.calls), chance(m, "90"), esc(m.retire || "–")]);
     });
     const head = (every ? ["Rank", "Model as listed", "Host"] : ["Rank", "Model (grouped)", "Cheapest listing", "Listings"])
-      .concat(["Input $/1M", "Output $/1M", "Cost per call", callsLabel, "Price change chance, 90 days", "Retirement date"]);
-    const hidden = found.length - pool.length;
-    $("cost-note").innerHTML = ranked.length.toLocaleString() + (every ? " listings" : " models") +
-      " for " + inT.toLocaleString() + " prompt tokens and " + outT.toLocaleString() + " answer tokens, cheapest first." +
-      (hidden ? " " + hidden.toLocaleString() + " free listings (price 0) are hidden." : "");
-    $("cost-table").innerHTML = table(head, rows, every ? "cost-listed" : "cost-grouped") +
+      .concat(priceHead, ["Cost per time", timesLabel, "Price change chance, 90 days", "Retirement date"]);
+    $("cost-note").innerHTML = ranked.length.toLocaleString() + (every ? " listings" : " models") + " for " +
+      esc(describe(q)) + ", cheapest first." + (hidden ? " " + hidden.toLocaleString() + " free listings (price 0) are hidden." : "");
+    $("cost-table").innerHTML = table(head, body, (every ? "cost-listed-" : "cost-grouped-") + q.want) +
       (ranked.length > shown.length ? '<p><button type="button" id="cost-all">Show all ' +
         ranked.length.toLocaleString() + "</button></p>" : "");
   }
 
-  const makers = new Map();
-  for (const m of textModels) makers.set(m.maker, (makers.get(m.maker) || 0) + 1);
-  fillSelect($("cost-maker"), makers, "Any maker");
-  if (/^\d+$/.test(saved.costOut || "")) $("cost-out").value = saved.costOut;
-  if (/^\d+$/.test(saved.costCalls || "")) $("cost-calls").value = saved.costCalls;
-  if (saved.costEvery) $("cost-every").checked = true;
-  if (saved.costFree) $("cost-free").checked = true;
-  if (typeof saved.costSearch === "string") $("cost-search").value = saved.costSearch;
-  if ([...$("cost-maker").options].some(o => o.value === saved.costMaker)) $("cost-maker").value = saved.costMaker;
+  // ----- best value (Arena ratings) -----
+  function renderValue() {
+    const A = D.arena;
+    if (!A) {
+      $("value-best").innerHTML = "<p>Arena ratings could not be loaded with today's data. The other tabs are not affected.</p>";
+      $("value-table").innerHTML = ""; return;
+    }
+    const task = $("value-task").value;
+    const q = query("text");
+    const cheapest = new Map();
+    for (const r of priced(q, false).rows) {
+      const id = r.m.maker + " / " + r.m.name, kept = cheapest.get(id);
+      if (!kept || r.cost < kept.cost) cheapest.set(id, r);
+    }
+    let rows = (A.tasks[task] || []).filter(a => cheapest.has(a[0])).map(a => ({
+      id: a[0], arenaName: a[1], rating: a[2], low: a[3], high: a[4], votes: a[5], ...cheapest.get(a[0]) }));
+    const best = C.bestValue(rows);
+    const top = rows[0];
+    rows.forEach(r => { r.tied = top && r.high >= top.low; });
+    if ($("value-tied").checked) rows = rows.filter(r => r.tied);
+    $("value-using").textContent = "Priced for " + describe(q) + ", " + q.calls.toLocaleString() +
+      (q.calls === 1 ? " time" : " times") + ". Change these on the Prompt cost tab.";
+    $("value-best").innerHTML = best ? "<p><b>Best value: " + esc(best.id) + "</b> on " + esc(best.m.host) + ", " +
+      dollars(best.cost) + " per time. Its rating (" + best.rating.toFixed(0) + ") cannot be told apart from the top model, " +
+      esc(top.id) + " (" + top.rating.toFixed(0) + ", " + dollars(top.cost) + ")" +
+      (top.cost > best.cost ? ", which costs " + (top.cost / best.cost).toFixed(1) + " times as much" : "") + ".</p>"
+      : "<p>No rated model matches these choices.</p>";
+    $("value-table").innerHTML = table(["Rank", "Model (grouped)", "Arena rating", "Votes", "Cheapest listing",
+      "Cost per time", "Tied with the top", "Price change chance, 90 days"], rows.slice(0, 200).map((r, i) => [
+      i + 1, groupLink(r.id) + (r === best ? ' <span class="tag">best value</span>' : "") + "<small>" + esc(r.arenaName) + "</small>",
+      r.rating.toFixed(0) + "<small>" + r.low.toFixed(0) + " to " + r.high.toFixed(0) + "</small>",
+      r.votes.toLocaleString(), modelLink(r.m), dollars(r.cost), r.tied ? "yes" : "–", chance(r.m, "90")]), "value-" + task);
+    $("value-credit").innerHTML = 'Ratings: <a href="' + esc(A.source) + '">Arena leaderboard</a>, published ' +
+      esc(A.date) + ", licensed CC BY 4.0. " + A.matched + " of " + A.total +
+      " Arena models were matched to the catalogue by naming rules; the rest are not shown. " +
+      "A rating is for the version Arena tested (shown under each name); the price is for the cheapest listing of that model.";
+  }
+
+  // ----- set up, restore and wire -----
+  $("cost-len").innerHTML = Object.entries(C.ANSWERS).map(([k, a]) =>
+    '<option value="' + k + '">' + esc(a.label) + " (" + a.tokens.toLocaleString() + " tokens)</option>").join("") +
+    '<option value="custom">Custom</option>';
+  $("cost-len").value = "medium";
+  $("skill-boxes").innerHTML = Object.entries(SKILL_LABELS).map(([k, label]) =>
+    '<label class="check"><input type="checkbox" value="' + k + '"> ' + esc(label) + "</label>").join(" ");
+  if (D.arena) {
+    $("value-task").innerHTML = D.arena.labels.map(([k, label]) => '<option value="' + k + '">' + esc(label) + "</option>").join("");
+  }
+  const restore = (id, ok) => { if (ok(saved["c_" + id])) $(id).value = saved["c_" + id]; };
+  const isCount = v => /^\d+(\.\d+)?$/.test(String(v ?? ""));
+  ["cost-out", "cost-count", "cost-calls", "att-images", "att-pages", "att-audio", "att-video"].forEach(id => restore(id, isCount));
+  restore("cost-want", v => v in WANTS);
+  restore("cost-len", v => v in C.ANSWERS || v === "custom");
+  restore("cost-size", v => [...$("cost-size").options].some(o => o.value === v));
+  restore("value-task", v => [...$("value-task").options].some(o => o.value === v));
+  if (typeof saved.c_search === "string") $("cost-search").value = saved.c_search;
+  if (saved.c_every) $("cost-every").checked = true;
+  if (saved.c_free) $("cost-free").checked = true;
+  if (saved.c_tied) $("value-tied").checked = true;
+  for (const box of document.querySelectorAll("#skill-boxes input")) box.checked = (saved.c_needs || []).includes(box.value);
+  costSettings = () => {
+    const out = { c_search: $("cost-search").value, c_every: $("cost-every").checked, c_free: $("cost-free").checked,
+      c_tied: $("value-tied").checked, c_needs: needs() };
+    for (const id of ["cost-out", "cost-count", "cost-calls", "att-images", "att-pages", "att-audio", "att-video",
+      "cost-want", "cost-len", "cost-size", "value-task"]) out["c_" + id] = $(id).value;
+    for (const k of Object.keys(pick)) out["pick_" + k] = pick[k] ? [...pick[k]] : [];
+    return out;
+  };
   $("cost-text").addEventListener("input", () => {
-    $("cost-in").value = C.estimateTokens($("cost-text").value); costAll = false; renderCost();
+    $("cost-in").value = C.estimateTokens($("cost-text").value);
+    if ($("cost-want").value === "speech") $("cost-count").value = Array.from($("cost-text").value).length;
+    costAll = false; renderCost(); renderValue();
   });
-  ["cost-in", "cost-out", "cost-calls", "cost-search", "cost-maker", "cost-free", "cost-every", "cost-cheapest"]
-    .forEach(id => $(id).addEventListener("input", () => { costAll = false; renderCost(); remember(); }));
+  $("tab-cost").addEventListener("input", e => {
+    if (e.target.id === "cost-text" || e.target.dataset.pick !== undefined) return;
+    if (e.target.id === "cost-want") {
+      const defaults = { image: 1, video: 10, speech: Math.max(1000, Array.from($("cost-text").value).length) };
+      if (defaults[e.target.value]) $("cost-count").value = defaults[e.target.value];
+      pick.makers = pick.families = pick.versions = pick.hosts = null;
+      renderPick();
+    }
+    costAll = false; renderCost(); renderValue(); remember();
+  });
+  $("tab-value").addEventListener("input", e => {
+    if (e.target.dataset.pick !== undefined) return;
+    renderValue(); remember();
+  });
   $("cost-table").addEventListener("click", e => { if (e.target.id === "cost-all") { costAll = true; renderCost(); } });
+  onTab = name => {
+    if (name !== "cost" && name !== "value") return;
+    document.querySelector("#tab-" + name + " [data-pick-slot]").appendChild($("pick"));
+    renderPick();
+  };
+  onTab(currentTab);
+  renderPick();
   renderCost();
+  renderValue();
+
+  /* ---------- licences, checked on every build ---------- */
+  if (D.licences) {
+    const used = D.licences.filter(r => r.role !== "tests");
+    $("licences").textContent = "Licences checked when this page was built: " +
+      used.map(r => r.source + " " + (r.licence || "unchecked") + " (" + r.status + ")").join(", ") + ".";
+  }
 
   /* ---------- last 7 days ---------- */
   const KINDS = { price: "Price changes", deprecation: "Retirement dates", removed: "Removed", added: "Added" };
