@@ -26,7 +26,10 @@
     "$" + (v >= 0.01 || v === 0 ? v.toFixed(2) : v.toPrecision(2));
   const pct = v => (100 * v).toFixed(1) + "%";
   const range = (lo, hi) => (100 * lo).toFixed(1) + " to " + (100 * hi).toFixed(1);
-  const norm = s => String(s).toLowerCase().replace(/[-_.:/@\s]+/g, " ").trim();
+  const norm = s => String(s).toLowerCase()
+    .replace(/(\d)[-_p](?=\d(?![\d.bkm]))/g, "$1.")   // 3-5 and 4p5 are versions: 3.5, 4.5
+    .replace(/(?<!\d)\.|\.(?!\d)/g, " ")              // a dot that is not inside a version splits words
+    .replace(/[-_:/@\s]+/g, " ").trim();
   const isTokenPrice = f => /per_token|token_cost/.test(f);
 
   function value(field, v) {
