@@ -4,7 +4,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from llmledger import catalog, events, history, page, survival
+from llmledger import catalog, events, history, page, sql, survival
 
 SOURCE = "https://github.com/BerriAI/litellm.git"
 UPSTREAM = Path("data/upstream")
@@ -40,6 +40,7 @@ def main():
     sizes = survival.main(EVENTS, SURVIVAL)
     with open(EVENTS, newline="") as f:
         rows = list(csv.DictReader(f))
+    print(f"SQL check: all {sql.check(rows):,} models agree")
     data = catalog.build(rows, last, catalog.end_of(rows))
     versions = history.commits(UPSTREAM)
     sha, when = versions[-1]
