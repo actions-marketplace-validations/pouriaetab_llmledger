@@ -30,6 +30,11 @@ removed, within 30 days to 2 years.
    intervals (`data/survival.csv`).
 4. **Publishes the results.** Rebuilds the results page from LiteLLM's latest
    history every day (`site/index.html`).
+5. **Looks up any model.** Search by name, maker or host, under LiteLLM's own
+   names or grouped by model, to see a model's timeline, its outlook for the
+   next 90 days and year, and a side by side comparison of up to five models.
+   The page also lists every change in the last 7 days and the most repriced
+   models.
 
 ## First results
 
@@ -83,8 +88,8 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (28 tests: known answer, simulation, page and version checks), with the
-exact versions pinned in `requirements.txt`:
+Tests (46 tests: known answer, simulation, naming, page and version checks),
+with the exact versions pinned in `requirements.txt`:
 
 ```bash
 python -m pip install -r requirements.txt
@@ -103,8 +108,10 @@ here. llmledger is independent and not affiliated with or endorsed by BerriAI.
 
 ```
 src/llmledger/       history.py, events.py, survival.py, simulate.py,
-                     page.py and page.html (results page), pipeline.py
-tests/               known answer, simulation, page and version tests
+                     outlook.py (one model's outlook), names.py (grouping),
+                     catalog.py (page data), page.py, page.html, app.js,
+                     table_protocol.js (results page), pipeline.py
+tests/               known answer, simulation, naming, page and version tests
 docs/SPEC.md         definitions, requirements, limitations, traceability
 .github/workflows/   tests on every pull request; refresh rebuilds and
                      publishes the results page every day

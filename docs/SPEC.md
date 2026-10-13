@@ -132,6 +132,30 @@ shall print the Python version it used and whether it matches the pin.
 Verified by: an automated test that both files pin exact versions, and
 inspection of the run log.
 
+**REQ-S17 Outlook for one model.** For a listed model with no exit
+yet, the page shall report the chance of each exit in the next 90 and
+365 days, conditional on the model's age, as (F(age + h) − F(age)) /
+S(age) for each exit and S(age + h) / S(age) for none, from the
+Aalen-Johansen curves of its host's models (or of all models when the
+host has fewer than 200), with 95% bootstrap intervals, and only where
+at least 100 models are still followed at age + h.
+Verified by: an automated test on the six-subject example: from day
+20, over the next 40 days, price change 1/3, retirement 1/3,
+removed 0, none 1/3.
+
+**REQ-S18 Names.** The page shall show every model under LiteLLM's own
+name, and shall also offer a grouped view in which naming rules map
+the same model on different hosts to one name (for example,
+`snowflake/claude-3-5-sonnet` and
+`eu.anthropic.claude-3-5-sonnet-20241022-v2:0` both map to
+anthropic / claude-3.5-sonnet).
+Verified by: automated tests on named examples.
+
+**REQ-S19 Last 7 days.** The page shall list every addition, removal,
+price change and retirement date change in the 7 days before the
+latest data.
+Verified by: an automated test.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
@@ -152,6 +176,11 @@ inspection of the run log.
 - **L8** A bulk clean up of the catalogue, such as removing every row
   of one provider at once, counts as a removal for each model it
   touches.
+- **L9** The grouped names come from naming rules, not from LiteLLM, so
+  some models may be grouped wrongly or not grouped at all. The page
+  always shows LiteLLM's own names as well.
+- **L10** The outlook for one model is the experience of similar models
+  at the same age, not a forecast of that model in particular.
 
 ## 6. Known-answer example
 
@@ -186,5 +215,8 @@ inspection of the run log.
 | REQ-S14 | `data/simulation.csv` from `python -m llmledger.simulate` | analysis |
 | REQ-S15 | `test_req_s15_page_names_the_data_it_was_built_from`; the daily `refresh` workflow | test, demonstration |
 | REQ-S16 | `test_req_s16_versions_are_pinned_exactly`; the version line in every run log | test, inspection |
+| REQ-S17 | `test_req_s17_outlook_known_answer` | test |
+| REQ-S18 | `test_req_s18_one_model_on_many_hosts_is_grouped`, `test_req_s18_naming_rules` | test |
+| REQ-S19 | `test_req_s19_last_seven_days_lists_every_change` | test |
 
 All tests run on every pull request and before every daily refresh.

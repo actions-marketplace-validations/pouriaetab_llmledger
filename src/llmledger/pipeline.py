@@ -1,9 +1,10 @@
+import csv
 import platform
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from llmledger import events, history, page, survival
+from llmledger import catalog, events, history, page, survival
 
 SOURCE = "https://github.com/BerriAI/litellm.git"
 UPSTREAM = Path("data/upstream")
@@ -34,8 +35,12 @@ def main():
     print(check_python())
     update()
     print("versions fetched:", history.prefetch(UPSTREAM))
-    events.main(UPSTREAM, EVENTS)
+    last = {}
+    events.main(UPSTREAM, EVENTS, last)
     sizes = survival.main(EVENTS, SURVIVAL)
+    with open(EVENTS, newline="") as f:
+        rows = list(csv.DictReader(f))
+    data = catalog.build(rows, last, catalog.end_of(rows))
     versions = history.commits(UPSTREAM)
     sha, when = versions[-1]
     info = {
@@ -46,7 +51,7 @@ def main():
         "built": datetime.now(timezone.utc),
         "python": platform.python_version(),
     }
-    print("page written:", page.main(SURVIVAL, SITE, info))
+    print("page written:", page.main(SURVIVAL, SITE, info, data))
 
 
 if __name__ == "__main__":

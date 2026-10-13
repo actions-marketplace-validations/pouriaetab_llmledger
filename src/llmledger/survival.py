@@ -38,8 +38,9 @@ def _exit_kind(row, definition, days_in):
     return "price"
 
 
-def subjects(rows, definition="main"):
-    end = max(datetime.fromisoformat(row["when"]) for row in rows)
+def subject_table(rows, definition="main", end=None):
+    if end is None:
+        end = max(datetime.fromisoformat(row["when"]) for row in rows)
     day_one = {
         row["model"] for row in rows if row["kind"] == "start"
     }
@@ -64,15 +65,21 @@ def subjects(rows, definition="main"):
             best[0], TIE_ORDER[best[1]]
         ):
             first_exit[model] = (when, kind)
-    result = []
+    table = {}
     for model, start in began.items():
         if model in first_exit:
             when, kind = first_exit[model]
         else:
             when, kind = end, "censored"
-        days = (when - start).total_seconds() / 86400
-        result.append((days, kind))
-    return result
+        table[model] = (start, when, kind)
+    return table
+
+
+def subjects(rows, definition="main", end=None):
+    return [
+        ((when - start).total_seconds() / 86400, kind)
+        for start, when, kind in subject_table(rows, definition, end).values()
+    ]
 
 
 def cumulative_incidence(subjects, days, min_at_risk=100):

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from llmledger.page import load, render
+from llmledger.page import data_script, load, render
 
 ROWS = """definition,days,outcome,estimate,ci_low,ci_high,at_risk
 main,365,price,0.152978,0.14143,0.165948,1197
@@ -41,3 +41,7 @@ def test_req_s15_page_names_the_data_it_was_built_from(tmp_path):
 
 def test_every_placeholder_is_filled(tmp_path):
     assert "$" not in page_for(tmp_path)
+
+
+def test_page_data_cannot_close_its_script_tag():
+    assert "</script>" not in data_script({"name": "</script>"})
