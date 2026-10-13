@@ -8,6 +8,7 @@ authors:
 version: 1.0.0
 date-released: 2026-10-12
 license: MIT
+doi: 10.5281/zenodo.23330454
 repository-code: "https://github.com/pouriaetab/llmledger"
 url: "https://pouriaetab.github.io/llmledger/"
 abstract: >-
