@@ -93,6 +93,23 @@ def fetch():
         return None
 
 
+def previous(url):
+    """The ratings from the page that is live now, if Arena cannot be reached today."""
+    try:
+        text = _get_text(url)
+        data = json.loads(text[text.index("{"):text.rstrip().rstrip(";").rindex("}") + 1])
+        return data.get("arena")
+    except Exception as error:
+        print("No earlier Arena ratings either:", error)
+        return None
+
+
+def _get_text(url):
+    request = urllib.request.Request(url, headers={"User-Agent": "llmledger"})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return response.read().decode().replace("<\\/", "</")
+
+
 def candidates(arena_name):
     """Names to try in the catalogue, longest first."""
     name = re.sub(r"\s*\(.*?\)\s*", "", arena_name).strip().lower()

@@ -233,6 +233,7 @@ a PDF page about 1,500, a second of audio about 32 and a second of video about 3
   <label class="check"><input type="checkbox" id="cost-free"> Show free listings (price 0)</label>
 </div>
 <p class="muted" id="cost-note"></p>
+<p id="cost-guess"></p>
 <div id="cost-table"></div>
 <p class="muted">These are estimates. Prompt tokens are counted at about 4
 characters per token, a common rule of thumb for English; each model counts its
@@ -254,11 +255,16 @@ top model's, so the votes cannot tell it apart from the best.</p>
   <label>Task <select id="value-task"></select></label>
   <label class="check"><input type="checkbox" id="value-tied"> Only models tied with the top</label>
 </div>
+<p id="value-guess"></p>
 <p class="muted" id="value-using"></p>
 <div data-pick-slot></div>
 <div id="value-best"></div>
 <div id="value-table"></div>
 <p class="muted" id="value-credit"></p>
+<details id="value-check">
+<summary>How often is the automatic guess right?</summary>
+<div id="value-eval"></div>
+</details>
 </section>
 
 <section id="tab-week" hidden>
@@ -348,6 +354,7 @@ MIT licence.</p>
 </main>
 <script src="data.js"></script>
 <script src="cost.js"></script>
+<script src="route.js"></script>
 <script src="table_protocol.js"></script>
 <script src="app.js"></script>
 </body>

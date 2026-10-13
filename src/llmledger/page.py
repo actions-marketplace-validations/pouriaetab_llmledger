@@ -157,6 +157,6 @@ def main(source, out_dir, info, data):
     (folder / "index.html").write_text(render(load(source), info))
     (folder / "survival.csv").write_text(Path(source).read_text())
     (folder / "data.js").write_text(data_script(data))
-    for name in ("app.js", "cost.js", "table_protocol.js"):
+    for name in ("app.js", "cost.js", "route.js", "table_protocol.js"):
         shutil.copyfile(here / name, folder / name)
     return folder / "index.html"

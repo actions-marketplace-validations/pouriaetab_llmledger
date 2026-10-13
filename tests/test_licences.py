@@ -38,7 +38,7 @@ def test_req_s26_litellm_file_must_stay_in_the_mit_part():
 
 def test_req_s26_all_open_means_everything_is_used():
     report, allowed = licences.check(fake(), pins)
-    assert [r["status"] for r in report] == ["open", "open", "open"]
+    assert [r["status"] for r in report] == ["open", "open", "open", "open"]
     assert allowed == {"data": True, "ratings": True}
     assert licences.problems(report) == []
 
