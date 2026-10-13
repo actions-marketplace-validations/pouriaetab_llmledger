@@ -51,7 +51,7 @@ body {
   color: var(--text);
   font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-main { max-width: 820px; margin: 0 auto; padding: 32px 16px 48px; }
+main { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
 h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 12px; }
 h2 { font-size: 1.1rem; margin: 36px 0 12px; }
 p { margin: 0 0 12px; }
@@ -86,6 +86,33 @@ th:first-child { text-align: left; }
 thead th { color: var(--muted); font-weight: 600; white-space: normal; }
 td small { display: block; color: var(--muted); font-size: 0.8rem; }
 footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); }
+:root { --panel: var(--surface); }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 28px 0 8px;
+        border-bottom: 1px solid var(--line); }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent;
+               color: var(--muted); font: inherit; padding: 8px 12px; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--price);
+                                     font-weight: 600; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center;
+            margin: 12px 0; }
+.controls input[type="search"] { flex: 1 1 220px; }
+input, select, button { font: inherit; color: var(--text); background: var(--raised);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+button { cursor: pointer; }
+button[aria-pressed="true"] { border-color: var(--price); font-weight: 600; }
+.toggle { display: inline-flex; gap: 12px; }
+.toggle label { display: inline-flex; gap: 4px; align-items: center; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+         gap: 8px; margin: 12px 0; }
+.facts div { background: var(--raised); border-radius: 8px; padding: 8px 12px; }
+.facts span { display: block; color: var(--muted); font-size: 0.8rem; }
+#detail:not(:empty), #compare:not(:empty) { border-top: 1px solid var(--line);
+  margin-top: 20px; padding-top: 4px; }
+#notice { color: var(--retirement); min-height: 1.2em; }
+section td, section th { text-align: left; }
+td:has(> a[data-model]), td:has(> a[data-group]) { min-width: 240px;
+  white-space: normal; overflow-wrap: anywhere; }
+td:has(> a[data-model]) + td, td:has(> a[data-group]) + td { white-space: normal; }
 @media (max-width: 560px) {
   .tiles { grid-template-columns: 1fr; }
   .row { grid-template-columns: 72px 1fr; }
@@ -110,6 +137,67 @@ to a public catalogue, not what any model costs you.
   <div class="tile"><b>$removed</b><span>were removed within 1 year</span></div>
 </div>
 
+<nav class="tabs" role="tablist">
+  <button type="button" role="tab" data-tab="lookup">Look up a model</button>
+  <button type="button" role="tab" data-tab="week">Last 7 days</button>
+  <button type="button" role="tab" data-tab="top">Top lists</button>
+  <button type="button" role="tab" data-tab="overview">All models</button>
+</nav>
+
+<section id="tab-lookup">
+<div class="controls">
+  <span class="toggle" role="radiogroup" aria-label="Names">
+    <label><input type="radio" name="view" id="view-listed" checked> As listed</label>
+    <label><input type="radio" name="view" id="view-grouped"> Grouped by model</label>
+  </span>
+  <select id="maker" aria-label="Maker"></select>
+  <select id="host" aria-label="Host"></select>
+  <select id="status" aria-label="Status">
+    <option value="listed">Listed now</option>
+    <option value="removed">Removed</option>
+    <option value="">Listed or removed</option>
+  </select>
+  <input type="search" id="search" placeholder="Search, for example claude 3.5 sonnet" aria-label="Search models">
+</div>
+<p class="muted">The <b>maker</b> and the grouped names come from naming rules (for
+example, <code>eu.anthropic.claude-3-5-sonnet-20241022-v2:0</code> and
+<code>snowflake/claude-3-5-sonnet</code> are both grouped as anthropic /
+claude-3.5-sonnet). The <b>host</b> is LiteLLM's own provider field.</p>
+<p id="notice" role="status"></p>
+<div id="compare"></div>
+<div id="results"></div>
+<div id="detail"></div>
+</section>
+
+<section id="tab-week" hidden>
+<h2>Changed in the last 7 days</h2>
+<p class="muted">Every price change, retirement date, removal and addition in the
+catalogue in the 7 days before the latest data. A single clean up can remove
+hundreds of rows at once.</p>
+<div class="controls" id="week-filters"></div>
+<div id="week-table"></div>
+</section>
+
+<section id="tab-top" hidden>
+<div class="controls">
+  <label>Show <select id="top-n"><option value="10">Top 10</option>
+    <option value="20">Top 20</option><option value="all">All</option></select></label>
+  <span class="toggle" role="radiogroup" aria-label="Names">
+    <label><input type="radio" name="top-view" id="top-listed" checked> As listed</label>
+    <label><input type="radio" name="top-view" id="top-grouped"> Grouped by model</label>
+  </span>
+</div>
+<h2>Most repriced</h2>
+<p class="muted">Counts changes from one price to another. A price appearing
+for the first time is not counted.</p>
+<div id="top-repriced"></div>
+<h2>Hosts ranked by chance of a price change within 1 year</h2>
+<p class="muted">Only hosts with at least 100 models still followed at one
+year are ranked; smaller hosts would give unreliable numbers.</p>
+<div id="top-hosts"></div>
+</section>
+
+<section id="tab-overview" hidden>
 <h2>First exit, by time since the model was added</h2>
 <div class="legend">
   <span><i class="price"></i>Price change</span>
@@ -131,6 +219,8 @@ a model is removed, its price can no longer change.
 <h2>Does the definition matter?</h2>
 <div class="scroll">$sensitivity</div>
 
+</section>
+
 <footer class="muted">
 <p>Data: LiteLLM <code>main</code> at
 <a href="$litellm/commit/$sha">$short</a>, last price file change
@@ -139,5 +229,8 @@ $data_date. Page built $built with Python $python.</p>
 MIT licence.</p>
 </footer>
 </main>
+<script src="data.js"></script>
+<script src="table_protocol.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

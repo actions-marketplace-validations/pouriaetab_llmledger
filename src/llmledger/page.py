@@ -1,5 +1,7 @@
 import csv
 import html
+import json
+import shutil
 from pathlib import Path
 from string import Template
 
@@ -123,9 +125,18 @@ def render(results, info):
     )
 
 
-def main(source, out_dir, info):
+def data_script(data):
+    text = json.dumps(data, separators=(",", ":")).replace("</", "<\\/")
+    return f"window.LLMLEDGER = {text};\n"
+
+
+def main(source, out_dir, info, data):
     folder = Path(out_dir)
     folder.mkdir(parents=True, exist_ok=True)
+    here = Path(__file__).parent
     (folder / "index.html").write_text(render(load(source), info))
     (folder / "survival.csv").write_text(Path(source).read_text())
+    (folder / "data.js").write_text(data_script(data))
+    for name in ("app.js", "table_protocol.js"):
+        shutil.copyfile(here / name, folder / name)
     return folder / "index.html"

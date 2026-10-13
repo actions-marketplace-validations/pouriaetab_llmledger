@@ -46,7 +46,7 @@ def _diff(when, sha, before, after):
     return rows
 
 
-def build(repo):
+def build(repo, last=None):
     versions = history.commits(repo)
     rows = []
     skipped = []
@@ -65,12 +65,17 @@ def build(repo):
                 rows.append(_row(stamp, sha, model, "start"))
         else:
             rows.extend(_diff(stamp, sha, before, after))
+            if last is not None:
+                for model in before.keys() - after.keys():
+                    last[model] = before[model]
         before = after
+    if last is not None and before is not None:
+        last.update(before)
     return rows, skipped
 
 
-def main(repo="data/upstream", out="data/events.csv"):
-    rows, skipped = build(repo)
+def main(repo="data/upstream", out="data/events.csv", last=None):
+    rows, skipped = build(repo, last)
     with open(out, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=COLUMNS)
         writer.writeheader()
