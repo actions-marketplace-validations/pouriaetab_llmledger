@@ -14,8 +14,7 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.0, finished. The code is frozen; the data and the page
-still refresh every day.
+**Status:** version 1.1. The data and the page refresh every day.
 
 > **Not financial or procurement advice.** The numbers describe edits to a public
 > catalogue, not what any model costs you. See [DISCLAIMER.md](DISCLAIMER.md).
@@ -46,6 +45,9 @@ still refresh every day.
 7. **Checks itself in SQL.** Every run builds the table of models a second time
    in SQL (`survival.sql`, run with SQLite) and stops before publishing if SQL
    and Python disagree on any model.
+8. **Prices a prompt.** Paste a prompt to see what it would cost on every listed
+   chat model, cheapest first, next to each model's chance of a price change in
+   the next 90 days. The prompt stays in your browser.
 
 ## First results
 
@@ -104,8 +106,9 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (58 tests: known answer, simulation, naming, corrections, SQL, page and
-version checks),
+Tests (62 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+page and version checks; the prompt cost tests need Node.js and are skipped
+without it),
 with the exact versions pinned in `requirements.txt`:
 
 ```bash
@@ -137,7 +140,8 @@ src/llmledger/       history.py, events.py, flags.py (corrections),
                      simulate.py,
                      outlook.py (one model's outlook), names.py (grouping),
                      catalog.py (page data), page.py, page.html, app.js,
-                     table_protocol.js (results page), pipeline.py
+                     cost.js (prompt cost), table_protocol.js (results page),
+                     pipeline.py
 tests/               known answer, simulation, naming, page and version tests
 docs/SPEC.md         definitions, requirements, limitations, traceability
 .github/workflows/   tests on every pull request; refresh rebuilds and

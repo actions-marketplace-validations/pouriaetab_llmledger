@@ -1,5 +1,6 @@
-/* llmledger results page: model lookup, compare, last 7 days, top lists.
-   Reads window.LLMLEDGER, written by page.py from the daily pipeline. */
+/* llmledger results page: model lookup, compare, prompt cost, last 7 days, top lists.
+   Reads window.LLMLEDGER, written by page.py from the daily pipeline, and
+   window.LLMCOST from cost.js. */
 (function () {
   const D = window.LLMLEDGER;
   if (!D) return;
@@ -72,6 +73,8 @@
         tab: currentTab, grouped: $("view-grouped").checked, maker: $("maker").value, host: $("host").value,
         status: $("status").value, search: $("search").value, compare, weekKind, weekReal,
         topN: $("top-n").value, topGrouped: $("top-grouped").checked,
+        costOut: $("cost-out").value, costCalls: $("cost-calls").value, costEvery: $("cost-every").checked,
+        costMaker: $("cost-maker").value, costSearch: $("cost-search").value, costFree: $("cost-free").checked,
       }));
     } catch (e) { /* storage off: settings are just not remembered */ }
   }
@@ -89,7 +92,7 @@
   const groupLink = id => '<a href="#" data-group="' + esc(id) + '">' + esc(id) + "</a>";
 
   /* ---------- tabs ---------- */
-  const TABS = ["lookup", "week", "top", "overview"];
+  const TABS = ["lookup", "cost", "week", "top", "overview"];
   let currentTab = "lookup";
   function showTab(name) {
     if (!TABS.includes(name)) name = "lookup";
@@ -275,6 +278,65 @@
   for (const k of saved.compare || []) if (byKey.has(k) && compare.length < MAX_COMPARE) compare.push(k);
   renderCompare();
   renderResults();
+
+  /* ---------- prompt cost ---------- */
+  // The prompt text never leaves this page and is not remembered; only the numbers are.
+  const C = window.LLMCOST;
+  const textModels = models.filter(m => m.status === "listed" && C.isTextModel(m.key, m.mode) &&
+    m.input != null && m.output != null);
+  const isText = new Set(textModels);
+  const dollars = v => v == null ? "–" : v === 0 ? "$0" : "$" + (v >= 1
+    ? v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : v.toFixed(Math.min(20, 2 - Math.floor(Math.log10(v)))));
+  const whole = (id, low) => Math.max(low, Math.floor(Number($(id).value) || 0));
+  let costAll = false;
+
+  function renderCost() {
+    const inT = whole("cost-in", 0), outT = whole("cost-out", 0), calls = whole("cost-calls", 1);
+    const words = norm($("cost-search").value).split(" ").filter(Boolean);
+    const every = $("cost-every").checked, free = $("cost-free").checked;
+    const found = textModels.filter(m => matches(m, words, $("cost-maker").value, "", ""));
+    const pool = found.filter(m => free || m.input > 0 || m.output > 0);
+    const price = m => C.costOf(m.input, m.output, inT, outT);
+    const ranked = every
+      ? C.cheapestPerGroup(pool, m => m.key, price)
+      : C.cheapestPerGroup(pool, m => m.maker + " / " + m.name, price);
+    const shown = costAll ? ranked : ranked.slice(0, SHOWN);
+    const callsLabel = calls === 1 ? "Cost for 1 call" : "Cost for " + calls.toLocaleString() + " calls";
+    const rows = shown.map((r, i) => {
+      const m = r.row;
+      const start = every ? [i + 1, modelLink(m), esc(m.host)]
+        : [i + 1, groupLink(r.id), modelLink(m), groups.get(r.id).filter(g => isText.has(g)).length];
+      return start.concat([money(m.input), money(m.output), dollars(r.cost), dollars(r.cost * calls),
+        chance(m, "90"), esc(m.retire || "–")]);
+    });
+    const head = (every ? ["Rank", "Model as listed", "Host"] : ["Rank", "Model (grouped)", "Cheapest listing", "Listings"])
+      .concat(["Input $/1M", "Output $/1M", "Cost per call", callsLabel, "Price change chance, 90 days", "Retirement date"]);
+    const hidden = found.length - pool.length;
+    $("cost-note").innerHTML = ranked.length.toLocaleString() + (every ? " listings" : " models") +
+      " for " + inT.toLocaleString() + " prompt tokens and " + outT.toLocaleString() + " answer tokens, cheapest first." +
+      (hidden ? " " + hidden.toLocaleString() + " free listings (price 0) are hidden." : "");
+    $("cost-table").innerHTML = table(head, rows, every ? "cost-listed" : "cost-grouped") +
+      (ranked.length > shown.length ? '<p><button type="button" id="cost-all">Show all ' +
+        ranked.length.toLocaleString() + "</button></p>" : "");
+  }
+
+  const makers = new Map();
+  for (const m of textModels) makers.set(m.maker, (makers.get(m.maker) || 0) + 1);
+  fillSelect($("cost-maker"), makers, "Any maker");
+  if (/^\d+$/.test(saved.costOut || "")) $("cost-out").value = saved.costOut;
+  if (/^\d+$/.test(saved.costCalls || "")) $("cost-calls").value = saved.costCalls;
+  if (saved.costEvery) $("cost-every").checked = true;
+  if (saved.costFree) $("cost-free").checked = true;
+  if (typeof saved.costSearch === "string") $("cost-search").value = saved.costSearch;
+  if ([...$("cost-maker").options].some(o => o.value === saved.costMaker)) $("cost-maker").value = saved.costMaker;
+  $("cost-text").addEventListener("input", () => {
+    $("cost-in").value = C.estimateTokens($("cost-text").value); costAll = false; renderCost();
+  });
+  ["cost-in", "cost-out", "cost-calls", "cost-search", "cost-maker", "cost-free", "cost-every", "cost-cheapest"]
+    .forEach(id => $(id).addEventListener("input", () => { costAll = false; renderCost(); remember(); }));
+  $("cost-table").addEventListener("click", e => { if (e.target.id === "cost-all") { costAll = true; renderCost(); } });
+  renderCost();
 
   /* ---------- last 7 days ---------- */
   const KINDS = { price: "Price changes", deprecation: "Retirement dates", removed: "Removed", added: "Added" };
