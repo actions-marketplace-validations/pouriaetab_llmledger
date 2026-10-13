@@ -1,16 +1,18 @@
 import csv
+import json
 import platform
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from llmledger import arena, catalog, events, history, licences, page, sql, survival
+from llmledger import arena, catalog, events, history, licences, page, route_eval, sql, survival
 
 SOURCE = "https://github.com/BerriAI/litellm.git"
 UPSTREAM = Path("data/upstream")
 EVENTS = "data/events.csv"
 SURVIVAL = "data/survival.csv"
 SITE = "site"
+LIVE = "https://pouriaetab.github.io/llmledger/"   # the published page, read back only if Arena is down
 
 
 def check_python(pin_file=".python-version"):
@@ -47,7 +49,13 @@ def main():
     data = catalog.build(rows, last, catalog.end_of(rows))
     tables = arena.fetch() if allowed["ratings"] else None
     data["arena"] = arena.build(tables, data["models"]) if tables else None
+    if data["arena"] is None and allowed["ratings"]:
+        data["arena"] = arena.previous(LIVE + "data.js")
+        if data["arena"]:
+            print("Arena ratings: kept the ones on the live page, published", data["arena"]["date"])
     data["licences"] = report
+    if route_eval.RESULT.exists():
+        data["route_eval"] = json.loads(route_eval.RESULT.read_text())
     if data["arena"]:
         print(f"Arena ratings: {data['arena']['matched']} of "
               f"{data['arena']['total']} models matched to the catalogue")

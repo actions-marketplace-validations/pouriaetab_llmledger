@@ -14,7 +14,7 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.2. The data and the page refresh every day.
+**Status:** version 1.3. The data and the page refresh every day.
 
 > **Not financial or procurement advice.** The numbers describe edits to a public
 > catalogue, not what any model costs you. See [DISCLAIMER.md](DISCLAIMER.md).
@@ -55,7 +55,13 @@ removed, within 30 days to 2 years.
    writing to 7 fields, 7 languages, images, documents and websites, it marks
    the cheapest model whose Arena rating cannot be told apart from the top
    model's.
-10. **Checks licences every day.** Before building, it reads the current licence
+10. **Guesses the task of a prompt.** From its words and attachments, in the
+    browser, it guesses the task (coding, math, a field or a language) and
+    picks the best value model for it. On 1,740 real Arena prompts kept apart
+    from the ones used to write the rules, it picks one of the prompt's tasks
+    69.7% of the time (67.5 to 71.8%), against 45.4% for always guessing
+    Everything (overall).
+11. **Checks licences every day.** Before building, it reads the current licence
     of every outside source. If one is no longer open for business use, it
     stops using it (or stops publishing, for the core data) and opens a GitHub
     issue.
@@ -117,9 +123,9 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (81 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
-Arena matching, licences, page and version checks; the prompt cost tests need Node.js and
-are skipped without it),
+Tests (97 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+Arena matching, task guess, licences, page and version checks; the prompt cost
+and task guess tests need Node.js and are skipped without it),
 with the exact versions pinned in `requirements.txt`:
 
 ```bash
@@ -145,8 +151,10 @@ here. llmledger is independent and not affiliated with or endorsed by BerriAI.
 
 Quality ratings on the Best value tab come from the
 [Arena leaderboard dataset](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset)
-by LMArena, used under CC BY 4.0 and read once a day. llmledger is not
-affiliated with or endorsed by LMArena.
+by LMArena, used under CC BY 4.0 and read once a day. The task guess is
+measured on prompts from Arena's
+[human preference dataset](https://huggingface.co/datasets/lmarena-ai/arena-human-preference-140k),
+also CC BY 4.0. llmledger is not affiliated with or endorsed by LMArena.
 
 ## Layout
 
@@ -157,7 +165,8 @@ src/llmledger/       history.py, events.py, flags.py (corrections),
                      outlook.py (one model's outlook), names.py (grouping),
                      catalog.py (page data), page.py, page.html, app.js,
                      cost.js (prompt cost), arena.py (quality ratings),
-                     licences.py (daily licence check),
+                     licences.py (daily licence check), route.js and
+                     route_eval.py (task guess and how often it is right),
                      table_protocol.js (results page), pipeline.py
 tests/               known answer, simulation, naming, page and version tests
 docs/SPEC.md         definitions, requirements, limitations, traceability

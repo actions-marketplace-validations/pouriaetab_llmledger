@@ -47,3 +47,11 @@ def test_req_s25_arena_down_means_no_ratings(monkeypatch):
         raise OSError("no network")
     monkeypatch.setattr(arena, "_get", down)
     assert arena.fetch() is None
+
+
+def test_req_s25_yesterdays_ratings_are_kept_when_arena_is_down(monkeypatch):
+    page = 'window.LLMLEDGER = {"models": [], "arena": {"date": "2026-10-12", "tasks": {}}};\n'
+    monkeypatch.setattr(arena, "_get_text", lambda url: page)
+    assert arena.previous("https://example.org/data.js")["date"] == "2026-10-12"
+    monkeypatch.setattr(arena, "_get_text", lambda url: (_ for _ in ()).throw(OSError("down")))
+    assert arena.previous("https://example.org/data.js") is None

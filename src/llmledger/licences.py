@@ -26,6 +26,7 @@ CLASSIFIERS = {"MIT License": "mit", "Apache Software License": "apache-2.0",
 LITELLM_LICENSE = "https://raw.githubusercontent.com/BerriAI/litellm/main/LICENSE"
 LITELLM_FILE = "model_prices_and_context_window.json"
 ARENA = "https://huggingface.co/api/datasets/lmarena-ai/leaderboard-dataset"
+ARENA_PROMPTS = "https://huggingface.co/api/datasets/lmarena-ai/arena-human-preference-140k"
 PYPI = "https://pypi.org/pypi/{name}/{version}/json"
 PROBLEMS = Path("data/licence-problems.txt")
 
@@ -86,6 +87,8 @@ def sources(get=_text, requirements=_requirements):
          attempt(lambda: litellm_licence(get(LITELLM_LICENSE)))),
         ("Arena leaderboard", "ratings",
          attempt(lambda: (json.loads(get(ARENA)).get("cardData") or {}).get("license"))),
+        ("Arena prompts", "measuring",
+         attempt(lambda: (json.loads(get(ARENA_PROMPTS)).get("cardData") or {}).get("license"))),
     ]
     for name, version in requirements():
         found.append((f"{name} {version}", "tests", attempt(
@@ -102,7 +105,7 @@ def check(get=_text, requirements=_requirements):
         else:
             status = "open" if is_open(licence) else "not open"
         report.append({"source": name, "role": role, "licence": licence, "status": status})
-    roles = {row["role"]: row["status"] for row in report if row["role"] != "tests"}
+    roles = {row["role"]: row["status"] for row in report if row["role"] in ("data", "ratings")}
     allowed = {"data": roles.get("data") != "not open", "ratings": roles.get("ratings") == "open"}
     return report, allowed
 
@@ -113,6 +116,7 @@ def problems(report):
         if row["status"] == "not open":
             action = {"data": "Nothing was published.",
                       "ratings": "The page was built without them.",
+                      "measuring": "Measure the task guess on another dataset.",
                       "tests": "Find an open replacement for the tests."}[row["role"]]
             lines.append(f"- {row['source']}: licence is now {row['licence']!r}, "
                          f"which is not open for business use. {action}")

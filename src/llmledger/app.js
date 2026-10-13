@@ -1,6 +1,6 @@
 /* llmledger results page: model lookup, compare, prompt cost, best value, last 7 days, top lists.
    Reads window.LLMLEDGER, written by page.py from the daily pipeline, and
-   window.LLMCOST from cost.js. */
+   window.LLMCOST from cost.js and window.LLMROUTE from route.js. */
 (function () {
   const D = window.LLMLEDGER;
   if (!D) return;
@@ -393,6 +393,7 @@
   // ----- prompt cost -----
   function renderCost() {
     const q = query();
+    renderGuess();
     const want = WANTS[q.want];
     document.querySelectorAll(".for-text").forEach(el => { el.hidden = q.want !== "text"; });
     document.querySelectorAll(".for-media").forEach(el => { el.hidden = q.want === "text"; });
@@ -421,6 +422,26 @@
         ranked.length.toLocaleString() + "</button></p>" : "");
   }
 
+  // ----- task guess (route.js) -----
+  const R = window.LLMROUTE;
+  function currentGuess() {
+    const extra = { images: amount("att-images"), pages: amount("att-pages") };
+    const text = $("cost-text").value;
+    return { ...R.guessTask(text, extra), empty: !text.trim() && !extra.images && !extra.pages };
+  }
+  const taskLabel = id => R.LABELS[id] || "Everything (overall)";
+  function renderGuess() {
+    const g = currentGuess();
+    $("cost-guess").innerHTML = g.empty || $("cost-want").value !== "text" ? "" :
+      "Task guess: <b>" + esc(taskLabel(g.task)) + '</b> <span class="muted">(' + esc(g.why.join(", ")) +
+      ')</span>. <a href="#value" data-goto="value">See the best value model for it</a>.';
+  }
+  document.addEventListener("click", e => {
+    if (!e.target.dataset.goto) return;
+    e.preventDefault();
+    document.querySelector('[data-tab="' + e.target.dataset.goto + '"]').click();
+  });
+
   // ----- best value (Arena ratings) -----
   function renderValue() {
     const A = D.arena;
@@ -428,7 +449,16 @@
       $("value-best").innerHTML = "<p>Arena ratings could not be loaded with today's data. The other tabs are not affected.</p>";
       $("value-table").innerHTML = ""; return;
     }
-    const task = $("value-task").value;
+    let task = $("value-task").value;
+    $("value-guess").innerHTML = "";
+    if (task === "auto") {
+      const g = currentGuess();
+      task = (A.tasks[g.task] || []).length ? g.task : "overall";
+      $("value-guess").innerHTML = g.empty
+        ? "Paste your prompt on the Prompt cost tab and its task is guessed here. Until then: Everything (overall)."
+        : "Guessed task: <b>" + esc(taskLabel(task)) + '</b> <span class="muted">(' + esc(g.why.join(", ")) +
+          ")</span>. If that is wrong, pick the task in the list.";
+    }
     const q = query("text");
     const cheapest = new Map();
     for (const r of priced(q, false).rows) {
@@ -467,7 +497,22 @@
   $("skill-boxes").innerHTML = Object.entries(SKILL_LABELS).map(([k, label]) =>
     '<label class="check"><input type="checkbox" value="' + k + '"> ' + esc(label) + "</label>").join(" ");
   if (D.arena) {
-    $("value-task").innerHTML = D.arena.labels.map(([k, label]) => '<option value="' + k + '">' + esc(label) + "</option>").join("");
+    $("value-task").innerHTML = '<option value="auto">Automatic: guess from my prompt</option>' +
+      D.arena.labels.map(([k, label]) => '<option value="' + k + '">' + esc(label) + "</option>").join("");
+  }
+  const E = D.route_eval;
+  if (E) {
+    const pc = ([hit, low, high], n) => (100 * hit / n).toFixed(0) + "% (" + (100 * low).toFixed(0) + " to " + (100 * high).toFixed(0) + "%)";
+    const share = ([hit, n, low, high]) => n ? (100 * hit / n).toFixed(0) + "%<small>" + hit + " of " + n + ", " +
+      (100 * low).toFixed(0) + " to " + (100 * high).toFixed(0) + "%</small>" : "–";
+    $("value-eval").innerHTML = "<p>Measured on " + E.n.toLocaleString() + ' real prompts from <a href="' + esc(E.source) +
+      '">Arena</a> (' + esc(E.licence) + "), kept apart from the prompts used to write the rules. The guess picked one of the " +
+      "prompt's tasks " + pc(E.right, E.n) + " of the time. Always guessing Everything (overall) would be right " +
+      pc(E.always_overall, E.n) + '. Ranges are 95% intervals. Arena labels only coding, math, creative writing and language, ' +
+      "so the fields (legal, medicine and so on) are not measured yet.</p>" +
+      table(["Task", "Prompts with it", "When guessed, how often right", "How many it found"],
+        Object.entries(E.tasks).filter(([, t]) => t.present).map(([k, t]) => [esc(taskLabel(k)), t.present, share(t.precision), share(t.recall)]),
+        "route-eval");
   }
   const restore = (id, ok) => { if (ok(saved["c_" + id])) $(id).value = saved["c_" + id]; };
   const isCount = v => /^\d+(\.\d+)?$/.test(String(v ?? ""));
@@ -476,6 +521,7 @@
   restore("cost-len", v => v in C.ANSWERS || v === "custom");
   restore("cost-size", v => [...$("cost-size").options].some(o => o.value === v));
   restore("value-task", v => [...$("value-task").options].some(o => o.value === v));
+  if (!saved["c_value-task"] && D.arena) $("value-task").value = "auto";
   if (typeof saved.c_search === "string") $("cost-search").value = saved.c_search;
   if (saved.c_every) $("cost-every").checked = true;
   if (saved.c_free) $("cost-free").checked = true;
