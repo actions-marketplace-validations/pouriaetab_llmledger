@@ -39,6 +39,9 @@ removed, within 30 days to 2 years.
 6. **Flags corrections.** Tags bulk clean ups (50 or more models removed on the
    same day), unit fixes (a price made 100 times larger or smaller) and changes
    undone within 30 days, and shows the results with and without them.
+7. **Checks itself in SQL.** Every run builds the table of models a second time
+   in SQL (`survival.sql`, run with SQLite) and stops before publishing if SQL
+   and Python disagree on any model.
 
 ## First results
 
@@ -97,7 +100,7 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (52 tests: known answer, simulation, naming, corrections, page and
+Tests (58 tests: known answer, simulation, naming, corrections, SQL, page and
 version checks),
 with the exact versions pinned in `requirements.txt`:
 
@@ -118,7 +121,8 @@ here. llmledger is independent and not affiliated with or endorsed by BerriAI.
 
 ```
 src/llmledger/       history.py, events.py, flags.py (corrections),
-                     survival.py, simulate.py,
+                     survival.py, survival.sql and sql.py (SQL check),
+                     simulate.py,
                      outlook.py (one model's outlook), names.py (grouping),
                      catalog.py (page data), page.py, page.html, app.js,
                      table_protocol.js (results page), pipeline.py

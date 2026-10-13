@@ -177,6 +177,14 @@ day rather than removed. The page shall show both at 1 year, side by
 side.
 Verified by: automated tests on a small example and on the page.
 
+**REQ-S22 SQL cross-check.** Every run shall build the table of
+subjects (one row per model: days followed and how it ended) a second
+time, in SQL, under every definition in REQ-S10 and REQ-S21, and shall
+stop before publishing if the SQL and Python tables differ for any
+model.
+Verified by: automated tests in which each model checks one rule, and
+the check line in every daily run log.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
@@ -250,5 +258,6 @@ Verified by: automated tests on a small example and on the page.
 | D12 | `test_req_s20_a_change_undone_within_30_days_is_reverted` | test |
 | REQ-S20 | `test_req_s20_corrections_are_tagged_and_not_counted` | test |
 | REQ-S21 | `test_req_s21_real_changes_only`, `test_req_s21_page_compares_every_change_with_real_changes` | test |
+| REQ-S22 | `test_req_s22_sql_and_python_agree`, `test_req_s22_sql_known_answer`, `test_req_s22_a_disagreement_stops_the_check`; the "SQL check" line in every daily run | test, demonstration |
 
 All tests run on every pull request and before every daily refresh.
