@@ -48,3 +48,26 @@ def snapshot(repo, sha, path=FILE):
         if key not in RESERVED
     }
     return models, duplicates
+
+def prefetch(repo, path=FILE):
+    promisor = subprocess.run(
+        ("git", "config", "--get", "remote.origin.promisor"),
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+    if promisor.stdout.strip() != "true":
+        return 0
+    names = [f"{sha}:{path}" for sha, _ in commits(repo, path)]
+    blobs = sorted(set(_git(repo, "rev-parse", *names).split()))
+    subprocess.run(
+        ("git", "-c", "fetch.negotiationAlgorithm=noop", "fetch", "origin",
+         "--no-tags", "--no-write-fetch-head", "--recurse-submodules=no",
+         "--filter=blob:none", "--stdin"),
+        cwd=repo,
+        input="\n".join(blobs) + "\n",
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return len(blobs)

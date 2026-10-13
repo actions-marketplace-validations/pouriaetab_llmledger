@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>llmledger results</title>
+<meta name="description" content="How likely a newly added LLM is to have its price changed, get a retirement date, or be removed from LiteLLM's price catalogue. Rebuilt daily.">
+<style>
+:root {
+  color-scheme: light;
+  --surface: #fcfcfb;
+  --raised: #f4f3f0;
+  --text: #0b0b0b;
+  --muted: #52514e;
+  --line: #e2e1dc;
+  --price: #2a78d6;
+  --retirement: #eb6834;
+  --removed: #1baf7a;
+  --none: #d9d8d2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface: #1a1a19;
+    --raised: #242423;
+    --text: #f0efec;
+    --muted: #c3c2b7;
+    --line: #383835;
+    --price: #3987e5;
+    --retirement: #d95926;
+    --removed: #199e70;
+    --none: #4a4a46;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1a1a19;
+  --raised: #242423;
+  --text: #f0efec;
+  --muted: #c3c2b7;
+  --line: #383835;
+  --price: #3987e5;
+  --retirement: #d95926;
+  --removed: #199e70;
+  --none: #4a4a46;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 820px; margin: 0 auto; padding: 32px 16px 48px; }
+h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 12px; }
+h2 { font-size: 1.1rem; margin: 36px 0 12px; }
+p { margin: 0 0 12px; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+a { color: inherit; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+         margin: 20px 0 8px; }
+.tile { background: var(--raised); border-radius: 8px; padding: 14px 16px; }
+.tile b { display: block; font-size: 1.7rem; font-variant-numeric: tabular-nums; }
+.tile span { color: var(--muted); font-size: 0.9rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 12px;
+          font-size: 0.9rem; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px;
+            border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.row { display: grid; grid-template-columns: 80px 1fr; align-items: center;
+       gap: 12px; margin: 8px 0; }
+.when { font-size: 0.9rem; color: var(--muted); text-align: right; }
+.bar { display: flex; gap: 2px; height: 22px; border-radius: 4px;
+       overflow: hidden; }
+.seg { min-width: 0; }
+.seg:hover { opacity: 0.8; }
+.price { background: var(--price); }
+.retirement { background: var(--retirement); }
+.removed { background: var(--removed); }
+.none { background: var(--none); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem;
+        font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line);
+         text-align: right; white-space: nowrap; }
+th:first-child { text-align: left; }
+thead th { color: var(--muted); font-weight: 600; white-space: normal; }
+td small { display: block; color: var(--muted); font-size: 0.8rem; }
+footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); }
+@media (max-width: 560px) {
+  .tiles { grid-template-columns: 1fr; }
+  .row { grid-template-columns: 72px 1fr; }
+  .when { font-size: 0.8rem; }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>What happens to an LLM after it joins a price catalogue?</h1>
+<p>Rebuilt every day from the full git history of
+<a href="$litellm">LiteLLM</a>'s model price file. Of the $models models added
+since $since, these are the estimated shares whose first change was each of
+the following.</p>
+<p class="muted">Not financial or procurement advice. The numbers describe edits
+to a public catalogue, not what any model costs you.
+<a href="$repo/blob/main/DISCLAIMER.md">Disclaimer</a>.</p>
+
+<div class="tiles">
+  <div class="tile"><b>$price</b><span>had a price change within 1 year</span></div>
+  <div class="tile"><b>$retirement</b><span>got a retirement date within 1 year</span></div>
+  <div class="tile"><b>$removed</b><span>were removed within 1 year</span></div>
+</div>
+
+<h2>First exit, by time since the model was added</h2>
+<div class="legend">
+  <span><i class="price"></i>Price change</span>
+  <span><i class="retirement"></i>Retirement announced</span>
+  <span><i class="removed"></i>Removed</span>
+  <span><i class="none"></i>None of these</span>
+</div>
+$bars
+<p class="muted">Removals include bulk clean ups of the catalogue, not only
+retired models. Hover over a bar to see its value.</p>
+
+<h2>The numbers, with 95% confidence intervals</h2>
+<div class="scroll">$table</div>
+<p class="muted">Aalen-Johansen estimates of competing risks with 1,000
+bootstrap resamples. Each row adds up to 100% because the exits compete: once
+a model is removed, its price can no longer change.
+<a href="survival.csv">Download as CSV</a>.</p>
+
+<h2>Does the definition matter?</h2>
+<div class="scroll">$sensitivity</div>
+
+<footer class="muted">
+<p>Data: LiteLLM <code>main</code> at
+<a href="$litellm/commit/$sha">$short</a>, last price file change
+$data_date. Page built $built with Python $python.</p>
+<p>Method, specification and tests: <a href="$repo">llmledger on GitHub</a>.
+MIT licence.</p>
+</footer>
+</main>
+</body>
+</html>

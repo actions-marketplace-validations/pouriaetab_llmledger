@@ -119,6 +119,19 @@ the true value in at least 90% and at most 99% of datasets, for every
 outcome at 90, 180 and 365 days.
 Verified by: analysis of `data/simulation.csv`.
 
+**REQ-S15 Daily refresh.** The published results page shall be rebuilt
+from LiteLLM's latest `main` at least once a day, and shall state the
+LiteLLM commit and the time of the data it was built from.
+Verified by: an automated test that the page names its data, and
+demonstration (the scheduled `refresh` workflow).
+
+**REQ-S16 Pinned environment.** Runs whose numbers are compared or
+published shall use the Python version in `.python-version` and the
+exact package versions in `requirements.txt`, and every pipeline run
+shall print the Python version it used and whether it matches the pin.
+Verified by: an automated test that both files pin exact versions, and
+inspection of the run log.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
@@ -136,6 +149,9 @@ Verified by: analysis of `data/simulation.csv`.
 - **L7** The simulation check assumes constant exit rates. Real rates
   may change as a model ages, so it shows that the estimator works, not
   that the real data follows constant rates.
+- **L8** A bulk clean up of the catalogue, such as removing every row
+  of one provider at once, counts as a removal for each model it
+  touches.
 
 ## 6. Known-answer example
 
@@ -168,5 +184,7 @@ Verified by: analysis of `data/simulation.csv`.
 | D6 | `test_d6_only_a_first_retirement_date_is_an_exit` | test |
 | REQ-S13 | `test_req_s13_estimator_recovers_known_truth` | test |
 | REQ-S14 | `data/simulation.csv` from `python -m llmledger.simulate` | analysis |
+| REQ-S15 | `test_req_s15_page_names_the_data_it_was_built_from`; the daily `refresh` workflow | test, demonstration |
+| REQ-S16 | `test_req_s16_versions_are_pinned_exactly`; the version line in every run log | test, inspection |
 
-All tests run on every pull request (`.github/workflows/tests.yml`).
+All tests run on every pull request and before every daily refresh.

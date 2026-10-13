@@ -1,6 +1,7 @@
 # llmledger
 
 [![tests](https://github.com/pouriaetab/llmledger/actions/workflows/tests.yml/badge.svg)](https://github.com/pouriaetab/llmledger/actions/workflows/tests.yml)
+[![refresh](https://github.com/pouriaetab/llmledger/actions/workflows/refresh.yml/badge.svg)](https://github.com/pouriaetab/llmledger/actions/workflows/refresh.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.12 | 3.14](https://img.shields.io/badge/python-3.12%20%7C%203.14-blue.svg)
 [![Data: LiteLLM](https://img.shields.io/badge/data-LiteLLM-informational.svg)](https://github.com/BerriAI/litellm)
@@ -9,6 +10,8 @@ What happens to an LLM after it is added to a price catalogue? llmledger rebuild
 the full change history of LiteLLM's model price file and estimates how likely a
 newly added model is to have its price changed, get a retirement date, or be
 removed, within 30 days to 2 years.
+
+**Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
 > **Not financial or procurement advice.** The numbers describe edits to a public
 > catalogue, not what any model costs you. See [DISCLAIMER.md](DISCLAIMER.md).
@@ -25,8 +28,12 @@ removed, within 30 days to 2 years.
    exit (a price change, a retirement announcement or removal) and estimates the
    chance of each with the Aalen-Johansen estimator and 95% bootstrap confidence
    intervals (`data/survival.csv`).
+4. **Publishes the results.** Rebuilds the results page from LiteLLM's latest
+   history every day (`site/index.html`).
 
 ## First results
+
+A snapshot; the live page above has the current numbers.
 
 5,100 models added after the catalogue's first recorded version
 (6 September 2023), followed until 29 September 2026. Each cell is the estimated
@@ -67,19 +74,20 @@ requirement to the test that verifies it. In short:
 
 ## Run it
 
-Python 3.12 or newer, standard library only.
+Python 3.14.7 (pinned in `.python-version`; 3.12 or newer works), standard
+library only. One command downloads LiteLLM's history, rebuilds everything and
+writes the results page:
 
 ```bash
-git clone --filter=blob:none https://github.com/BerriAI/litellm.git data/upstream
-PYTHONPATH=src python -m llmledger.events      # writes data/events.csv
-PYTHONPATH=src python -m llmledger.survival    # writes data/survival.csv
-PYTHONPATH=src python -m llmledger.simulate    # writes data/simulation.csv, about 2 minutes
+PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.html
+PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (22 tests: known answer tests and the simulation check):
+Tests (28 tests: known answer, simulation, page and version checks), with the
+exact versions pinned in `requirements.txt`:
 
 ```bash
-python -m pip install pytest
+python -m pip install -r requirements.txt
 python -m pytest
 ```
 
@@ -94,10 +102,12 @@ here. llmledger is independent and not affiliated with or endorsed by BerriAI.
 ## Layout
 
 ```
-src/llmledger/       history.py, events.py, survival.py, simulate.py
-tests/               known answer and simulation tests
+src/llmledger/       history.py, events.py, survival.py, simulate.py,
+                     page.py and page.html (results page), pipeline.py
+tests/               known answer, simulation, page and version tests
 docs/SPEC.md         definitions, requirements, limitations, traceability
-.github/workflows/   the same tests on every pull request
+.github/workflows/   tests on every pull request; refresh rebuilds and
+                     publishes the results page every day
 ```
 
 Built with an AI pair programmer (Claude); the specification, the statistical
