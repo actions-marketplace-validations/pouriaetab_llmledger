@@ -69,9 +69,9 @@ def build(repo):
     return rows, skipped
 
 
-if __name__ == "__main__":
-    rows, skipped = build("data/upstream")
-    with open("data/events.csv", "w", newline="") as f:
+def main(repo="data/upstream", out="data/events.csv"):
+    rows, skipped = build(repo)
+    with open(out, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=COLUMNS)
         writer.writeheader()
         writer.writerows(rows)
@@ -80,3 +80,7 @@ if __name__ == "__main__":
     for kind, n in sorted(counts.items()):
         print(f"  {kind}: {n}")
     print("broken versions skipped:", len(skipped))
+
+
+if __name__ == "__main__":
+    main()

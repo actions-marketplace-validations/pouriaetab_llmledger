@@ -120,16 +120,18 @@ def bootstrap(subjects, days, min_at_risk=100,
         intervals[key] = (cuts[0], cuts[-1])
     return intervals
 
-if __name__ == "__main__":
-    with open("data/events.csv", newline="") as f:
+def main(source="data/events.csv", out="data/survival.csv"):
+    with open(source, newline="") as f:
         rows = list(csv.DictReader(f))
     header = ["definition", "days", "outcome", "estimate",
               "ci_low", "ci_high", "at_risk"]
-    with open("data/survival.csv", "w", newline="") as f:
+    sizes = {}
+    with open(out, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(header)
         for definition in DEFINITIONS:
             group = subjects(rows, definition)
+            sizes[definition] = len(group)
             report = cumulative_incidence(group, DAYS)
             intervals = bootstrap(group, DAYS)
             print(f"\n{definition}: {len(group)} models")
@@ -145,3 +147,8 @@ if __name__ == "__main__":
                     ])
                     line.append(f"{outcome} {row[outcome]:.1%}")
                 print(f"  {day:>4} days  " + "  ".join(line))
+    return sizes
+
+
+if __name__ == "__main__":
+    main()
