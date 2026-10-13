@@ -96,8 +96,10 @@ footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line);
 .controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center;
             margin: 12px 0; }
 .controls input[type="search"] { flex: 1 1 220px; }
-input, select, button { font: inherit; color: var(--text); background: var(--raised);
+input, select, button, textarea { font: inherit; color: var(--text); background: var(--raised);
   border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+textarea { width: 100%; resize: vertical; }
+input[type="number"] { width: 7em; }
 button { cursor: pointer; }
 button[aria-pressed="true"] { border-color: var(--price); font-weight: 600; }
 .toggle { display: inline-flex; gap: 12px; }
@@ -143,6 +145,7 @@ to a public catalogue, not what any model costs you.
 
 <nav class="tabs" role="tablist">
   <button type="button" role="tab" data-tab="lookup">Look up a model</button>
+  <button type="button" role="tab" data-tab="cost">Prompt cost</button>
   <button type="button" role="tab" data-tab="week">Last 7 days</button>
   <button type="button" role="tab" data-tab="top">Top lists</button>
   <button type="button" role="tab" data-tab="overview">All models</button>
@@ -171,6 +174,35 @@ claude-3.5-sonnet). The <b>host</b> is LiteLLM's own provider field.</p>
 <div id="compare"></div>
 <div id="results"></div>
 <div id="detail"></div>
+</section>
+
+<section id="tab-cost" hidden>
+<h2>What would one prompt cost on each model?</h2>
+<p class="muted">Paste a prompt, or type how many tokens it has. Your text stays in
+this page: it is not sent anywhere or saved.</p>
+<textarea id="cost-text" rows="5" placeholder="Paste a prompt here" aria-label="Prompt"></textarea>
+<div class="controls">
+  <label>Prompt tokens <input type="number" id="cost-in" min="0" step="1" value="0"></label>
+  <label>Answer tokens <input type="number" id="cost-out" min="0" step="1" value="500"></label>
+  <label>Calls <input type="number" id="cost-calls" min="1" step="1" value="1"></label>
+</div>
+<div class="controls">
+  <span class="toggle" role="radiogroup" aria-label="Rows">
+    <label><input type="radio" name="cost-view" id="cost-cheapest" checked> Cheapest listing per model</label>
+    <label><input type="radio" name="cost-view" id="cost-every"> Every listing</label>
+  </span>
+  <select id="cost-maker" aria-label="Maker"></select>
+  <input type="search" id="cost-search" placeholder="Filter, for example claude" aria-label="Filter models">
+  <label class="check"><input type="checkbox" id="cost-free"> Show free listings (price 0)</label>
+</div>
+<p class="muted" id="cost-note"></p>
+<div id="cost-table"></div>
+<p class="muted">Prompt tokens are estimated at about 4 characters per token, a common
+rule of thumb for English; each model counts tokens its own way, often 10 to 30%
+differently. Costs use the catalogue's standard input and output prices for chat
+models; caching, batch discounts and long prompt prices are left out. The chance
+of a price change is shown for listings that have not changed since they were
+added.</p>
 </section>
 
 <section id="tab-week" hidden>
@@ -246,6 +278,7 @@ MIT licence.</p>
 </footer>
 </main>
 <script src="data.js"></script>
+<script src="cost.js"></script>
 <script src="table_protocol.js"></script>
 <script src="app.js"></script>
 </body>

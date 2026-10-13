@@ -185,6 +185,17 @@ model.
 Verified by: automated tests in which each model checks one rule, and
 the check line in every daily run log.
 
+**REQ-S23 Prompt cost.** The page shall estimate the cost of one prompt
+on every listed chat model that has input and output token prices, as
+(prompt tokens x input price + answer tokens x output price) / 1,000,000,
+with prompt tokens estimated at 4 characters per token unless the user
+enters a number. It shall sort models from cheapest, offer the cheapest
+listing per grouped model, and show each listing's chance of a price
+change within 90 days. The prompt text shall not leave the page or be
+stored.
+Verified by: automated known answer tests of `cost.js`, and the page in
+a browser.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
@@ -219,6 +230,11 @@ the check line in every daily run log.
 - **L12** The page depends on LiteLLM keeping the same file name and on
   GitHub Actions. If a daily refresh fails, nothing is published and the
   page keeps the last good build, with its data date in the footer.
+- **L13** Prompt costs are estimates. Each model counts tokens its own
+  way, often 10 to 30% differently from 4 characters per token, and
+  caching, batch discounts, long prompt prices and taxes are left out.
+  Modes come from LiteLLM; a few embedding and image models listed as
+  chat are left out by name, and others may remain.
 
 ## 6. Known-answer example
 
@@ -262,5 +278,6 @@ the check line in every daily run log.
 | REQ-S20 | `test_req_s20_corrections_are_tagged_and_not_counted` | test |
 | REQ-S21 | `test_req_s21_real_changes_only`, `test_req_s21_page_compares_every_change_with_real_changes` | test |
 | REQ-S22 | `test_req_s22_sql_and_python_agree`, `test_req_s22_sql_known_answer`, `test_req_s22_a_disagreement_stops_the_check`; the "SQL check" line in every daily run | test, demonstration |
+| REQ-S23 | `test_req_s23_tokens_are_estimated_at_four_characters`, `test_req_s23_cost_known_answer`, `test_req_s23_cheapest_listing_per_model`, `test_req_s23_only_text_models_are_priced`; the Prompt cost tab | test, demonstration |
 
 All tests run on every pull request and before every daily refresh.
