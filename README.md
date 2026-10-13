@@ -13,6 +13,9 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
+**Status:** version 1.0, finished. The code is frozen; the data and the page
+still refresh every day.
+
 > **Not financial or procurement advice.** The numbers describe edits to a public
 > catalogue, not what any model costs you. See [DISCLAIMER.md](DISCLAIMER.md).
 
@@ -47,27 +50,27 @@ removed, within 30 days to 2 years.
 
 A snapshot; the live page above has the current numbers.
 
-5,100 models added after the catalogue's first recorded version
-(6 September 2023), followed until 29 September 2026. Each cell is the estimated
+5,256 models added after the catalogue's first recorded version
+(6 September 2023), followed until 13 October 2026. Each cell is the estimated
 share of models whose first exit was this one, with its 95% confidence interval.
 
 | Within | Price change | Retirement announced | Removed | None of these |
 |:--|--:|--:|--:|--:|
-| 1 year | 15.3% (14.1 to 16.6) | 15.9% (14.5 to 17.3) | 9.4% (8.5 to 10.4) | 59.4% (57.5 to 61.1) |
-| 2 years | 19.1% (17.6 to 20.7) | 29.3% (27.2 to 31.4) | 16.7% (15.0 to 18.4) | 34.9% (32.6 to 37.3) |
+| 1 year | 14.7% (13.5 to 15.9) | 16.4% (15.2 to 17.7) | 16.3% (15.3 to 17.4) | 52.6% (50.9 to 54.3) |
+| 2 years | 18.3% (16.9 to 19.7) | 29.5% (27.6 to 31.4) | 23.4% (21.7 to 25.0) | 28.8% (26.8 to 31.2) |
 
 Each row adds up to 100% because the three exits compete: once a model is
 removed, its price can no longer change. Analysing each exit on its own would
 overstate all three.
 
 Counting only input and output token prices, the one year price change estimate
-is 13.4%. Ignoring price changes in a model's first week, it is 12.5%. Some early
+is 12.5%. Ignoring price changes in a model's first week, it is 12.0%. Some early
 changes correct a wrong first entry rather than reprice the model.
 
-Corrections and clean ups matter more for removals. On the data of 13 October
-2026, a few days after a clean up removed about 500 OpenRouter rows, the one
-year removal estimate is 16.3% (15.3 to 17.4) counting every change and 5.7%
-(5.0 to 6.5) leaving out bulk clean ups, unit fixes and reverted changes.
+Corrections and clean ups matter more for removals. The one year removal
+estimate above includes a clean up that removed about 500 OpenRouter rows on
+9 October 2026. Leaving out bulk clean ups, unit fixes and reverted changes, it
+is 5.7% (5.0 to 6.5).
 
 ## How it works
 
@@ -108,6 +111,11 @@ with the exact versions pinned in `requirements.txt`:
 python -m pip install -r requirements.txt
 python -m pytest
 ```
+
+## Cite
+
+Use the "Cite this repository" button on GitHub, which reads
+[CITATION.cff](CITATION.cff). Each release is archived on Zenodo with a DOI.
 
 ## Data source
 

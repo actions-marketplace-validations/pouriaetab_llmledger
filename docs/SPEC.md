@@ -216,6 +216,9 @@ the check line in every daily run log.
   a unit fix, and a clean up spread over several days of fewer than 50
   removals would not be tagged. How often the rules are right has not
   yet been checked against a hand labelled sample (issue #7).
+- **L12** The page depends on LiteLLM keeping the same file name and on
+  GitHub Actions. If a daily refresh fails, nothing is published and the
+  page keeps the last good build, with its data date in the footer.
 
 ## 6. Known-answer example
 

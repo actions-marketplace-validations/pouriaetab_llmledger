@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use llmledger, please cite it as below."
+title: "llmledger: what happens to an LLM after it joins a price catalogue"
+type: software
+authors:
+  - family-names: "Emami Tabrizi"
+    given-names: "Pouria"
+version: 1.0.0
+date-released: 2026-10-12
+license: MIT
+repository-code: "https://github.com/pouriaetab/llmledger"
+url: "https://pouriaetab.github.io/llmledger/"
+abstract: >-
+  Rebuilds the full git history of LiteLLM's model price file and estimates,
+  with competing risks survival analysis (Aalen-Johansen with bootstrap
+  intervals), how likely a newly added model is to have its price changed,
+  get a retirement date, or be removed. Results are republished daily, with a
+  lookup for every model, flags for corrections and bulk clean ups, and an
+  independent SQL cross-check.
+keywords:
+  - survival analysis
+  - competing risks
+  - Aalen-Johansen
+  - LLM pricing
+  - LiteLLM
