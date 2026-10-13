@@ -30,6 +30,13 @@ old, new`.
 - **D7 Removed:** the model disappears from the catalogue.
 - **D8 Exit:** the first of D5, D6 or D7 after time zero.
 - **D9 Censored:** no exit before the end of observation.
+- **D10 Bulk clean up:** a removal on a day (UTC) when 50 or more
+  models were removed from the catalogue.
+- **D11 Unit fix:** a price change in which the new number is at
+  least 100 times larger or smaller than the old one.
+- **D12 Reverted:** two price changes to the same field of the same
+  model, the second putting back the number the first replaced,
+  within 30 days. Both changes are reverted.
 
 ## 4. Requirements
 
@@ -156,12 +163,27 @@ price change and retirement date change in the 7 days before the
 latest data.
 Verified by: an automated test.
 
+**REQ-S20 Corrections.** Every change that meets D10, D11 or D12 shall
+be tagged as a bulk clean up, a unit fix or reverted. The page shall
+show the tag next to the change, shall offer to hide tagged changes in
+the last 7 days, and shall leave unit fixes and reverted changes out of
+each model's count of price changes.
+Verified by: automated tests at and just below each threshold.
+
+**REQ-S21 Real changes only.** Alongside the main result, the analysis
+shall report the same estimates with unit fixes and reverted changes
+ignored, and with a model removed in a bulk clean up censored on that
+day rather than removed. The page shall show both at 1 year, side by
+side.
+Verified by: automated tests on a small example and on the page.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
   when a provider changed a price. The lag is unknown.
 - **L2** Some price changes in the first week correct a wrong
-  first entry rather than reprice the model (issue #7).
+  first entry rather than reprice the model (issue #7). D11 and D12
+  catch the clear cases; smaller corrections still count.
 - **L3** A renamed model appears as one removal and one
   addition.
 - **L4** A retirement announcement counts even if the date
@@ -173,14 +195,19 @@ Verified by: an automated test.
 - **L7** The simulation check assumes constant exit rates. Real rates
   may change as a model ages, so it shows that the estimator works, not
   that the real data follows constant rates.
-- **L8** A bulk clean up of the catalogue, such as removing every row
-  of one provider at once, counts as a removal for each model it
-  touches.
+- **L8** In the main result, a bulk clean up of the catalogue, such
+  as removing every row of one provider at once, counts as a removal
+  for each model it touches. REQ-S21 shows the result without them.
 - **L9** The grouped names come from naming rules, not from LiteLLM, so
   some models may be grouped wrongly or not grouped at all. The page
   always shows LiteLLM's own names as well.
 - **L10** The outlook for one model is the experience of similar models
   at the same age, not a forecast of that model in particular.
+- **L11** The tags in D10 to D12 come from fixed rules, not from
+  reading each change. A real price cut of 100 times would be tagged as
+  a unit fix, and a clean up spread over several days of fewer than 50
+  removals would not be tagged. How often the rules are right has not
+  yet been checked against a hand labelled sample (issue #7).
 
 ## 6. Known-answer example
 
@@ -218,5 +245,10 @@ Verified by: an automated test.
 | REQ-S17 | `test_req_s17_outlook_known_answer` | test |
 | REQ-S18 | `test_req_s18_one_model_on_many_hosts_is_grouped`, `test_req_s18_naming_rules` | test |
 | REQ-S19 | `test_req_s19_last_seven_days_lists_every_change` | test |
+| D10 | `test_req_s20_bulk_clean_up_starts_at_50_removals_in_a_day` | test |
+| D11 | `test_req_s20_unit_fix_is_100_times_either_way` | test |
+| D12 | `test_req_s20_a_change_undone_within_30_days_is_reverted` | test |
+| REQ-S20 | `test_req_s20_corrections_are_tagged_and_not_counted` | test |
+| REQ-S21 | `test_req_s21_real_changes_only`, `test_req_s21_page_compares_every_change_with_real_changes` | test |
 
 All tests run on every pull request and before every daily refresh.

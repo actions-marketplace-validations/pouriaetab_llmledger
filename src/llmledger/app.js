@@ -38,6 +38,10 @@
     return esc(typeof v === "object" ? JSON.stringify(v) : v);
   }
 
+  const FLAGS = { bulk: "bulk clean up", unit: "unit fix", reverted: "reverted" };
+  const tag = flag => flag ? ' <span class="tag" title="Left out of the real changes only estimates">' +
+    FLAGS[flag] + "</span>" : "";
+
   function change(kind, field, oldV, newV) {
     if (kind === "added") return "Added";
     if (kind === "removed") return "Removed";
@@ -66,7 +70,7 @@
     try {
       localStorage.setItem(STORE, JSON.stringify({
         tab: currentTab, grouped: $("view-grouped").checked, maker: $("maker").value, host: $("host").value,
-        status: $("status").value, search: $("search").value, compare, weekKind,
+        status: $("status").value, search: $("search").value, compare, weekKind, weekReal,
         topN: $("top-n").value, topGrouped: $("top-grouped").checked,
       }));
     } catch (e) { /* storage off: settings are just not remembered */ }
@@ -186,7 +190,7 @@
     if (!m) return;
     const id = m.maker + " / " + m.name;
     const events = (D.events[key] || []).slice().reverse().map(e => [
-      e[0], change(e[1], e[2], e[3], e[4]), value(e[2], e[3]), value(e[2], e[4])]);
+      e[0], change(e[1], e[2], e[3], e[4]) + tag(e[5]), value(e[2], e[3]), value(e[2], e[4])]);
     $("detail").innerHTML =
       "<h3>" + esc(key) + "</h3>" +
       '<p class="muted">Host <b>' + esc(m.host || "unknown") + "</b> · grouped as " + groupLink(id) +
@@ -275,21 +279,29 @@
   /* ---------- last 7 days ---------- */
   const KINDS = { price: "Price changes", deprecation: "Retirement dates", removed: "Removed", added: "Added" };
   let weekKind = KINDS[saved.weekKind] ? saved.weekKind : "", weekAll = false;
+  let weekReal = !!saved.weekReal;
   function renderWeek() {
+    const pool = D.recent.filter(r => !weekReal || !r[6]);
     const counts = {};
-    for (const r of D.recent) counts[r[2]] = (counts[r[2]] || 0) + 1;
+    for (const r of pool) counts[r[2]] = (counts[r[2]] || 0) + 1;
     $("week-filters").innerHTML = ['<button type="button" data-kind=""' + (weekKind === "" ? ' aria-pressed="true"' : "") +
-      ">All (" + D.recent.length + ")</button>"].concat(Object.entries(KINDS).map(([k, label]) =>
+      ">All (" + pool.length + ")</button>"].concat(Object.entries(KINDS).map(([k, label]) =>
       '<button type="button" data-kind="' + k + '"' + (weekKind === k ? ' aria-pressed="true"' : "") + ">" +
-      label + " (" + (counts[k] || 0) + ")</button>")).join(" ");
-    const rows = D.recent.filter(r => !weekKind || r[2] === weekKind).slice().reverse();
+      label + " (" + (counts[k] || 0) + ")</button>")).join(" ") +
+      ' <label class="check"><input type="checkbox" id="week-real"' + (weekReal ? " checked" : "") +
+      "> Hide corrections and bulk clean ups</label>";
+    const rows = pool.filter(r => !weekKind || r[2] === weekKind).slice().reverse();
     const shown = weekAll ? rows : rows.slice(0, SHOWN);
     $("week-table").innerHTML = table(["Date", "Model", "Host", "Change", "Before", "After"], shown.map(r => {
       const m = byKey.get(r[1]) || { key: r[1], host: "" };
-      return [r[0], modelLink(m), esc(m.host), change(r[2], r[3], r[4], r[5]), value(r[3], r[4]), value(r[3], r[5])];
+      return [r[0], modelLink(m), esc(m.host), change(r[2], r[3], r[4], r[5]) + tag(r[6]), value(r[3], r[4]), value(r[3], r[5])];
     }), "week") + (rows.length > shown.length ? '<p><button type="button" id="week-all">Show all ' +
       rows.length.toLocaleString() + "</button></p>" : "");
   }
+  $("week-filters").addEventListener("change", e => {
+    if (e.target.id !== "week-real") return;
+    weekReal = e.target.checked; weekAll = false; renderWeek(); remember();
+  });
   $("week-filters").addEventListener("click", e => {
     if (e.target.dataset.kind === undefined) return;
     weekKind = e.target.dataset.kind; weekAll = false; renderWeek(); remember();

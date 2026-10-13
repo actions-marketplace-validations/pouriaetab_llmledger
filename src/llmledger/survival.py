@@ -5,11 +5,13 @@ import statistics
 from bisect import bisect_left
 from datetime import datetime
 
+from llmledger import flags
+
 EXITS = ("price", "retirement", "removed")
 OUTCOMES = EXITS + ("none",)
-TIE_ORDER = {"removed": 0, "retirement": 1, "price": 2}
+TIE_ORDER = {"cleanup": 0, "removed": 0, "retirement": 1, "price": 2}
 HEADLINE = {"input_cost_per_token", "output_cost_per_token"}
-DEFINITIONS = ("main", "headline", "no_first_week")
+DEFINITIONS = ("main", "headline", "no_first_week", "real_only")
 DAYS = (30, 90, 180, 365, 730)
 
 def _is_number(value):
@@ -19,8 +21,11 @@ def _is_number(value):
 
 
 def _exit_kind(row, definition, days_in):
+    flag = row.get("flag", "") if definition == "real_only" else ""
+    if flag in ("unit", "reverted"):
+        return None
     if row["kind"] == "removed":
-        return "removed"
+        return "cleanup" if flag == "bulk" else "removed"
     if row["kind"] == "deprecation":
         if row["old"] == "null" and row["new"] != "null":
             return "retirement"
@@ -71,6 +76,8 @@ def subject_table(rows, definition="main", end=None):
             when, kind = first_exit[model]
         else:
             when, kind = end, "censored"
+        if kind == "cleanup":
+            kind = "censored"
         table[model] = (start, when, kind)
     return table
 
@@ -129,7 +136,7 @@ def bootstrap(subjects, days, min_at_risk=100,
 
 def main(source="data/events.csv", out="data/survival.csv"):
     with open(source, newline="") as f:
-        rows = list(csv.DictReader(f))
+        rows = flags.mark(list(csv.DictReader(f)))
     header = ["definition", "days", "outcome", "estimate",
               "ci_low", "ci_high", "at_risk"]
     sizes = {}

@@ -19,6 +19,11 @@ DEFINITION_LABELS = {
     "main": "Any price field (main result)",
     "headline": "Input and output token prices only",
     "no_first_week": "Ignoring changes in the first week",
+    "real_only": "Leaving out corrections",
+}
+COMPARED = {
+    "main": "Every change (main result)",
+    "real_only": "Real changes only",
 }
 REPO = "https://github.com/pouriaetab/llmledger"
 LITELLM = "https://github.com/BerriAI/litellm"
@@ -102,6 +107,20 @@ def sensitivity(results):
             f"<tbody>{body}</tbody></table>")
 
 
+def corrections(results):
+    head = "".join(f"<th>{LABELS[o]}</th>" for o in OUTCOMES)
+    body = "".join(
+        f"<tr><th>{label}</th>"
+        + "".join(f"<td>{cell(results, (definition, 365, o))}</td>"
+                  for o in OUTCOMES)
+        + "</tr>"
+        for definition, label in COMPARED.items()
+        if (definition, 365, "none") in results
+    )
+    return (f"<table><thead><tr><th>Within 1 year</th>{head}</tr></thead>"
+            f"<tbody>{body}</tbody></table>")
+
+
 def render(results, info):
     days = sorted({day for d, day, _ in results if d == "main"})
     year = {o: percent(results[("main", 365, o)][0]) for o in OUTCOMES}
@@ -115,6 +134,7 @@ def render(results, info):
         bars=bars(results, days),
         table=table(results, days),
         sensitivity=sensitivity(results),
+        corrections=corrections(results),
         sha=html.escape(info["sha"]),
         short=html.escape(info["sha"][:7]),
         data_date=stamp(info["when"]),

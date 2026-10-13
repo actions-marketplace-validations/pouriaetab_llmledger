@@ -36,6 +36,9 @@ removed, within 30 days to 2 years.
    comparison of up to five models. The page also lists every change in the
    last 7 days and the most repriced models. Every table sorts, keeps its
    header in view and lets you move columns, and remembers all of it.
+6. **Flags corrections.** Tags bulk clean ups (50 or more models removed on the
+   same day), unit fixes (a price made 100 times larger or smaller) and changes
+   undone within 30 days, and shows the results with and without them.
 
 ## First results
 
@@ -57,6 +60,11 @@ overstate all three.
 Counting only input and output token prices, the one year price change estimate
 is 13.4%. Ignoring price changes in a model's first week, it is 12.5%. Some early
 changes correct a wrong first entry rather than reprice the model.
+
+Corrections and clean ups matter more for removals. On the data of 13 October
+2026, a few days after a clean up removed about 500 OpenRouter rows, the one
+year removal estimate is 16.3% (15.3 to 17.4) counting every change and 5.7%
+(5.0 to 6.5) leaving out bulk clean ups, unit fixes and reverted changes.
 
 ## How it works
 
@@ -89,7 +97,8 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (46 tests: known answer, simulation, naming, page and version checks),
+Tests (52 tests: known answer, simulation, naming, corrections, page and
+version checks),
 with the exact versions pinned in `requirements.txt`:
 
 ```bash
@@ -108,7 +117,8 @@ here. llmledger is independent and not affiliated with or endorsed by BerriAI.
 ## Layout
 
 ```
-src/llmledger/       history.py, events.py, survival.py, simulate.py,
+src/llmledger/       history.py, events.py, flags.py (corrections),
+                     survival.py, simulate.py,
                      outlook.py (one model's outlook), names.py (grouping),
                      catalog.py (page data), page.py, page.html, app.js,
                      table_protocol.js (results page), pipeline.py
