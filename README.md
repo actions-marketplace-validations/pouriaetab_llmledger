@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.12 | 3.14](https://img.shields.io/badge/python-3.12%20%7C%203.14-blue.svg)
 [![Data: LiteLLM](https://img.shields.io/badge/data-LiteLLM-informational.svg)](https://github.com/BerriAI/litellm)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23330454.svg)](https://doi.org/10.5281/zenodo.23330454)
 
 What happens to an LLM after it is added to a price catalogue? llmledger rebuilds
 the full change history of LiteLLM's model price file and estimates how likely a
@@ -115,7 +116,10 @@ python -m pytest
 ## Cite
 
 Use the "Cite this repository" button on GitHub, which reads
-[CITATION.cff](CITATION.cff). Each release is archived on Zenodo with a DOI.
+[CITATION.cff](CITATION.cff). Archived on Zenodo:
+[10.5281/zenodo.23330454](https://doi.org/10.5281/zenodo.23330454) always
+points to the newest version; version 1.0.0 is
+[10.5281/zenodo.23330455](https://doi.org/10.5281/zenodo.23330455).
 
 ## Data source
 
