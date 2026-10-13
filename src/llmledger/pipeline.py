@@ -4,7 +4,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from llmledger import catalog, events, history, page, sql, survival
+from llmledger import arena, catalog, events, history, licences, page, sql, survival
 
 SOURCE = "https://github.com/BerriAI/litellm.git"
 UPSTREAM = Path("data/upstream")
@@ -33,6 +33,9 @@ def update(repo=UPSTREAM):
 
 def main():
     print(check_python())
+    report, allowed = licences.main()
+    if not allowed["data"]:
+        raise SystemExit("Stopped: LiteLLM's licence is no longer open; nothing was published.")
     update()
     print("versions fetched:", history.prefetch(UPSTREAM))
     last = {}
@@ -42,6 +45,12 @@ def main():
         rows = list(csv.DictReader(f))
     print(f"SQL check: all {sql.check(rows):,} models agree")
     data = catalog.build(rows, last, catalog.end_of(rows))
+    tables = arena.fetch() if allowed["ratings"] else None
+    data["arena"] = arena.build(tables, data["models"]) if tables else None
+    data["licences"] = report
+    if data["arena"]:
+        print(f"Arena ratings: {data['arena']['matched']} of "
+              f"{data['arena']['total']} models matched to the catalogue")
     versions = history.commits(UPSTREAM)
     sha, when = versions[-1]
     info = {

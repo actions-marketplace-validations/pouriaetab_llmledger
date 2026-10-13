@@ -7,7 +7,7 @@ MAKERS = {
                "omni-moderation", "text-moderation", "computer-use"),
     "google": ("gemini", "gemma", "imagen", "veo", "palm", "chat-bison",
                "text-bison", "code-bison", "codechat-bison", "textembedding"),
-    "meta": ("llama", "codellama"),
+    "meta": ("llama", "codellama", "muse-spark"),
     "mistral": ("mistral", "mixtral", "codestral", "pixtral", "ministral",
                 "magistral", "devstral", "open-mistral", "open-mixtral",
                 "voxtral"),
@@ -23,6 +23,7 @@ MAKERS = {
     "microsoft": ("phi", "wizardlm"),
     "minimax": ("minimax", "abab"),
     "nvidia": ("nemotron", "llama-nemotron"),
+    "xiaomi": ("mimo",),
 }
 VENDORS = {"anthropic", "openai", "google", "meta", "meta-llama", "mistral",
            "mistralai", "cohere", "deepseek", "deepseek-ai", "qwen", "alibaba",
@@ -60,7 +61,7 @@ def _clean(name):
     if len(dots) > 1 and dots[0] in VENDORS:
         dots = dots[1:]
     name = ".".join(dots)
-    name = name.replace(":latest", "").removesuffix("-latest")
+    name = name.replace(":latest", "").removesuffix("-latest").removesuffix("@default")
     name = BEDROCK.sub("", name)
     name = DATE.sub("", name)
     name = MONTH_DAY.sub("", name)

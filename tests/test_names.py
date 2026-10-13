@@ -25,3 +25,12 @@ def test_req_s18_one_model_on_many_hosts_is_grouped(key):
 ])
 def test_req_s18_naming_rules(key, expected):
     assert canonical(key) == expected
+
+
+def test_req_s18_vertex_default_alias_is_the_same_model():
+    assert canonical("vertex_ai/claude-sonnet-4-6@default") == canonical("claude-sonnet-4-6")
+
+
+def test_req_s18_newer_makers_are_named():
+    assert canonical("xiaomi_mimo/mimo-v2.6-pro")[0] == "xiaomi"
+    assert canonical("meta/muse-spark-1.2")[0] == "meta"
