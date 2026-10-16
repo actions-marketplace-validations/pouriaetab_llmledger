@@ -63,3 +63,18 @@ def test_req_s24_records_carry_skills_size_and_media_prices():
     a, b, _ = records
     assert a[15] == ["vision"] and a[16] == 128000 and a[17] == {"in_img": 0.002}
     assert b[15] == [] and b[16] is None and b[17] is None
+
+
+def test_req_s29_records_carry_cache_price_and_effort_levels():
+    last = {"a": {"supports_reasoning": True, "supports_xhigh_reasoning_effort": True,
+                  "supports_max_reasoning_effort": True, "supports_none_reasoning_effort": False,
+                  "cache_read_input_token_cost": 2e-07},
+            "b": {"supports_reasoning": True, "reasoning_effort_levels": ["max", "Low", "high"],
+                  "default_reasoning_effort": "high"},
+            "c": {"supports_reasoning": True, "reasoning_effort_levels": []}}
+    a, b, c = model_records(ROWS, last, END)[0]
+    assert a[18] == 0.2 and a[19] == ["low", "medium", "high", "xhigh", "max"] and a[20] == ""
+    assert b[18] is None and b[19] == ["low", "high", "max"] and b[20] == "high"
+    assert c[19] is None and c[20] == ""
+    records, _ = model_records(ROWS, LAST, END)
+    assert records[0][19] is None and records[1][19] is None   # does not think, or not said

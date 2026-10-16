@@ -14,7 +14,7 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.4. The data and the page refresh every day.
+**Status:** version 1.5. The data and the page refresh every day.
 
 Paste a prompt on the live page to see the best value model for it, the top rated one and the
 cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
@@ -69,6 +69,12 @@ Everything else (every model, quality ratings, price history, method) is one cli
     of every outside source. If one is no longer open for business use, it
     stops using it (or stops publishing, for the core data) and opens a GitHub
     issue.
+12. **Compares models side by side.** Two to six models in one table: Arena
+    rating for the task, the effort levels each takes with a suggested level
+    for the prompt, prices, answer tokens and cost per task, and one sentence
+    each on how it compares with the top model, including the break-even
+    share of tokens. A Claude or ChatGPT plan mode shows how fast each model
+    uses the plan instead of dollars.
 
 ## First results
 
@@ -127,9 +133,10 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (98 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
-Arena matching, task guess, licences, page and version checks; the prompt cost
-and task guess tests need Node.js and are skipped without it),
+Tests (106 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+Arena matching, task guess, model comparison, licences, page and version checks;
+the prompt cost, task guess and comparison tests need Node.js and are skipped
+without it),
 with the exact versions pinned in `requirements.txt`:
 
 ```bash
@@ -171,6 +178,7 @@ src/llmledger/       history.py, events.py, flags.py (corrections),
                      cost.js (prompt cost), arena.py (quality ratings),
                      licences.py (daily licence check), route.js and
                      route_eval.py (task guess and how often it is right),
+                     pick.js (compare side by side),
                      table_protocol.js (results page), pipeline.py
 tests/               known answer, simulation, naming, page and version tests
 docs/SPEC.md         definitions, requirements, limitations, traceability

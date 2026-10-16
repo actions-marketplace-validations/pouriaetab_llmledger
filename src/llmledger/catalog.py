@@ -26,6 +26,9 @@ MEDIA = {
     "out_s_480": "output_cost_per_second_480p", "out_s_720": "output_cost_per_second_720p",
     "out_s_1080": "output_cost_per_second_1080p", "in_chr": "input_cost_per_character",
 }
+# Thinking effort levels, lowest first. LiteLLM lists them per model in reasoning_effort_levels,
+# or marks the ones beyond low, medium and high with supports_<level>_reasoning_effort.
+EFFORTS = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
 
 
 def _number(value):
@@ -55,6 +58,21 @@ def _media(entry):
     prices = {code: _number(entry.get(field)) for code, field in MEDIA.items()}
     prices = {code: value for code, value in prices.items() if value is not None}
     return prices or None
+
+
+def _effort(entry):
+    """The effort levels a model takes, lowest first, and its default level ("" if not listed).
+    None when the model does not think, or LiteLLM lists no levels it can be set to."""
+    listed = entry.get("reasoning_effort_levels")
+    if isinstance(listed, list):
+        levels = [level for level in EFFORTS if level in {str(x).lower() for x in listed}]
+    elif entry.get("supports_reasoning") is True:
+        levels = [level for level in EFFORTS if level in ("low", "medium", "high")
+                  or entry.get(f"supports_{level}_reasoning_effort") is True]
+    else:
+        levels = []
+    default = str(entry.get("default_reasoning_effort") or "").lower()
+    return (levels or None), (default if default in levels else "")
 
 
 def _size(entry):
@@ -128,6 +146,7 @@ def model_records(rows, last, end):
             _per_million(entry, TOKEN_PRICES[1]),
             len(repriced), _day(history[-1]["when"]), first_exit, age,
             _skills(entry), _size(entry), _media(entry),
+            _per_million(entry, "cache_read_input_token_cost"), *_effort(entry),
         ])
         events[key] = [
             [_day(row["when"]), row["kind"], row["field"],

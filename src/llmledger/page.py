@@ -122,7 +122,7 @@ def corrections(results):
             f"<tbody>{body}</tbody></table>")
 
 
-ASSETS = {"data": "data.js", "cost": "cost.js", "route": "route.js",
+ASSETS = {"data": "data.js", "cost": "cost.js", "route": "route.js", "pick": "pick.js",
           "table": "table_protocol.js", "app": "app.js"}
 
 
@@ -170,7 +170,7 @@ def main(source, out_dir, info, data):
     here = Path(__file__).parent
     (folder / "survival.csv").write_text(Path(source).read_text())
     (folder / "data.js").write_text(data_script(data))
-    for name in ("app.js", "cost.js", "route.js", "table_protocol.js"):
+    for name in ("app.js", "cost.js", "route.js", "pick.js", "table_protocol.js"):
         shutil.copyfile(here / name, folder / name)
     (folder / "index.html").write_text(render(load(source), info, versions(folder)))
     return folder / "index.html"
