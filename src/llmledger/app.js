@@ -1,11 +1,12 @@
-/* llmledger results page: model lookup, compare, prompt cost, best value, last 7 days, top lists.
-   Reads window.LLMLEDGER, written by page.py from the daily pipeline, and
-   window.LLMCOST from cost.js and window.LLMROUTE from route.js. */
+/* llmledger results page: model lookup, compare, prompt cost, best value, compare side by side,
+   last 7 days, top lists. Reads window.LLMLEDGER, written by page.py from the daily pipeline, and
+   window.LLMCOST from cost.js, window.LLMROUTE from route.js and window.LLMPICK from pick.js. */
 (function () {
   const D = window.LLMLEDGER;
   if (!D) return;
   const FIELDS = ["key", "maker", "name", "host", "mode", "status", "added",
-    "removed", "retire", "input", "output", "repriced", "last", "exit", "age", "skills", "size", "media"];
+    "removed", "retire", "input", "output", "repriced", "last", "exit", "age", "skills", "size", "media",
+    "cache", "effort", "effortDefault"];
   const models = D.models.map(r => Object.fromEntries(FIELDS.map((f, i) => [f, r[i]])));
   const byKey = new Map(models.map(m => [m.key, m]));
   const groups = new Map();
@@ -488,7 +489,7 @@
       (calls > 1 ? " · " + dollars(r.cost * calls) + " for " + calls.toLocaleString() : "") + "</div>" +
       '<p class="why">' + why + "</p>" +
       (odds !== "–" ? '<span class="badge" title="Chance this price changes in the next 90 days">' + odds +
-        " chance the price changes in 90 days</span>" : "") + "</div>";
+        " chance the price changes in 90 days</span>" : "") + effortBadge(r.m) + "</div>";
   }
   function mediaCards() {
     const L = lastRanked;
@@ -496,6 +497,7 @@
       m: x.row.m, cost: x.cost }));
     $("picks").innerHTML = top3.length ? top3.map((r, i) => card(["Cheapest", "Second cheapest", "Third cheapest"][i],
       i ? "" : "best", r, "Priced for what you asked for in Options.", L.calls)).join("") : '<p class="empty">No model matches these choices.</p>';
+    if (L && L.want === "text") lastPicks = top3.map(r => r.id);
   }
 
   function renderValue() {
@@ -504,13 +506,15 @@
     if (!A) {
       if ($("cost-want").value === "text") mediaCards();
       $("value-best").innerHTML = "<p>Arena ratings could not be loaded with today's data. The other tabs are not affected.</p>";
-      $("value-table").innerHTML = ""; return;
+      $("value-table").innerHTML = ""; renderWhich(); return;
     }
     let task = $("value-task").value;
     $("value-guess").innerHTML = "";
+    lastTask = task === "auto" ? "overall" : task;
     if (task === "auto") {
       const g = currentGuess();
       task = (A.tasks[g.task] || []).length ? g.task : "overall";
+      lastTask = task;
       $("value-guess").innerHTML = g.empty ? "· paste a prompt and the task is guessed from it"
         : "· looks like <b>" + esc(taskLabel(task)) + '</b> <span class="muted">(' + esc(g.why.join(", ")) + ")</span>";
     }
@@ -536,6 +540,11 @@
         (low && low !== best ? card("Cheapest rated", "", low, "Arena rating " + low.rating.toFixed(0) + " for this task, against " +
           top.rating.toFixed(0) + " for the top.", q.calls) : "");
     }
+    if ($("cost-want").value === "text") {
+      const second = best === top ? rows[1] : top;
+      const low = rows.reduce((a, r) => (!a || r.cost < a.cost ? r : a), null);
+      lastPicks = [...new Set([best, second, low].filter(Boolean).map(r => r.id))];
+    }
     rows.forEach(r => { r.tied = top && r.high >= top.low; });
     if ($("value-tied").checked) rows = rows.filter(r => r.tied);
     $("value-using").textContent = "Priced for " + describe(q) + (q.calls > 1 ? ", " + q.calls.toLocaleString() + " times" : "") + ".";
@@ -553,7 +562,159 @@
       esc(A.date) + ", licensed CC BY 4.0. " + A.matched + " of " + A.total +
       " Arena models were matched to the catalogue by naming rules; the rest are not shown. " +
       "A rating is for the version Arena tested (shown under each name); the price is for the cheapest listing of that model.";
+    renderWhich();
   }
+
+
+  // ----- compare side by side: 2 or more models, the effort to use, or a plan -----
+  const P = window.LLMPICK;
+  const PLANS = { claude: { maker: "anthropic", host: "anthropic", app: "Claude" },
+    chatgpt: { maker: "openai", host: "openai", app: "ChatGPT" } };
+  const MAX_WHICH = 6;
+  const PAYS = ["api", "claude", "chatgpt"];
+  let pay = PAYS.includes(saved.c_pay) ? saved.c_pay : "api";
+  let lastTask = "overall", lastPicks = [], listedFor = null;
+  const whichLists = {};   // the models chosen for each way of paying; null means the defaults
+  for (const k of PAYS) {
+    const kept = saved["which_" + k];
+    whichLists[k] = Array.isArray(kept) ? kept.filter(id => groups.has(id)).slice(0, MAX_WHICH) : null;
+  }
+  const tokensFor = {};    // answer tokens typed for a model, remembered in this browser only
+  for (const [id, v] of Object.entries(saved.c_tokens && typeof saved.c_tokens === "object" ? saved.c_tokens : {})) {
+    if (groups.has(id) && Number.isFinite(Number(v)) && Number(v) >= 0) tokensFor[id] = Math.floor(Number(v));
+  }
+  const shortName = id => id.split(" / ").slice(1).join(" / ") || id;
+  const levelsText = levels => levels.length === 1 ? levels[0] : levels[0] + " to " + levels[levels.length - 1];
+  const tokensText = n => n >= 1e6 ? +(n / 1e6).toFixed(1) + "M" : n >= 1000 ? Math.round(n / 1000) + "K" : String(n);
+
+  function suggestion(m) {
+    if (!P || !m || !m.effort) return { level: null, why: [] };
+    return P.suggestEffort($("cost-text").value, lastTask, m.effort, whole("cost-in", 0), m.effortDefault);
+  }
+  function effortBadge(m) {
+    const s = suggestion(m);
+    if (!s.level || !$("cost-text").value.trim()) return "";
+    return ' <span class="badge" title="Suggested effort for this prompt, a rule of thumb' +
+      (s.why.length ? ": " + esc(s.why.join(", ")) : "") + '">Effort: ' + esc(s.level) + "</span>";
+  }
+  // The listing a row is priced at: the cheapest one, or on a plan the plan's own host.
+  function listingFor(id, q) {
+    const plan = PLANS[pay];
+    let found = null;
+    for (const m of groups.get(id) || []) {
+      if (m.status !== "listed" || (plan && m.host !== plan.host)) continue;
+      const cost = C.priceFor(m, q);
+      if (cost != null && (!found || cost < found.cost)) found = { m, cost };
+    }
+    return found;
+  }
+  function defaultIds(q) {
+    if (pay === "api") return lastPicks.slice();
+    const plan = PLANS[pay], A = D.arena;
+    const rated = A ? (A.tasks[lastTask] || A.tasks.overall || []).map(a => a[0]) : [];
+    const pool = rated.length ? rated : [...groups.keys()];
+    return pool.filter(id => id.startsWith(plan.maker + " / ") && listingFor(id, q)).slice(0, 4);
+  }
+  const currentIds = q => (whichLists[pay] || defaultIds(q)).slice(0, MAX_WHICH);
+
+  function renderWhich() {
+    const box = $("which");
+    if (!P) { box.hidden = true; return; }
+    document.querySelectorAll("#which-pay [data-pay]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pay === pay));
+    if ($("cost-want").value !== "text") {
+      $("which-table").innerHTML = '<p class="muted">Compare side by side works for text answers: choose "A text answer" in Options.</p>';
+      $("which-verdict").innerHTML = ""; $("which-note").textContent = ""; return;
+    }
+    const q = query("text");
+    const plan = PLANS[pay];
+    const ratings = new Map(((D.arena && D.arena.tasks[lastTask]) || []).map(a => [a[0], a]));
+    const taskName = taskLabel(lastTask).toLowerCase();
+    const rows = currentIds(q).map(id => {
+      const found = listingFor(id, q);
+      const m = found ? found.m : (groups.get(id) || []).find(x => x.status === "listed") || (groups.get(id) || [])[0];
+      const outTok = tokensFor[id] != null ? tokensFor[id] : q.outTok;
+      const cost = found ? C.priceFor(found.m, { ...q, outTok }) : null;
+      const a = ratings.get(id);
+      return { id, m, found, outTok, cost, effort: suggestion(m),
+        rating: a ? a[2] : null, low: a ? a[3] : null, high: a ? a[4] : null };
+    });
+    const use = P.planMultiples(rows.map(r => r.cost));
+    const head = ["", "Model", "Arena rating", "Effort", "Price per 1M tokens", "Answer tokens",
+      plan ? "Uses the plan" : (q.calls > 1 ? "Cost per task, and " + q.calls.toLocaleString() + " times" : "Cost per task"), "Prompt size"];
+    const body = rows.map((r, i) => {
+      const m = r.m || {};
+      const levels = m.effort || [];
+      return ['<button type="button" class="x" data-which-remove="' + esc(r.id) + '" aria-label="Remove ' + esc(r.id) + '">×</button>',
+        groupLink(r.id) + "<small>" + (r.found ? "on " + esc(r.found.m.host) : plan ? "not on the " + plan.app + " host" : "no price for this") + "</small>",
+        r.rating == null ? '–<small>not rated</small>' : r.rating.toFixed(0) + "<small>" + r.low.toFixed(0) + " to " + r.high.toFixed(0) + "</small>",
+        levels.length ? '<span title="' + esc(r.effort.why.length ? "Suggested for this prompt: " + r.effort.why.join(", ") : "The levels this model takes") + '">' +
+          (r.effort.level ? '<b class="lvl">' + esc(r.effort.level) + "</b>" : "") + "<small>" + esc(levelsText(levels)) + "</small></span>" : "–<small>none listed</small>",
+        r.found ? money(m.input) + " / " + money(m.output) + "<small>" + (m.cache != null ? "cache read " + money(m.cache) : "in / out") + "</small>" : "–",
+        '<input type="number" min="0" step="100" data-tokens="' + esc(r.id) + '" value="' + r.outTok + '" aria-label="Answer tokens for ' + esc(r.id) + '">' +
+          (tokensFor[r.id] != null ? "<small>yours</small>" : "<small>the answer length</small>"),
+        plan ? (use[i] == null ? "–" : use[i] < 1.005 ? "1×<small>uses it least</small>" : (use[i] < 10 ? use[i].toFixed(1) : use[i].toFixed(0)) + "×<small>" + dollars(r.cost) + " at API prices</small>")
+          : dollars(r.cost) + (q.calls > 1 && r.cost != null ? "<small>" + dollars(r.cost * q.calls) + "</small>" : ""),
+        m.size ? tokensText(m.size) : "–"];
+    });
+    $("which-table").innerHTML = rows.length ? table(head, body, "which-" + pay) :
+      '<p class="empty">Add a model to compare' + (plan ? " (the " + plan.app + " models)" : "") + ".</p>";
+    const lines = P.verdict(rows.map(r => ({ name: shortName(r.id), rating: r.rating, low: r.low, high: r.high,
+      cost: r.cost, out: r.found ? r.found.m.output : null })), { task: taskName, plan: !!plan });
+    $("which-verdict").innerHTML = rows.length ? lines.map(s => "<p>" + esc(s) + "</p>").join("") : "";
+    $("which-note").textContent = (plan
+      ? "An estimate: plans do not publish per-model limits, so this assumes a plan is used up in step with each model's price on " + plan.host + ". "
+      : "Your prompt (" + q.inTok.toLocaleString() + " tokens) and the answer tokens, at each model's cheapest listed price. ") +
+      "Higher effort adds hidden answer tokens that no open source measures yet, so type the ones you see. " +
+      "The effort in bold is a rule of thumb for this prompt" + (pay === "claude" ? "; xhigh is Extra in the Claude app." : ".");
+    if (listedFor !== pay) {   // the models that can be added, redrawn only when the way of paying changes
+      listedFor = pay;
+      const options = [...groups.keys()].filter(id => (!plan || id.startsWith(plan.maker + " / ")) && listingFor(id, { ...q, inTok: 0, outTok: 0 }));
+      $("which-list").innerHTML = options.sort().map(id => '<option value="' + esc(id) + '">').join("");
+    }
+  }
+  function whichAdd(text) {
+    const want = norm(text);
+    if (!want) return false;
+    const id = groups.has(text) ? text : [...groups.keys()].find(k => norm(k) === want || norm(shortName(k)) === want) ||
+      (byKey.get(text) ? byKey.get(text).maker + " / " + byKey.get(text).name : null);
+    if (!id) return false;
+    const ids = currentIds(query("text"));
+    if (!ids.includes(id)) {
+      if (ids.length >= MAX_WHICH) { $("which-note").textContent = "You can compare up to " + MAX_WHICH + " models."; return true; }
+      ids.push(id);
+    }
+    whichLists[pay] = ids;
+    $("which-add").value = "";
+    renderWhich(); remember();
+    return true;
+  }
+  $("which").addEventListener("click", e => {
+    const t = e.target;
+    if (t.dataset.pay) { pay = t.dataset.pay; renderWhich(); remember(); }
+    else if (t.dataset.whichRemove) {
+      whichLists[pay] = currentIds(query("text")).filter(id => id !== t.dataset.whichRemove);
+      renderWhich(); remember();
+    } else if (t.id === "which-reset") {
+      whichLists[pay] = null;
+      for (const k of Object.keys(tokensFor)) delete tokensFor[k];
+      renderWhich(); remember();
+    }
+  });
+  $("which-open").addEventListener("click", e => {
+    e.preventDefault();
+    $("which").open = true;
+    $("which").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  $("which").addEventListener("input", e => { if (e.target.id === "which-add" && groups.has(e.target.value)) whichAdd(e.target.value); });
+  $("which").addEventListener("change", e => {
+    const t = e.target;
+    if (t.id === "which-add") whichAdd(t.value);
+    else if (t.dataset.tokens) {
+      const v = Math.floor(Number(t.value));
+      if (t.value === "" || !Number.isFinite(v) || v < 0) delete tokensFor[t.dataset.tokens]; else tokensFor[t.dataset.tokens] = v;
+      renderWhich(); remember();
+    }
+  });
 
   // ----- set up, restore and wire -----
   $("cost-len").innerHTML = Object.entries(C.ANSWERS).map(([k, a]) =>
@@ -611,6 +772,8 @@
     for (const id of ["cost-out", "cost-count", "cost-calls", "att-images", "att-pages", "att-audio", "att-video",
       "cost-want", "cost-len", "cost-size", "value-task"]) out["c_" + id] = $(id).value;
     for (const k of Object.keys(pick)) out["pick_" + k] = pick[k] ? [...pick[k]] : [];
+    out.c_pay = pay; out.c_tokens = { ...tokensFor };
+    for (const k of Object.keys(whichLists)) out["which_" + k] = whichLists[k];
     return out;
   };
   $("cost-text").addEventListener("input", () => {
@@ -619,7 +782,7 @@
     costAll = false; renderCost(); renderValue();
   });
   $("tab-ask").addEventListener("input", e => {
-    if (e.target.id === "cost-text" || e.target.dataset.pick !== undefined) return;
+    if (e.target.id === "cost-text" || e.target.dataset.pick !== undefined || e.target.closest("#which")) return;
     if (e.target.id === "cost-len") markLen();
     if (e.target.id === "cost-want") {
       const defaults = { image: 1, video: 10, speech: Math.max(1000, Array.from($("cost-text").value).length) };

@@ -94,6 +94,19 @@ main { max-width: 1040px; margin: 0 auto; padding: 0 16px 32px; }
   color: var(--muted); font-size: 0.76rem; }
 .empty { text-align: center; color: var(--muted); padding: 18px 0; }
 
+/* compare side by side */
+#which .seg { margin: 0; max-width: 100%; }
+#which .seg button { white-space: nowrap; padding: 5px 12px; }
+#which-add { flex: 1 1 220px; }
+#which-table td input[type="number"] { width: 7.5em; text-align: right; }
+#which-table td .x { border: 0; background: none; color: var(--muted); padding: 0 4px; font-size: 1.1rem; line-height: 1; }
+#which-table td .x:hover { color: var(--text); }
+#which-table td b.lvl { font-weight: 650; }
+#which-verdict { margin: 12px 0 4px; }
+#which-verdict p { margin: 0 0 6px; }
+#which-open { white-space: nowrap; }
+.badge + .badge { margin-left: 4px; }
+
 /* everything else hides behind a click */
 details.more { border-top: 1px solid var(--line); margin: 0; padding: 12px 2px; }
 details.more:last-of-type { border-bottom: 1px solid var(--line); }
@@ -170,6 +183,8 @@ footer p { margin: 0 0 4px; }
   .pick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero { padding-top: 28px; }
   .bar-in { gap: 10px; }
+  #which .seg { display: flex; width: 100%; }
+  #which .seg button { flex: 1 1 0; padding: 5px 6px; }
 }
 @media (max-width: 560px) {
   .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
@@ -203,7 +218,28 @@ footer p { margin: 0 0 4px; }
 <p class="taskline">Task <select id="value-task" class="pill" aria-label="Task"></select>
   <span id="value-guess"></span></p>
 <div class="cards" id="picks"></div>
-<p class="muted" id="value-using" style="text-align:center"></p>
+<p class="muted" style="text-align:center"><span id="value-using"></span>
+  <a href="#ask" id="which-open">Compare side by side</a></p>
+
+<details class="more" id="which">
+<summary>Compare side by side<span>2 or more models, effort, your plan</span></summary>
+<div class="stack">
+  <div class="controls">
+    <div class="seg" role="group" aria-label="How you pay" id="which-pay">
+      <button type="button" data-pay="api" aria-pressed="true">Pay per use</button>
+      <button type="button" data-pay="claude">Claude plan</button>
+      <button type="button" data-pay="chatgpt">ChatGPT plan</button>
+    </div>
+    <input type="search" id="which-add" list="which-list" autocomplete="off"
+      placeholder="Add a model, for example claude-fable-5.1" aria-label="Add a model to compare">
+    <datalist id="which-list"></datalist>
+    <button type="button" id="which-reset">Reset</button>
+  </div>
+  <div id="which-table"></div>
+  <div id="which-verdict"></div>
+  <p class="muted" id="which-note"></p>
+</div>
+</details>
 
 <details class="more" id="more-options">
 <summary>Options<span>files, what the model must do, makers and hosts</span></summary>
@@ -268,12 +304,13 @@ footer p { margin: 0 0 4px; }
 </details>
 
 <details class="more">
-<summary>How this works<span>in four lines</span></summary>
+<summary>How this works<span>in five lines</span></summary>
 <div class="stack muted">
   <p><b>Cost</b> is your prompt and answer in tokens times each model's listed price. A token is about 4 characters of English, so costs are estimates.</p>
   <p><b>Best value</b> is the cheapest model whose Arena rating cannot be told apart from the top model's: people compared their answers and voted.</p>
   <p><b>The task</b> is guessed from your words, in your browser. Your prompt is never sent or saved.</p>
   <p><b>The badge</b> is the chance that model's price changes in the next 90 days, from the history of every change in the catalogue.</p>
+  <p><b>Effort</b> is how hard a thinking model works on your prompt. The suggestion is a rule of thumb from the task and your words; the levels each model takes come from LiteLLM.</p>
 </div>
 </details>
 </section>
@@ -399,6 +436,10 @@ often 10 to 30% differently. Thinking models also bill hidden reasoning as answe
 discounts and long prompt prices are left out. When LiteLLM has no per-image or per-second price, an image
 counts as about 1,000 tokens, a PDF page about 1,500, a second of audio about 32 and a second of video about 300.
 "How many times" is how often you send the prompt; in a chat, each message also re-sends the conversation so far.</p>
+<p class="muted">Compare side by side: higher effort makes a thinking model write more hidden answer tokens, and no
+open source measures how many at each level yet, so the table starts every model at the answer length you picked;
+type the tokens you see in your own use to compare. On a Claude or ChatGPT plan you pay no per-token price; the
+table assumes a plan is used up in proportion to each model's API price, because plans do not publish per-model limits.</p>
 </details>
 <details class="sub"><summary>Data, licences and method</summary>
 <p class="muted">Data: LiteLLM <code>main</code> at <a href="$litellm/commit/$sha">$short</a>, last price file
@@ -430,6 +471,7 @@ which can be wrong.</p>
 <script src="data.js?v=$v_data"></script>
 <script src="cost.js?v=$v_cost"></script>
 <script src="route.js?v=$v_route"></script>
+<script src="pick.js?v=$v_pick"></script>
 <script src="table_protocol.js?v=$v_table"></script>
 <script src="app.js?v=$v_app"></script>
 </body>

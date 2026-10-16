@@ -62,3 +62,12 @@ def test_req_s28_page_opens_on_the_prompt_box(tmp_path):
         assert f'data-tab="{view}"' in page
     assert 'id="cost-text"' in page and 'id="picks"' in page
     assert "app.js?v=" in page and "data.js?v=" in page
+
+
+def test_req_s29_page_compares_models_side_by_side(tmp_path):
+    page = page_for(tmp_path)
+    ask = page[page.index('id="tab-ask"'):page.index('id="tab-models"')]
+    assert 'id="which"' in ask and 'id="which-table"' in ask and 'id="which-verdict"' in ask
+    for pay in ("api", "claude", "chatgpt"):
+        assert f'data-pay="{pay}"' in ask
+    assert page.index("pick.js?v=") < page.index("app.js?v=")
