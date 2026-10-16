@@ -14,7 +14,11 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.3. The data and the page refresh every day.
+**Status:** version 1.4. The data and the page refresh every day.
+
+Paste a prompt on the live page to see the best value model for it, the top rated one and the
+cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
+Everything else (every model, quality ratings, price history, method) is one click away.
 
 > **Not financial or procurement advice.** The numbers describe edits to a public
 > catalogue, not what any model costs you. See [DISCLAIMER.md](DISCLAIMER.md).
@@ -123,7 +127,7 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (97 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+Tests (98 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
 Arena matching, task guess, licences, page and version checks; the prompt cost
 and task guess tests need Node.js and are skipped without it),
 with the exact versions pinned in `requirements.txt`:

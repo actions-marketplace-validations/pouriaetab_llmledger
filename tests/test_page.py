@@ -53,3 +53,12 @@ def test_req_s21_page_compares_every_change_with_real_changes(tmp_path):
     page = render(load(source), INFO)
     assert "<tr><th>Real changes only</th><td>15.3%<small>14.1 to 16.6" in page
     assert "<tr><th>Leaving out corrections</th>" in page
+
+
+def test_req_s28_page_opens_on_the_prompt_box(tmp_path):
+    page = page_for(tmp_path)
+    assert page.index('id="tab-ask"') < page.index('id="tab-models"')
+    for view in ("ask", "models", "trends", "about"):
+        assert f'data-tab="{view}"' in page
+    assert 'id="cost-text"' in page and 'id="picks"' in page
+    assert "app.js?v=" in page and "data.js?v=" in page

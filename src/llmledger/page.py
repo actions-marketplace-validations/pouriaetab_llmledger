@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import html
 import json
 import shutil
@@ -71,12 +72,12 @@ def bars(results, days):
             estimate = results[key][0]
             tip = f"{LABELS[outcome]}: {interval(results, key)}"
             segments.append(
-                f'<span class="seg {outcome}" style="flex: {estimate:.6f}" '
+                f'<span class="seg-bar {outcome}" style="flex: {estimate:.6f}" '
                 f'title="{html.escape(tip)}"></span>'
             )
         lines.append(
             f'<div class="row"><span class="when">{DAY_LABELS[day]}</span>'
-            f'<span class="bar">{"".join(segments)}</span></div>'
+            f'<span class="bar-chart">{"".join(segments)}</span></div>'
         )
     return "\n".join(lines)
 
@@ -121,7 +122,19 @@ def corrections(results):
             f"<tbody>{body}</tbody></table>")
 
 
-def render(results, info):
+ASSETS = {"data": "data.js", "cost": "cost.js", "route": "route.js",
+          "table": "table_protocol.js", "app": "app.js"}
+
+
+def versions(folder):
+    """A short fingerprint of each script, added to its address (app.js?v=...)
+    so a browser never mixes yesterday's file with today's page."""
+    return {key: hashlib.sha256((Path(folder) / name).read_bytes()).hexdigest()[:10]
+            for key, name in ASSETS.items()}
+
+
+def render(results, info, assets=None):
+    assets = assets or {key: "dev" for key in ASSETS}
     days = sorted({day for d, day, _ in results if d == "main"})
     year = {o: percent(results[("main", 365, o)][0]) for o in OUTCOMES}
     template = Template(Path(__file__).with_name("page.html").read_text())
@@ -142,6 +155,7 @@ def render(results, info):
         python=html.escape(info["python"]),
         repo=REPO,
         litellm=LITELLM,
+        **{"v_" + key: value for key, value in assets.items()},
     )
 
 
@@ -154,9 +168,9 @@ def main(source, out_dir, info, data):
     folder = Path(out_dir)
     folder.mkdir(parents=True, exist_ok=True)
     here = Path(__file__).parent
-    (folder / "index.html").write_text(render(load(source), info))
     (folder / "survival.csv").write_text(Path(source).read_text())
     (folder / "data.js").write_text(data_script(data))
     for name in ("app.js", "cost.js", "route.js", "table_protocol.js"):
         shutil.copyfile(here / name, folder / name)
+    (folder / "index.html").write_text(render(load(source), info, versions(folder)))
     return folder / "index.html"

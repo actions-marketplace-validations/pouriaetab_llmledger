@@ -3,16 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>llmledger results</title>
-<meta name="description" content="How likely a newly added LLM is to have its price changed, get a retirement date, or be removed from LiteLLM's price catalogue. Rebuilt daily.">
+<title>llmledger: which AI model, and what it costs</title>
+<meta name="description" content="Paste a prompt and get the best value AI model and what it costs. Built on LiteLLM's price catalogue and Arena ratings, rebuilt daily, with the history of every price change.">
 <style>
 :root {
   color-scheme: light;
   --surface: #fcfcfb;
   --raised: #f4f3f0;
+  --card: #ffffff;
   --text: #0b0b0b;
   --muted: #52514e;
   --line: #e2e1dc;
+  --accent: #2a78d6;
+  --accent-soft: #e8f1fc;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.05);
   --price: #2a78d6;
   --retirement: #eb6834;
   --removed: #1baf7a;
@@ -21,150 +25,267 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --surface: #1a1a19;
-    --raised: #242423;
-    --text: #f0efec;
-    --muted: #c3c2b7;
-    --line: #383835;
-    --price: #3987e5;
-    --retirement: #d95926;
-    --removed: #199e70;
-    --none: #4a4a46;
+    --surface: #1a1a19; --raised: #242423; --card: #212120; --text: #f0efec; --muted: #c3c2b7;
+    --line: #383835; --accent: #3987e5; --accent-soft: #1c2a3d;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+    --price: #3987e5; --retirement: #d95926; --removed: #199e70; --none: #4a4a46;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --surface: #1a1a19;
-  --raised: #242423;
-  --text: #f0efec;
-  --muted: #c3c2b7;
-  --line: #383835;
-  --price: #3987e5;
-  --retirement: #d95926;
-  --removed: #199e70;
-  --none: #4a4a46;
+  --surface: #1a1a19; --raised: #242423; --card: #212120; --text: #f0efec; --muted: #c3c2b7;
+  --line: #383835; --accent: #3987e5; --accent-soft: #1c2a3d;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
+  --price: #3987e5; --retirement: #d95926; --removed: #199e70; --none: #4a4a46;
 }
 * { box-sizing: border-box; }
-body {
-  margin: 0;
-  background: var(--surface);
-  color: var(--text);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
-}
-main { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
-h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 12px; }
-h2 { font-size: 1.1rem; margin: 36px 0 12px; }
-p { margin: 0 0 12px; }
-.muted { color: var(--muted); font-size: 0.9rem; }
+body { margin: 0; background: var(--surface); color: var(--text);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
-.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-         margin: 20px 0 8px; }
-.tile { background: var(--raised); border-radius: 8px; padding: 14px 16px; }
-.tile b { display: block; font-size: 1.7rem; font-variant-numeric: tabular-nums; }
-.tile span { color: var(--muted); font-size: 0.9rem; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 12px;
-          font-size: 0.9rem; color: var(--muted); }
-.legend i { display: inline-block; width: 12px; height: 12px;
-            border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
-.row { display: grid; grid-template-columns: 80px 1fr; align-items: center;
-       gap: 12px; margin: 8px 0; }
-.when { font-size: 0.9rem; color: var(--muted); text-align: right; }
-.bar { display: flex; gap: 2px; height: 22px; border-radius: 4px;
-       overflow: hidden; }
-.seg { min-width: 0; }
-.seg:hover { opacity: 0.8; }
-.price { background: var(--price); }
-.retirement { background: var(--retirement); }
-.removed { background: var(--removed); }
-.none { background: var(--none); }
-.scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 0.9rem;
-        font-variant-numeric: tabular-nums; }
-th, td { padding: 8px 10px; border-bottom: 1px solid var(--line);
-         text-align: right; white-space: nowrap; }
-th:first-child { text-align: left; }
-thead th { color: var(--muted); font-weight: 600; white-space: normal; }
-td small { display: block; color: var(--muted); font-size: 0.8rem; }
-footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); }
-:root { --panel: var(--surface); }
-.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 28px 0 8px;
-        border-bottom: 1px solid var(--line); }
-.tabs button { background: none; border: 0; border-bottom: 2px solid transparent;
-               color: var(--muted); font: inherit; padding: 8px 12px; cursor: pointer; }
-.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--price);
-                                     font-weight: 600; }
-.controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center;
-            margin: 12px 0; }
+p { margin: 0 0 12px; }
+h2 { font-size: 1.05rem; margin: 28px 0 10px; letter-spacing: -0.01em; }
+h3 { font-size: 1rem; margin: 18px 0 8px; }
+.muted { color: var(--muted); font-size: 0.88rem; }
+code { font-size: 0.85em; }
+
+/* top bar */
+.bar { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 1040px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 18px; }
+.brand { font-weight: 700; letter-spacing: -0.02em; text-decoration: none; font-size: 1.05rem; }
+.tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { background: none; border: 0; border-radius: 999px; color: var(--muted); font: inherit;
+  padding: 6px 14px; cursor: pointer; white-space: nowrap; }
+.tabs button:hover { color: var(--text); }
+.tabs button[aria-selected="true"] { background: var(--raised); color: var(--text); font-weight: 600; }
+
+main { max-width: 1040px; margin: 0 auto; padding: 0 16px 32px; }
+
+/* hero: one question, one box */
+.hero { text-align: center; padding: 44px 0 18px; }
+.hero h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.15; letter-spacing: -0.03em; margin: 0 0 10px; }
+.hero p { color: var(--muted); font-size: 1.02rem; margin: 0 auto; max-width: 560px; }
+.ask { max-width: 760px; margin: 22px auto 0; background: var(--card); border: 1px solid var(--line);
+  border-radius: 18px; box-shadow: var(--shadow); padding: 6px 6px 10px; text-align: left; }
+.ask textarea { width: 100%; min-height: 84px; border: 0; background: transparent; resize: vertical;
+  font: inherit; font-size: 1.02rem; color: var(--text); padding: 12px 14px; outline: none; }
+.ask-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 0 10px; }
+.ask-row .label { color: var(--muted); font-size: 0.85rem; margin-right: 2px; }
+.chip { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px;
+  padding: 4px 12px; font: inherit; font-size: 0.86rem; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--text); color: var(--surface); border-color: var(--text); }
+.taskline { text-align: center; margin: 18px 0 4px; color: var(--muted); font-size: 0.92rem; }
+.taskline select { font-weight: 600; }
+
+/* the three answers */
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 16px 0 6px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px;
+  box-shadow: var(--shadow); min-width: 0; }
+.card.best { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
+.card .kind { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.card.best .kind { color: var(--accent); }
+.card .name { font-size: 1.12rem; font-weight: 650; margin: 6px 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .host { color: var(--muted); font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .cost { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; margin: 10px 0 0; font-variant-numeric: tabular-nums; }
+.card .per { color: var(--muted); font-size: 0.8rem; }
+.card .why { font-size: 0.86rem; margin: 10px 0 0; }
+.badge { display: inline-block; margin-top: 10px; padding: 2px 9px; border-radius: 999px; background: var(--raised);
+  color: var(--muted); font-size: 0.76rem; }
+.empty { text-align: center; color: var(--muted); padding: 18px 0; }
+
+/* everything else hides behind a click */
+details.more { border-top: 1px solid var(--line); margin: 0; padding: 12px 2px; }
+details.more:last-of-type { border-bottom: 1px solid var(--line); }
+details.more > summary { cursor: pointer; font-weight: 600; list-style: none; display: flex;
+  justify-content: space-between; align-items: center; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::after { content: "+"; color: var(--muted); font-weight: 400; font-size: 1.2rem; }
+details.more[open] > summary::after { content: "–"; }
+details.more > summary span { color: var(--muted); font-weight: 400; font-size: 0.86rem; margin: 0 auto 0 10px; }
+.stack { margin-top: 14px; }
+details.sub { margin: 10px 0; }
+details.sub > summary { cursor: pointer; color: var(--muted); }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 10px 0; }
 .controls input[type="search"] { flex: 1 1 220px; }
-input, select, button, textarea { font: inherit; color: var(--text); background: var(--raised);
-  border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
-textarea { width: 100%; resize: vertical; }
-input[type="number"] { width: 7em; }
-button { cursor: pointer; }
-button[aria-pressed="true"] { border-color: var(--price); font-weight: 600; }
-.toggle { display: inline-flex; gap: 12px; }
-.toggle label { display: inline-flex; gap: 4px; align-items: center; }
-.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-         gap: 8px; margin: 12px 0; }
-.facts div { background: var(--raised); border-radius: 8px; padding: 8px 12px; }
-.facts span { display: block; color: var(--muted); font-size: 0.8rem; }
-#detail:not(:empty), #compare:not(:empty) { border-top: 1px solid var(--line);
-  margin-top: 20px; padding-top: 4px; }
+input, select, button, textarea { font: inherit; color: var(--text); }
+input, select { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; max-width: 100%; }
+button { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px; cursor: pointer; }
+button[aria-pressed="true"] { border-color: var(--accent); font-weight: 600; }
+input[type="number"] { width: 6.5em; }
+.toggle { display: inline-flex; gap: 12px; flex-wrap: wrap; }
+.toggle label, .check { display: inline-flex; gap: 6px; align-items: center; }
+select.pill { border-radius: 999px; padding: 4px 12px; background: var(--card); width: auto; max-width: 240px; }
+.suggest { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 18px 0; }
 #notice { color: var(--retirement); min-height: 1.2em; }
-section td, section th { text-align: left; }
-td:has(> a[data-model]), td:has(> a[data-group]) { min-width: 240px;
-  white-space: normal; overflow-wrap: anywhere; }
-td:has(> a[data-model]) + td, td:has(> a[data-group]) + td { white-space: normal; }
-.tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px;
-       background: var(--raised); border: 1px solid var(--line); color: var(--muted);
-       font-size: 0.75rem; white-space: nowrap; }
-.check { display: inline-flex; gap: 6px; align-items: center; }
-details { margin: 10px 0; }
-summary { cursor: pointer; color: var(--muted); }
+
+/* section heads for Models, Trends and About */
+.page-head { padding: 34px 0 6px; }
+.page-head h1 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 0 0 6px; }
+.page-head p { color: var(--muted); max-width: 680px; }
+.seg { display: inline-flex; background: var(--raised); border-radius: 999px; padding: 3px; gap: 2px; margin: 8px 0 4px; }
+.seg button { border: 0; background: none; border-radius: 999px; padding: 5px 14px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--text); box-shadow: var(--shadow); font-weight: 600; }
+
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0 8px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.tile b { display: block; font-size: 1.6rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tile span { color: var(--muted); font-size: 0.86rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 12px; font-size: 0.86rem; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.row { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 12px; margin: 8px 0; }
+.when { font-size: 0.88rem; color: var(--muted); text-align: right; }
+.bar-chart { display: flex; gap: 2px; height: 22px; border-radius: 6px; overflow: hidden; }
+.seg-bar { min-width: 0; }
+.price { background: var(--price); } .retirement { background: var(--retirement); }
+.removed { background: var(--removed); } .none { background: var(--none); }
+
+/* tables */
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, section td, section th { text-align: left; }
+thead th { color: var(--muted); font-weight: 600; white-space: normal; }
+td small { display: block; color: var(--muted); font-size: 0.78rem; }
+td:has(> a[data-model]), td:has(> a[data-group]) { min-width: 220px; white-space: normal; overflow-wrap: anywhere; }
+.tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; background: var(--raised);
+  border: 1px solid var(--line); color: var(--muted); font-size: 0.72rem; white-space: nowrap; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 12px 0; }
+.facts div { background: var(--raised); border-radius: 10px; padding: 8px 12px; }
+.facts span { display: block; color: var(--muted); font-size: 0.78rem; }
+#detail:not(:empty), #compare:not(:empty) { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 4px; }
+
 .pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
-.pick .list { max-height: 220px; overflow-y: auto; border: 1px solid var(--line);
-  border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; }
+.pick .list { max-height: 200px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px;
+  padding: 6px 8px; font-size: 0.84rem; background: var(--card); }
 .pick label { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 700px) { .pick { grid-template-columns: 1fr 1fr; } }
+
+footer { max-width: 1040px; margin: 24px auto 0; padding: 14px 16px 28px; border-top: 1px solid var(--line);
+  color: var(--muted); font-size: 0.78rem; }
+footer p { margin: 0 0 4px; }
+
+@media (max-width: 760px) {
+  .cards { grid-template-columns: 1fr; }
+  .pick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero { padding-top: 28px; }
+  .bar-in { gap: 10px; }
+}
 @media (max-width: 560px) {
-  .tiles { grid-template-columns: 1fr; }
-  .row { grid-template-columns: 72px 1fr; }
-  .when { font-size: 0.8rem; }
+  .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .tile { padding: 8px 10px; } .tile b { font-size: 1.1rem; } .tile span { font-size: 0.72rem; }
+  .row { grid-template-columns: 64px 1fr; }
 }
 </style>
 </head>
 <body>
+<header class="bar"><div class="bar-in">
+  <a class="brand" href="#ask" data-goto="ask">llmledger</a>
+  <nav class="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="ask">Ask</button>
+    <button type="button" role="tab" data-tab="models">Models</button>
+    <button type="button" role="tab" data-tab="trends">Price history</button>
+    <button type="button" role="tab" data-tab="about">About</button>
+  </nav>
+</div></header>
+
 <main>
-<h1>What happens to an LLM after it joins a price catalogue?</h1>
-<p>Rebuilt every day from the full git history of
-<a href="$litellm">LiteLLM</a>'s model price file. Of the $models models added
-since $since, these are the estimated shares whose first change was each of
-the following.</p>
-<p class="muted">Not financial or procurement advice. The numbers describe edits
-to a public catalogue, not what any model costs you.
-<a href="$repo/blob/main/DISCLAIMER.md">Disclaimer</a>.</p>
-
-<div class="tiles">
-  <div class="tile"><b>$price</b><span>had a price change within 1 year</span></div>
-  <div class="tile"><b>$retirement</b><span>got a retirement date within 1 year</span></div>
-  <div class="tile"><b>$removed</b><span>were removed within 1 year</span></div>
+<!-- ============ Ask: one box, three answers ============ -->
+<section id="tab-ask">
+<div class="hero">
+  <h1>Which AI model should you use?</h1>
+  <p>Paste a prompt. See the model that gives the most for the money, and what it costs.</p>
+  <div class="ask">
+    <textarea id="cost-text" placeholder="Paste or type your prompt here" aria-label="Prompt"></textarea>
+    <div class="ask-row" id="len-chips"><span class="label">Answer</span></div>
+  </div>
 </div>
+<p class="taskline">Task <select id="value-task" class="pill" aria-label="Task"></select>
+  <span id="value-guess"></span></p>
+<div class="cards" id="picks"></div>
+<p class="muted" id="value-using" style="text-align:center"></p>
 
-<nav class="tabs" role="tablist">
-  <button type="button" role="tab" data-tab="lookup">Look up a model</button>
-  <button type="button" role="tab" data-tab="cost">Prompt cost</button>
-  <button type="button" role="tab" data-tab="value">Best value</button>
-  <button type="button" role="tab" data-tab="week">Last 7 days</button>
-  <button type="button" role="tab" data-tab="top">Top lists</button>
-  <button type="button" role="tab" data-tab="overview">All models</button>
-</nav>
+<details class="more" id="more-options">
+<summary>Options<span>files, what the model must do, makers and hosts</span></summary>
+<div class="stack">
+  <div class="controls">
+    <label>You want back <select id="cost-want">
+      <option value="text">A text answer</option>
+      <option value="image">Images</option>
+      <option value="video">Video</option>
+      <option value="speech">Speech (read aloud)</option>
+    </select></label>
+    <label>Prompt tokens <input type="number" id="cost-in" min="0" step="1" value="0"></label>
+    <label hidden>Answer length <select id="cost-len"></select></label>
+    <label id="cost-out-box" hidden>Answer tokens <input type="number" id="cost-out" min="0" step="1" value="800"></label>
+    <label class="for-media" hidden><span id="cost-count-label">Images</span>
+      <input type="number" id="cost-count" min="0" step="1" value="1"></label>
+    <label>How many times <input type="number" id="cost-calls" min="1" step="1" value="1"></label>
+  </div>
+  <div class="controls for-text">
+    <label>Images <input type="number" id="att-images" min="0" step="1" value="0"></label>
+    <label>PDF pages <input type="number" id="att-pages" min="0" step="1" value="0"></label>
+    <label>Audio minutes <input type="number" id="att-audio" min="0" step="0.5" value="0"></label>
+    <label>Video minutes <input type="number" id="att-video" min="0" step="0.5" value="0"></label>
+  </div>
+  <div class="for-text">
+    <p class="muted">The model must be able to:</p>
+    <div class="controls" id="skill-boxes"></div>
+    <div class="controls"><label>Prompt size at least <select id="cost-size">
+      <option value="0">Any</option><option value="32000">32,000 tokens</option>
+      <option value="128000">128,000 tokens</option><option value="200000">200,000 tokens</option>
+      <option value="1000000">1 million tokens</option></select></label></div>
+  </div>
+  <div data-pick-slot></div>
+</div>
+</details>
 
-<section id="tab-lookup">
+<details class="more">
+<summary>Every model, cheapest first<span id="cost-count-note"></span></summary>
+<div class="stack">
+  <div class="controls">
+    <span class="toggle" role="radiogroup" aria-label="Rows">
+      <label><input type="radio" name="cost-view" id="cost-cheapest" checked> One row per model</label>
+      <label><input type="radio" name="cost-view" id="cost-every"> Every listing</label>
+    </span>
+    <input type="search" id="cost-search" placeholder="Filter, for example claude" aria-label="Filter models">
+    <label class="check"><input type="checkbox" id="cost-free"> Show free listings</label>
+  </div>
+  <p class="muted" id="cost-note"></p>
+  <p id="cost-guess" hidden></p>
+  <div id="cost-table"></div>
+</div>
+</details>
+
+<details class="more">
+<summary>Quality ratings for this task<span>from Arena votes</span></summary>
+<div class="stack">
+  <label class="check"><input type="checkbox" id="value-tied"> Only models the votes cannot tell apart from the top</label>
+  <div id="value-best"></div>
+  <div id="value-table"></div>
+  <p class="muted" id="value-credit"></p>
+</div>
+</details>
+
+<details class="more">
+<summary>How this works<span>in four lines</span></summary>
+<div class="stack muted">
+  <p><b>Cost</b> is your prompt and answer in tokens times each model's listed price. A token is about 4 characters of English, so costs are estimates.</p>
+  <p><b>Best value</b> is the cheapest model whose Arena rating cannot be told apart from the top model's: people compared their answers and voted.</p>
+  <p><b>The task</b> is guessed from your words, in your browser. Your prompt is never sent or saved.</p>
+  <p><b>The badge</b> is the chance that model's price changes in the next 90 days, from the history of every change in the catalogue.</p>
+</div>
+</details>
+</section>
+
+<!-- ============ Models: search first ============ -->
+<section id="tab-models" hidden>
+<div class="page-head">
+  <h1>Find a model</h1>
+  <p>Every model in LiteLLM's catalogue, with its price, its history and the chance its price changes.</p>
+</div>
 <div class="controls">
-  <span class="toggle" role="radiogroup" aria-label="Names">
-    <label><input type="radio" name="view" id="view-listed" checked> As listed</label>
-    <label><input type="radio" name="view" id="view-grouped"> Grouped by model</label>
-  </span>
+  <input type="search" id="search" placeholder="Search, for example claude 3.5 sonnet" aria-label="Search models">
   <select id="maker" aria-label="Maker"></select>
   <select id="host" aria-label="Host"></select>
   <select id="status" aria-label="Status">
@@ -172,146 +293,43 @@ to a public catalogue, not what any model costs you.
     <option value="removed">Removed</option>
     <option value="">Listed or removed</option>
   </select>
-  <input type="search" id="search" placeholder="Search, for example claude 3.5 sonnet" aria-label="Search models">
+  <span class="toggle" role="radiogroup" aria-label="Names">
+    <label><input type="radio" name="view" id="view-listed" checked> As listed</label>
+    <label><input type="radio" name="view" id="view-grouped"> Grouped</label>
+  </span>
 </div>
-<p class="muted">The <b>maker</b> and the grouped names come from naming rules (for
-example, <code>eu.anthropic.claude-3-5-sonnet-20241022-v2:0</code> and
-<code>snowflake/claude-3-5-sonnet</code> are both grouped as anthropic /
-claude-3.5-sonnet). The <b>host</b> is LiteLLM's own provider field.</p>
 <p id="notice" role="status"></p>
 <div id="compare"></div>
 <div id="results"></div>
 <div id="detail"></div>
-</section>
-
-<section id="tab-cost" hidden>
-<h2>What would it cost?</h2>
-<p class="muted">Paste a prompt, or type how many tokens it has. Your text stays in
-this page: it is not sent anywhere or saved.</p>
-<textarea id="cost-text" rows="5" placeholder="Paste a prompt here" aria-label="Prompt"></textarea>
-<div class="controls">
-  <label>You want back <select id="cost-want">
-    <option value="text">A text answer</option>
-    <option value="image">Images</option>
-    <option value="video">Video</option>
-    <option value="speech">Speech (read aloud)</option>
-  </select></label>
-  <label>Prompt tokens <input type="number" id="cost-in" min="0" step="1" value="0"></label>
-  <label class="for-text">Answer length <select id="cost-len"></select></label>
-  <label id="cost-out-box" hidden>Answer tokens <input type="number" id="cost-out" min="0" step="1" value="800"></label>
-  <label class="for-media" hidden><span id="cost-count-label">Images</span>
-    <input type="number" id="cost-count" min="0" step="1" value="1"></label>
-  <label>How many times <input type="number" id="cost-calls" min="1" step="1" value="1"></label>
-</div>
-<details class="for-text">
-<summary>Add images, documents, audio or video to the prompt</summary>
-<div class="controls">
-  <label>Images <input type="number" id="att-images" min="0" step="1" value="0"></label>
-  <label>PDF pages <input type="number" id="att-pages" min="0" step="1" value="0"></label>
-  <label>Audio minutes <input type="number" id="att-audio" min="0" step="0.5" value="0"></label>
-  <label>Video minutes <input type="number" id="att-video" min="0" step="0.5" value="0"></label>
-</div>
-<p class="muted">Only models that can take these in are shown. When LiteLLM has no
-per-image or per-second price for a model, an image counts as about 1,000 tokens,
-a PDF page about 1,500, a second of audio about 32 and a second of video about 300.</p>
-</details>
-<details class="for-text">
-<summary>The model must be able to</summary>
-<div class="controls" id="skill-boxes"></div>
-<div class="controls"><label>Prompt size at least <select id="cost-size">
-  <option value="0">Any</option><option value="32000">32,000 tokens</option>
-  <option value="128000">128,000 tokens</option><option value="200000">200,000 tokens</option>
-  <option value="1000000">1 million tokens</option></select></label></div>
-</details>
-<div data-pick-slot></div>
-<div class="controls">
-  <span class="toggle" role="radiogroup" aria-label="Rows">
-    <label><input type="radio" name="cost-view" id="cost-cheapest" checked> Cheapest listing per model</label>
-    <label><input type="radio" name="cost-view" id="cost-every"> Every listing</label>
-  </span>
-  <input type="search" id="cost-search" placeholder="Filter, for example claude" aria-label="Filter models">
-  <label class="check"><input type="checkbox" id="cost-free"> Show free listings (price 0)</label>
-</div>
-<p class="muted" id="cost-note"></p>
-<p id="cost-guess"></p>
-<div id="cost-table"></div>
-<p class="muted">These are estimates. Prompt tokens are counted at about 4
-characters per token, a common rule of thumb for English; each model counts its
-own way, often 10 to 30% differently. You cannot know the answer length in
-advance, so pick the closest size. Thinking models also bill their hidden
-reasoning as answer tokens, often several times the visible answer. "How many
-times" is how often you send this prompt, for example 1,000 customer questions a
-day; in a chat, each message also re-sends the conversation so far. Caching,
-batch discounts and long prompt prices are left out.</p>
-</section>
-
-<section id="tab-value" hidden>
-<h2>Best value for a task</h2>
-<p class="muted">Quality comes from the Arena leaderboard, where people compare
-two anonymous answers to the same prompt and vote for the better one. Each rating
-has a 95% range. <b>Best value</b> is the cheapest model whose range overlaps the
-top model's, so the votes cannot tell it apart from the best.</p>
-<div class="controls">
-  <label>Task <select id="value-task"></select></label>
-  <label class="check"><input type="checkbox" id="value-tied"> Only models tied with the top</label>
-</div>
-<p id="value-guess"></p>
-<p class="muted" id="value-using"></p>
-<div data-pick-slot></div>
-<div id="value-best"></div>
-<div id="value-table"></div>
-<p class="muted" id="value-credit"></p>
-<details id="value-check">
-<summary>How often is the automatic guess right?</summary>
-<div id="value-eval"></div>
+<details class="sub"><summary>About the names</summary>
+<p class="muted">The <b>maker</b> and the grouped names come from naming rules (for
+example, <code>eu.anthropic.claude-3-5-sonnet-20241022-v2:0</code> and
+<code>snowflake/claude-3-5-sonnet</code> are both grouped as anthropic /
+claude-3.5-sonnet). The <b>host</b> is LiteLLM's own provider field.</p>
 </details>
 </section>
 
-<section id="tab-week" hidden>
-<h2>Changed in the last 7 days</h2>
-<p class="muted">Every price change, retirement date, removal and addition in the
-catalogue in the 7 days before the latest data. A single clean up can remove
-hundreds of rows at once. Tags mark <b>bulk clean ups</b> (50 or more models
-removed on the same day), <b>unit fixes</b> (a price made 100 times larger or
-smaller) and <b>reverted</b> changes (undone within 30 days).</p>
-<div class="controls" id="week-filters"></div>
-<div id="week-table"></div>
-</section>
-
-<details id="pick">
-<summary id="pick-summary">Choose makers, models, versions and hosts</summary>
-<div class="pick">
-  <div><b>Makers</b><div class="list" id="pick-makers"></div></div>
-  <div><b>Models</b><div class="list" id="pick-families"></div></div>
-  <div><b>Versions</b><div class="list" id="pick-versions"></div></div>
-  <div><b>Hosts</b><div class="list" id="pick-hosts"></div></div>
+<!-- ============ Price history ============ -->
+<section id="tab-trends" hidden>
+<div class="page-head">
+  <h1>How long does a price last?</h1>
+  <p>Of the $models models added to LiteLLM's catalogue since $since, these shares had
+  their first change within a year.</p>
 </div>
-<p class="muted">Leave a list on All to include everything. Models and versions
-are split from the grouped names by naming rules, which can be wrong.</p>
-</details>
-
-<section id="tab-top" hidden>
-<div class="controls">
-  <label>Show <select id="top-n"><option value="10">Top 10</option>
-    <option value="20">Top 20</option><option value="all">All</option></select></label>
-  <span class="toggle" role="radiogroup" aria-label="Names">
-    <label><input type="radio" name="top-view" id="top-listed" checked> As listed</label>
-    <label><input type="radio" name="top-view" id="top-grouped"> Grouped by model</label>
-  </span>
+<div class="tiles">
+  <div class="tile"><b>$price</b><span>price changed</span></div>
+  <div class="tile"><b>$retirement</b><span>got a retirement date</span></div>
+  <div class="tile"><b>$removed</b><span>were removed</span></div>
 </div>
-<h2>Most repriced</h2>
-<p class="muted">Counts changes from one price to another. A price appearing
-for the first time is not counted, and neither are unit fixes or changes undone
-within 30 days.</p>
-<div id="top-repriced"></div>
-<h2>Hosts ranked by chance of a price change within 1 year</h2>
-<p class="muted">Only hosts with at least 100 models still followed at one
-year are ranked; smaller hosts would give unreliable numbers.</p>
-<div id="top-hosts"></div>
-</section>
+<div class="seg" role="tablist" aria-label="Price history views">
+  <button type="button" data-panel="overview" aria-pressed="true">Over time</button>
+  <button type="button" data-panel="week">Last 7 days</button>
+  <button type="button" data-panel="top">Top lists</button>
+</div>
 
-<section id="tab-overview" hidden>
-<h2>First exit, by time since the model was added</h2>
+<div id="panel-overview">
+<h2>First change, by time since a model was added</h2>
 <div class="legend">
   <span><i class="price"></i>Price change</span>
   <span><i class="retirement"></i>Retirement announced</span>
@@ -319,43 +337,100 @@ year are ranked; smaller hosts would give unreliable numbers.</p>
   <span><i class="none"></i>None of these</span>
 </div>
 $bars
-<p class="muted">Removals include bulk clean ups of the catalogue, not only
-retired models; the last table below shows the numbers without them. Hover
-over a bar to see its value.</p>
-
-<h2>The numbers, with 95% confidence intervals</h2>
+<p class="muted">Hover over a bar to see its value. Removals include bulk clean ups of the catalogue.</p>
+<details class="sub"><summary>The numbers, with 95% confidence intervals</summary>
 <div class="scroll">$table</div>
-<p class="muted">Aalen-Johansen estimates of competing risks with 1,000
-bootstrap resamples. Each row adds up to 100% because the exits compete: once
-a model is removed, its price can no longer change.
+<p class="muted">Aalen-Johansen estimates of competing risks with 1,000 bootstrap resamples. Each row adds up
+to 100% because the exits compete: once a model is removed, its price can no longer change.
 <a href="survival.csv">Download as CSV</a>.</p>
-
-<h2>Does the definition matter?</h2>
+</details>
+<details class="sub"><summary>Does the definition matter?</summary>
 <div class="scroll">$sensitivity</div>
-
-<h2>Every change, or real changes only?</h2>
-<p class="muted">Some edits fix the catalogue rather than change a model. Real
-changes only leaves out unit fixes (a price made 100 times larger or smaller)
-and price changes undone within 30 days, and treats a model removed in a bulk
-clean up (50 or more models removed on the same day) as still followed until
-that day rather than removed.</p>
+</details>
+<details class="sub"><summary>Every change, or real changes only?</summary>
+<p class="muted">Real changes only leaves out unit fixes (a price made 100 times larger or smaller) and price
+changes undone within 30 days, and treats a model removed in a bulk clean up (50 or more removed on the same
+day) as still followed until that day.</p>
 <div class="scroll">$corrections</div>
+</details>
+</div>
 
+<div id="panel-week" hidden>
+<h2>Changed in the last 7 days</h2>
+<p class="muted">Tags mark <b>bulk clean ups</b> (50 or more models removed on the same day), <b>unit fixes</b>
+(a price made 100 times larger or smaller) and <b>reverted</b> changes (undone within 30 days).</p>
+<div class="controls" id="week-filters"></div>
+<div id="week-table"></div>
+</div>
+
+<div id="panel-top" hidden>
+<div class="controls">
+  <label>Show <select id="top-n"><option value="10">Top 10</option>
+    <option value="20">Top 20</option><option value="all">All</option></select></label>
+  <span class="toggle" role="radiogroup" aria-label="Names">
+    <label><input type="radio" name="top-view" id="top-listed" checked> As listed</label>
+    <label><input type="radio" name="top-view" id="top-grouped"> Grouped</label>
+  </span>
+</div>
+<h2>Most repriced</h2>
+<p class="muted">Changes from one price to another; first prices, unit fixes and changes undone within 30 days
+are not counted.</p>
+<div id="top-repriced"></div>
+<h2>Hosts most likely to change a price within a year</h2>
+<p class="muted">Only hosts with at least 100 models still followed at one year.</p>
+<div id="top-hosts"></div>
+</div>
 </section>
 
-<footer class="muted">
-<p>Data: LiteLLM <code>main</code> at
-<a href="$litellm/commit/$sha">$short</a>, last price file change
-$data_date. Page built $built with Python $python.</p>
-<p id="licences"></p>
-<p>Method, specification and tests: <a href="$repo">llmledger on GitHub</a>.
-MIT licence.</p>
-</footer>
+<!-- ============ About ============ -->
+<section id="tab-about" hidden>
+<div class="page-head">
+  <h1>About</h1>
+  <p>llmledger reads the full git history of <a href="$litellm">LiteLLM</a>'s model price file every day,
+  and the Arena leaderboard for quality. It estimates what a prompt costs, which model is the best value,
+  and how likely each price is to change.</p>
+</div>
+<details class="sub" open id="value-check"><summary>How often is the automatic task guess right?</summary>
+<div id="value-eval"></div>
+</details>
+<details class="sub"><summary>What the estimates leave out</summary>
+<p class="muted">Prompt tokens are counted at about 4 characters per token; each model counts its own way,
+often 10 to 30% differently. Thinking models also bill hidden reasoning as answer tokens. Caching, batch
+discounts and long prompt prices are left out. When LiteLLM has no per-image or per-second price, an image
+counts as about 1,000 tokens, a PDF page about 1,500, a second of audio about 32 and a second of video about 300.
+"How many times" is how often you send the prompt; in a chat, each message also re-sends the conversation so far.</p>
+</details>
+<details class="sub"><summary>Data, licences and method</summary>
+<p class="muted">Data: LiteLLM <code>main</code> at <a href="$litellm/commit/$sha">$short</a>, last price file
+change $data_date. Page built $built with Python $python.</p>
+<p class="muted" id="licences"></p>
+<p class="muted">Method, specification and tests: <a href="$repo">llmledger on GitHub</a>. MIT licence.</p>
+</details>
+</section>
 </main>
-<script src="data.js"></script>
-<script src="cost.js"></script>
-<script src="route.js"></script>
-<script src="table_protocol.js"></script>
-<script src="app.js"></script>
+
+<footer>
+<p>Not financial or procurement advice. The numbers describe edits to a public catalogue and votes on a public
+leaderboard, not what any model costs you or how well it will do your task.
+<a href="$repo/blob/main/DISCLAIMER.md">Disclaimer</a>.</p>
+</footer>
+
+<details id="pick" class="sub">
+<summary id="pick-summary">Choose makers, models, versions and hosts</summary>
+<div class="pick">
+  <div><b>Makers</b><div class="list" id="pick-makers"></div></div>
+  <div><b>Models</b><div class="list" id="pick-families"></div></div>
+  <div><b>Versions</b><div class="list" id="pick-versions"></div></div>
+  <div><b>Hosts</b><div class="list" id="pick-hosts"></div></div>
+</div>
+<p class="muted">Leave a list on All to include everything. Models and versions are split by naming rules,
+which can be wrong.</p>
+</details>
+
+<script src="data.js?v=$v_data"></script>
+<script src="cost.js?v=$v_cost"></script>
+<script src="route.js?v=$v_route"></script>
+<script src="table_protocol.js?v=$v_table"></script>
+<script src="app.js?v=$v_app"></script>
 </body>
 </html>

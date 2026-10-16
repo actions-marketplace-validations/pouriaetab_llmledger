@@ -92,10 +92,12 @@
   const groupLink = id => '<a href="#" data-group="' + esc(id) + '">' + esc(id) + "</a>";
 
   /* ---------- tabs ---------- */
-  const TABS = ["lookup", "cost", "value", "week", "top", "overview"];
-  let currentTab = "lookup";
+  const TABS = ["ask", "models", "trends", "about"];
+  const OLD = { lookup: "models", cost: "ask", value: "ask", week: "trends", top: "trends", overview: "trends" };
+  let currentTab = "ask";
   function showTab(name) {
-    if (!TABS.includes(name)) name = "lookup";
+    name = OLD[name] || name;
+    if (!TABS.includes(name)) name = "ask";
     currentTab = name;
     for (const t of TABS) {
       $("tab-" + t).hidden = t !== name;
@@ -108,6 +110,23 @@
       history.replaceState(null, "", "#" + b.dataset.tab); showTab(b.dataset.tab); remember();
     }));
   showTab(location.hash.slice(1) || saved.tab);
+  function showPanel(name) {
+    for (const b of document.querySelectorAll("[data-panel]")) {
+      b.setAttribute("aria-pressed", b.dataset.panel === name);
+      $("panel-" + b.dataset.panel).hidden = b.dataset.panel !== name;
+    }
+  }
+  document.querySelectorAll("[data-panel]").forEach(b => b.addEventListener("click", () => {
+    showPanel(b.dataset.panel);
+    try { localStorage.setItem(STORE + ":panel", b.dataset.panel); } catch (e) { /* not remembered */ }
+  }));
+  showPanel(({ week: "week", top: "top" })[location.hash.slice(1)] ||
+    (() => { try { return localStorage.getItem(STORE + ":panel"); } catch (e) { return null; } })() || "overview");
+  window.addEventListener("hashchange", () => {
+    const h = location.hash.slice(1);
+    showTab(h);
+    if (h === "week" || h === "top" || h === "overview") showPanel(h);
+  });
 
   /* ---------- look up ---------- */
   function fillSelect(select, counts, all) {
@@ -129,9 +148,17 @@
     return words.every(w => hay.some(token => token.startsWith(w)));
   }
 
+  let browseAll = false;
+  const SUGGEST = ["claude sonnet", "gpt 5", "gemini flash", "llama", "deepseek", "qwen", "mistral", "grok"];
   function renderResults() {
     const words = norm($("search").value).split(" ").filter(Boolean);
     const maker = $("maker").value, host = $("host").value, status = $("status").value;
+    if (!words.length && !maker && !host && !browseAll && !grouped()) {
+      $("results").innerHTML = '<div class="suggest"><span class="muted">Try</span>' + SUGGEST.map(s =>
+        '<button type="button" class="chip" data-suggest="' + esc(s) + '">' + esc(s) + "</button>").join("") +
+        '<button type="button" class="chip" data-suggest="">Browse all ' + models.filter(m => m.status === status || !status).length.toLocaleString() + "</button></div>";
+      return;
+    }
     const hits = models.filter(m => matches(m, words, maker, host, status));
     let html;
     if (grouped()) {
@@ -258,6 +285,10 @@
 
   document.addEventListener("click", e => {
     const t = e.target;
+    if (t.dataset.suggest !== undefined) {
+      if (t.dataset.suggest) $("search").value = t.dataset.suggest; else browseAll = true;
+      renderResults(); remember(); return;
+    }
     if (t.dataset.model) { e.preventDefault(); showModel(t.dataset.model); }
     else if (t.dataset.group) { e.preventDefault(); showGroup(t.dataset.group); }
     else if (t.dataset.add) { toggleCompare(t.dataset.add, true); renderResults(); }
@@ -303,6 +334,7 @@
   const pick = { makers: null, families: null, versions: null, hosts: null };   // null means all
   for (const k of Object.keys(pick)) if (Array.isArray(saved["pick_" + k]) && saved["pick_" + k].length) pick[k] = new Set(saved["pick_" + k]);
   let costAll = false;
+  let lastRanked = null;
 
   function query(want) {
     const len = $("cost-len").value;
@@ -356,7 +388,7 @@
 
   // ----- makers, models, versions and hosts: All or some -----
   function renderPick() {
-    const want = currentTab === "value" ? "text" : $("cost-want").value;
+    const want = $("cost-want").value;
     const pool = listed.filter(m => eligible(m, want));
     const counts = (rows, keyOf) => { const c = new Map(); for (const m of rows) { const k = keyOf(m); c.set(k, (c.get(k) || 0) + 1); } return c; };
     const list = (id, level, counter, show) => {
@@ -415,6 +447,8 @@
     });
     const head = (every ? ["Rank", "Model as listed", "Host"] : ["Rank", "Model (grouped)", "Cheapest listing", "Listings"])
       .concat(priceHead, ["Cost per time", timesLabel, "Price change chance, 90 days", "Retirement date"]);
+    lastRanked = { want: q.want, ranked, calls: q.calls };
+    $("cost-count-note").textContent = ranked.length.toLocaleString() + (every ? " listings" : " models");
     $("cost-note").innerHTML = ranked.length.toLocaleString() + (every ? " listings" : " models") + " for " +
       esc(describe(q)) + ", cheapest first." + (hidden ? " " + hidden.toLocaleString() + " free listings (price 0) are hidden." : "");
     $("cost-table").innerHTML = table(head, body, (every ? "cost-listed-" : "cost-grouped-") + q.want) +
@@ -443,9 +477,32 @@
   });
 
   // ----- best value (Arena ratings) -----
+  // ----- the three answers on Ask -----
+  function card(kind, cls, r, why, calls) {
+    const [maker, ...rest] = r.id.split(" / ");
+    const odds = chance(r.m, "90");
+    return '<div class="card ' + cls + '"><div class="kind">' + kind + "</div>" +
+      '<div class="name" title="' + esc(r.id) + '">' + esc(rest.join(" / ") || r.id) + "</div>" +
+      '<div class="host">' + esc(maker) + " · on " + esc(r.m.host) + "</div>" +
+      '<div class="cost">' + dollars(r.cost) + '</div><div class="per">per answer' +
+      (calls > 1 ? " · " + dollars(r.cost * calls) + " for " + calls.toLocaleString() : "") + "</div>" +
+      '<p class="why">' + why + "</p>" +
+      (odds !== "–" ? '<span class="badge" title="Chance this price changes in the next 90 days">' + odds +
+        " chance the price changes in 90 days</span>" : "") + "</div>";
+  }
+  function mediaCards() {
+    const L = lastRanked;
+    const top3 = (L ? L.ranked : []).slice(0, 3).map(x => ({ id: x.id.includes(" / ") ? x.id : x.row.m.maker + " / " + x.row.m.name,
+      m: x.row.m, cost: x.cost }));
+    $("picks").innerHTML = top3.length ? top3.map((r, i) => card(["Cheapest", "Second cheapest", "Third cheapest"][i],
+      i ? "" : "best", r, "Priced for what you asked for in Options.", L.calls)).join("") : '<p class="empty">No model matches these choices.</p>';
+  }
+
   function renderValue() {
     const A = D.arena;
+    if ($("cost-want").value !== "text") { mediaCards(); $("value-guess").innerHTML = ""; }
     if (!A) {
+      if ($("cost-want").value === "text") mediaCards();
       $("value-best").innerHTML = "<p>Arena ratings could not be loaded with today's data. The other tabs are not affected.</p>";
       $("value-table").innerHTML = ""; return;
     }
@@ -454,10 +511,8 @@
     if (task === "auto") {
       const g = currentGuess();
       task = (A.tasks[g.task] || []).length ? g.task : "overall";
-      $("value-guess").innerHTML = g.empty
-        ? "Paste your prompt on the Prompt cost tab and its task is guessed here. Until then: Everything (overall)."
-        : "Guessed task: <b>" + esc(taskLabel(task)) + '</b> <span class="muted">(' + esc(g.why.join(", ")) +
-          ")</span>. If that is wrong, pick the task in the list.";
+      $("value-guess").innerHTML = g.empty ? "· paste a prompt and the task is guessed from it"
+        : "· looks like <b>" + esc(taskLabel(task)) + '</b> <span class="muted">(' + esc(g.why.join(", ")) + ")</span>";
     }
     const q = query("text");
     const cheapest = new Map();
@@ -469,10 +524,21 @@
       id: a[0], arenaName: a[1], rating: a[2], low: a[3], high: a[4], votes: a[5], ...cheapest.get(a[0]) }));
     const best = C.bestValue(rows);
     const top = rows[0];
+    if ($("cost-want").value === "text") {
+      const low = rows.reduce((a, r) => (!a || r.cost < a.cost ? r : a), null);   // cheapest model Arena rated
+      const times = x => (x.cost > 0 && top.cost / x.cost >= 1.05 ? (top.cost / x.cost).toFixed(top.cost / x.cost < 10 ? 1 : 0) + "×" : "");
+      $("picks").innerHTML = !best ? '<p class="empty">No rated model matches these choices.</p>' :
+        card("Best value", "best", best, best === top ? "It is also the top rated model for this task."
+          : "The votes cannot tell it apart from the top model, which costs " + (times(best) || "about the same") + (times(best) ? " as much." : "."), q.calls) +
+        ((best === top ? rows[1] : top) ? card(best === top ? "Runner up" : "Top rated", "", best === top ? rows[1] : top,
+          (best === top ? "Next highest Arena rating for " : "Highest Arena rating for ") + esc(taskLabel(task).toLowerCase()) +
+          " (" + (best === top ? rows[1] : top).rating.toFixed(0) + ").", q.calls) : "") +
+        (low && low !== best ? card("Cheapest rated", "", low, "Arena rating " + low.rating.toFixed(0) + " for this task, against " +
+          top.rating.toFixed(0) + " for the top.", q.calls) : "");
+    }
     rows.forEach(r => { r.tied = top && r.high >= top.low; });
     if ($("value-tied").checked) rows = rows.filter(r => r.tied);
-    $("value-using").textContent = "Priced for " + describe(q) + ", " + q.calls.toLocaleString() +
-      (q.calls === 1 ? " time" : " times") + ". Change these on the Prompt cost tab.";
+    $("value-using").textContent = "Priced for " + describe(q) + (q.calls > 1 ? ", " + q.calls.toLocaleString() + " times" : "") + ".";
     $("value-best").innerHTML = best ? "<p><b>Best value: " + esc(best.id) + "</b> on " + esc(best.m.host) + ", " +
       dollars(best.cost) + " per time. Its rating (" + best.rating.toFixed(0) + ") cannot be told apart from the top model, " +
       esc(top.id) + " (" + top.rating.toFixed(0) + ", " + dollars(top.cost) + ")" +
@@ -494,10 +560,22 @@
     '<option value="' + k + '">' + esc(a.label) + " (" + a.tokens.toLocaleString() + " tokens)</option>").join("") +
     '<option value="custom">Custom</option>';
   $("cost-len").value = "medium";
+  $("len-chips").insertAdjacentHTML("beforeend", Object.entries(C.ANSWERS).map(([k, a]) =>
+    '<button type="button" class="chip" data-len="' + k + '" title="' + esc(a.label) + " (about " +
+    a.tokens.toLocaleString() + ' tokens)">' + esc(a.label.split(":")[0]) + "</button>").join("") +
+    '<button type="button" class="chip" data-len="custom" title="Type the number of answer tokens in Options">Custom</button>');
+  const markLen = () => document.querySelectorAll("[data-len]").forEach(b =>
+    b.setAttribute("aria-pressed", b.dataset.len === $("cost-len").value));
+  $("len-chips").addEventListener("click", e => {
+    if (!e.target.dataset.len) return;
+    $("cost-len").value = e.target.dataset.len; markLen();
+    if (e.target.dataset.len === "custom") { $("more-options").open = true; setTimeout(() => $("cost-out").focus(), 0); }
+    costAll = false; renderCost(); renderValue(); remember();
+  });
   $("skill-boxes").innerHTML = Object.entries(SKILL_LABELS).map(([k, label]) =>
     '<label class="check"><input type="checkbox" value="' + k + '"> ' + esc(label) + "</label>").join(" ");
   if (D.arena) {
-    $("value-task").innerHTML = '<option value="auto">Automatic: guess from my prompt</option>' +
+    $("value-task").innerHTML = '<option value="auto">Automatic</option>' +
       D.arena.labels.map(([k, label]) => '<option value="' + k + '">' + esc(label) + "</option>").join("");
   }
   const E = D.route_eval;
@@ -540,8 +618,9 @@
     if ($("cost-want").value === "speech") $("cost-count").value = Array.from($("cost-text").value).length;
     costAll = false; renderCost(); renderValue();
   });
-  $("tab-cost").addEventListener("input", e => {
+  $("tab-ask").addEventListener("input", e => {
     if (e.target.id === "cost-text" || e.target.dataset.pick !== undefined) return;
+    if (e.target.id === "cost-len") markLen();
     if (e.target.id === "cost-want") {
       const defaults = { image: 1, video: 10, speech: Math.max(1000, Array.from($("cost-text").value).length) };
       if (defaults[e.target.value]) $("cost-count").value = defaults[e.target.value];
@@ -550,17 +629,15 @@
     }
     costAll = false; renderCost(); renderValue(); remember();
   });
-  $("tab-value").addEventListener("input", e => {
-    if (e.target.dataset.pick !== undefined) return;
-    renderValue(); remember();
-  });
   $("cost-table").addEventListener("click", e => { if (e.target.id === "cost-all") { costAll = true; renderCost(); } });
   onTab = name => {
-    if (name !== "cost" && name !== "value") return;
-    document.querySelector("#tab-" + name + " [data-pick-slot]").appendChild($("pick"));
+    if (name !== "ask") return;
+    document.querySelector("#tab-ask [data-pick-slot]").appendChild($("pick"));
     renderPick();
   };
   onTab(currentTab);
+  if ($("pick").parentElement === document.body) document.querySelector("#tab-ask [data-pick-slot]").appendChild($("pick"));
+  markLen();
   renderPick();
   renderCost();
   renderValue();
