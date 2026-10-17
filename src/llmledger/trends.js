@@ -214,7 +214,7 @@
     const box = $("race-chart");
     if (!box || !T) return;
     const W = Math.max(300, box.clientWidth || 720), phone = W < 560;
-    const Hh = phone ? 230 : 250, labelW = Math.min(phone ? 112 : 190, Math.round(W * 0.3));
+    const Hh = Math.max(140, Math.round(box.clientHeight) || (phone ? 230 : 250)), labelW = Math.min(phone ? 112 : 190, Math.round(W * 0.3));
     const M = { l: 44, r: labelW + 10, t: 10, b: 24 }, pw = W - M.l - M.r, ph = Hh - M.t - M.b;
     const t = S.t, price = S.view === "price";
     const x0 = price ? first() : t - WINDOW, x1 = price ? lastDay() : t;
@@ -469,7 +469,7 @@
   function drawFrontier(rows, opts) {
     lastFront = [rows, opts];
     const box = $("front-chart");
-    if (!box) return;
+    if (!box || $("frontier").hidden) return;      // drawn when its tab opens
     if (!rows || !rows.length) {
       box.innerHTML = '<p class="empty">' + H.esc(opts && opts.why || "No rated model matches these choices.") + "</p>";
       $("front-list").innerHTML = ""; $("front-sum").textContent = ""; return;
@@ -480,7 +480,8 @@
     const pts = all.filter(r => r.rating >= topRating - FLOOR).map(r => ({ x: r.cost, y: r.rating, r }));
     const edge = frontier(pts);
     const onEdge = new Set(edge.map(p => p.r.id));
-    const W = Math.max(280, box.clientWidth || 640), phone = W < 560, Hh = phone ? 250 : 290;
+    const W = Math.max(280, box.clientWidth || 640), phone = W < 560;
+    const Hh = Math.max(160, Math.round(box.clientHeight) || (phone ? 250 : 290));
     const M = { l: 46, r: 14, t: 14, b: 30 }, pw = W - M.l - M.r, ph = Hh - M.t - M.b;
     const lx = pts.map(p => Math.log10(p.x)), xs = [Math.min(...lx), Math.max(...lx)];
     const pad = (xs[1] - xs[0]) * 0.05 || 0.5; xs[0] -= pad; xs[1] += pad;
@@ -640,15 +641,19 @@
       e.preventDefault();
       if (a.dataset.openGroup) H.openGroup(a.dataset.openGroup); else H.openModel(a.dataset.openModel);
     });
-    $("frontier").addEventListener("toggle", () => { if ($("frontier").open && lastFront) drawFrontier(...lastFront); });
+    const frontShown = () => !$("frontier").hidden && !$("tab-ask").hidden;
+    $("frontier").addEventListener("dockshow", () => { if (lastFront) requestAnimationFrame(() => drawFrontier(...lastFront)); });
+    // Both charts take the size their box is given, so they are redrawn when the window or the box changes size.
     let resizing = 0;
-    root.addEventListener("resize", () => {
+    const redraw = () => {
       clearTimeout(resizing);
       resizing = setTimeout(() => {
         if (!$("tab-race").hidden && S.shown && !S.playing) draw(false);
-        if ($("frontier").open && lastFront) drawFrontier(...lastFront);
-      }, 150);
-    });
+        if (frontShown() && lastFront) drawFrontier(...lastFront);
+      }, 120);
+    };
+    root.addEventListener("resize", redraw);
+    if (root.ResizeObserver) { const ro = new ResizeObserver(redraw); ro.observe($("race-chart")); ro.observe($("front-chart")); }
     renderArrivals();
     renderChanges();
     $("pulse-date").textContent = dateText(dayOf(D.end.slice(0, 10)));

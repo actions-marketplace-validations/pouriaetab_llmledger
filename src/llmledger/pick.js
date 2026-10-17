@@ -133,7 +133,7 @@
 
   // A short note on one choice against the pick, with the break-even share of answer tokens.
   function versus(r, pick, plan) {
-    if (!pick || r === pick || r.cost == null || !(pick.cost > 0)) return "";
+    if (!pick || r === pick || !(r.cost > 0) || !(pick.cost > 0)) return "";
     const ratio = r.cost / pick.cost;
     let line;
     if (plan) {

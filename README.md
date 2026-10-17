@@ -14,12 +14,13 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.7. The data and the page refresh every day.
+**Status:** version 1.8. The data and the page refresh every day.
 
 Paste a prompt on the live page to see the best value model for it, the top rated one and the
 cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
-Everything else (every model, quality ratings, price history, method) is one click away. The
-Trends view replays two years of Arena's leaderboards and what top quality has cost.
+Everything else (compare, cost vs quality, every model, quality ratings, price history, method) is
+one click away, and every view fits the window without scrolling, on a phone too. The Trends view
+replays two years of Arena's leaderboards and what top quality has cost.
 
 > **Not financial or procurement advice.** The numbers describe edits to a public
 > catalogue, not what any model costs you. See [DISCLAIMER.md](DISCLAIMER.md).
@@ -89,6 +90,9 @@ Trends view replays two years of Arena's leaderboards and what top quality has c
 15. **Shows cost against quality.** For your prompt, every rated model's cost
     against its Arena score, with the edge marked: the models no other model
     beats on both.
+16. **Fits one screen.** At any window size the page itself never scrolls: the
+    answers stay in view, the extras are tabs in one panel under them (a sheet
+    on phones and short windows), and a model's details open in a drawer.
 
 ## First results
 
@@ -149,10 +153,10 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (129 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+Tests (130 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
 Arena matching, task guess, model comparison, plug-in parity, trends, licences,
 page and version checks; the prompt cost, task guess, comparison, trends drawing
-and parity tests need Node.js and are skipped without it; the plug-in has 7 more
+and parity tests need Node.js and are skipped without it; the plug-in has 8 more
 in `mcp/tests`),
 with the exact versions pinned in `requirements.txt`:
 

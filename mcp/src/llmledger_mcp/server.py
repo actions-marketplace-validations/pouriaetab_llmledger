@@ -54,7 +54,7 @@ def footer(s):
 
 
 def listing(s, group, plan=None, input_tokens=0, output_tokens=0, needs=(), min_context=None):
-    """The listing a grouped model is priced at: its cheapest text listing, or on a plan the plan's own host."""
+    """The listing a grouped model is priced at: its cheapest priced text listing, or on a plan the plan's own host."""
     best = None
     for m in s.groups.get(group, []):
         if not logic.is_text_model(m) or (plan and m["host"] != PLANS[plan][1]):
@@ -62,6 +62,9 @@ def listing(s, group, plan=None, input_tokens=0, output_tokens=0, needs=(), min_
         if any(n not in (m.get("skills") or []) for n in needs):
             continue
         if min_context and not (m.get("context") or 0) >= min_context:
+            continue
+        # a free listing (both token prices 0) is left out, as on the page: it is usually a trial tier, not a price
+        if not ((m.get("input") or 0) > 0 or (m.get("output") or 0) > 0):
             continue
         cost = logic.cost_of(m, input_tokens, output_tokens)
         if cost is not None and (best is None or cost < best[1]):

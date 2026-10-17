@@ -95,3 +95,18 @@ def test_req_s34_cost_vs_quality_sits_on_ask(tmp_path):
     ask = page[page.index('id="tab-ask"'):page.index('id="tab-race"')]
     assert 'id="frontier"' in ask and 'id="front-chart"' in ask and 'id="front-list"' in ask
     assert ask.index('id="which"') < ask.index('id="frontier"')
+
+
+def test_req_s36_every_view_fits_one_screen(tmp_path):
+    page = page_for(tmp_path)
+    style = page[page.index("<style>"):page.index("</style>")]
+    # the page itself never scrolls: the body is the window's height and only boxes inside it scroll
+    assert "body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }" in style
+    assert "main > section:not([hidden]) { flex: 1 1 auto; min-height: 0;" in style
+    # the extras on Ask are tabs in one panel, not sections stacked below the answers
+    ask = page[page.index('id="tab-ask"'):page.index('id="tab-race"')]
+    for panel in ("which", "frontier", "rates", "every", "more-options", "how"):
+        assert f'data-dock="{panel}"' in ask and f'id="{panel}"' in ask
+    assert '<details class="more"' not in page
+    # a model's details open in a drawer outside the views, so they show over any view
+    assert page.index('id="detail"') > page.index("</main>")
