@@ -256,19 +256,42 @@ Verified by: an automated test of the page's views and script addresses,
 and the page in a browser at desktop and phone widths.
 
 **REQ-S29 Compare side by side.** Under the answers, the page shall show
-two or more models side by side, starting with the three answers, with
-each model's Arena rating for the task, its effort levels (D13) and a
-suggested level for the prompt, its price per 1M tokens (prompt, answer
-and cache read), its answer tokens per task (the chosen answer length, or
-the number the reader types) and its cost per task. The reader can add up
-to 6 models and remove any. On a Claude or ChatGPT plan, the table shall
-start with that maker's highest rated models on its own host and show how
-fast each uses the plan compared with the one that uses it least, in place
-of dollars. Under the table, one sentence per model shall compare it with
-the highest rated model: cost or plan use, whether the votes can tell the
-ratings apart, and the break-even share of answer tokens at which it would
-cost the same. Verified by: automated tests of the effort levels, the
-suggestion, plan use and the sentences, and the page in a browser.
+models side by side as columns that follow the prompt: the three answers,
+or on a Claude or ChatGPT plan that maker's three highest rated models for
+the task on its own host, plus up to 3 models the reader adds. Each column
+shall show the model's Arena rating for the task with its rank, its effort
+levels (D13) and a suggested level for the prompt, its price per 1M tokens,
+its answer tokens per task (the chosen answer length, or the number the
+reader types) and its cost per task, or on a plan how fast it uses the plan
+compared with the one that uses it least. One sentence shall name the pick
+(the cheapest whose rating the votes cannot tell apart from the highest
+rated) and each other column shall say how it compares with the pick,
+including the break-even share of answer tokens. Verified by: automated
+tests of the effort levels, the suggestion, plan use, the pick and the
+sentences, and the page in a browser.
+
+**REQ-S30 Plain explanations.** Each answer card shall say where its model
+stands among the rated models for the task (its rank, or that it is the
+cheapest of them), the line under the cards shall say how many priced and
+rated models the answers were picked from, and a click on the "i" beside
+any Arena score shall open a short explanation of Arena. Quality ratings
+shall be shown as a chart of each score and its 95% range, with the range
+the votes cannot tell apart from the top shaded, and as a table on request.
+Verified by: an automated test of the page and the page in a browser.
+
+**REQ-S31 Machine-readable data.** Every run shall also publish
+`data.json`: every listed model with its prices per 1M tokens, prompt
+size, skills, effort levels and outlook, every change to those models, the
+Arena ratings by task, the sources and their licences. Verified by:
+`test_req_s31_data_json_lists_listed_models_with_prices_and_outlook`.
+
+**REQ-S32 Plug-in.** The folder `mcp/` shall hold an MCP server
+(llmledger-mcp) with five read-only tools (find_models, compare_models,
+estimate_cost, price_history, suggest_for_project), a snapshot resource
+and a prompt, reading `data.json` once a day with a bundled copy for the
+first run. Its task guess and comparison shall give the same answers as
+the page's route.js and pick.js. Verified by: the parity tests in the
+repository and the plug-in's own tests through FastMCP's in-memory client.
 
 ## 5. Known limitations
 
@@ -331,6 +354,9 @@ suggestion, plan use and the sentences, and the page in a browser.
   and length, not a measurement. Plans (Claude, ChatGPT) do not publish
   per-model limits; plan use assumes a plan is used up in step with each
   model's API price on the maker's own host.
+- **L17** The plug-in's copy of the task rules reads word boundaries next
+  to accented letters a little more generously than the browser does, so
+  a rare prompt in Spanish, French or German can get a different guess.
 
 ## 6. Known-answer example
 
@@ -377,7 +403,10 @@ suggestion, plan use and the sentences, and the page in a browser.
 | REQ-S23 | `test_req_s23_tokens_are_estimated_at_four_characters`, `test_req_s23_cost_known_answer`, `test_req_s23_cheapest_listing_per_model`, `test_req_s23_only_text_models_are_priced`; the Prompt cost tab | test, demonstration |
 | REQ-S24 | `test_req_s24_answer_lengths_are_fixed_sizes`, `test_req_s24_attachments_add_cost_and_need_the_skill`, `test_req_s24_listed_per_unit_prices_win_over_estimates`, `test_req_s24_images_video_and_speech_out`, `test_req_s24_family_and_version_from_a_grouped_name`, `test_req_s24_records_carry_skills_size_and_media_prices`; the Prompt cost tab | test, demonstration |
 | REQ-S28 | `test_req_s28_page_opens_on_the_prompt_box`; the page at 1366 and 390 pixels wide | test, demonstration |
-| D13, REQ-S29 | `test_req_s29_records_carry_cache_price_and_effort_levels`, `test_req_s29_effort_is_clamped_to_the_levels_a_model_takes`, `test_req_s29_effort_suggestion_known_answers`, `test_req_s29_effort_suggestion_says_why_and_respects_the_model`, `test_req_s29_plan_use_is_relative_to_the_least`, `test_req_s29_verdict_known_answer`, `test_req_s29_verdict_on_a_plan_and_without_ratings`, `test_req_s29_page_compares_models_side_by_side`; the page in a browser | test, demonstration |
+| D13, REQ-S29 | `test_req_s29_records_carry_cache_price_and_effort_levels`, `test_req_s29_effort_is_clamped_to_the_levels_a_model_takes`, `test_req_s29_effort_suggestion_known_answers`, `test_req_s29_effort_suggestion_says_why_and_respects_the_model`, `test_req_s29_plan_use_is_relative_to_the_least`, `test_req_s29_verdict_known_answer`, `test_req_s29_verdict_on_a_plan_and_without_ratings`, `test_req_s29_the_pick_is_the_cheapest_the_votes_cannot_tell_from_the_top`, `test_req_s29_headline_and_notes_say_why`, `test_req_s29_page_compares_models_side_by_side`; the page in a browser | test, demonstration |
+| REQ-S30 | `test_req_s30_arena_is_explained_on_the_page`; the page in a browser | test, demonstration |
+| REQ-S31 | `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook` | test |
+| REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (7 tests) | test |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
 | REQ-S25 | `test_req_s25_arena_names_are_tried_longest_first`, `test_req_s25_matching_prefers_the_arena_maker`, `test_req_s25_best_variant_kept_and_unmatched_left_out`, `test_req_s25_arena_down_means_no_ratings`, `test_req_s25_best_value_is_the_cheapest_tied_with_the_top`; the Best value tab | test, demonstration |

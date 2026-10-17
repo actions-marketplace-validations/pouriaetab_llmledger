@@ -81,3 +81,38 @@ def test_req_s29_verdict_on_a_plan_and_without_ratings():
         "b uses the plan about 3.0× as fast, with no coding rating; "
         "to use less of the plan it would have to use under 33% of a's answer tokens."]
     assert run('p.verdict([{name: "a", cost: 1}], {})') == ["Add another model to compare."]
+
+
+ROWS = json.dumps([
+    {"name": "opus", "rating": 1548, "low": 1534, "high": 1561, "cost": 0.0172, "out": 20},
+    {"name": "fable", "rating": 1537, "low": 1526, "high": 1549, "cost": 0.043, "out": 50},
+    {"name": "sonnet", "rating": 1520, "low": 1510, "high": 1530, "cost": 0.0086, "out": 10},
+])
+
+
+def test_req_s29_the_pick_is_the_cheapest_the_votes_cannot_tell_from_the_top():
+    assert run(f"p.bestPick({ROWS}).name") == "opus"
+    # fable tops the ratings now, opus is tied with it and cheaper: opus is still the pick
+    rows = ROWS.replace('"rating": 1537, "low": 1526, "high": 1549', '"rating": 1550, "low": 1545, "high": 1556')
+    assert run(f"p.bestPick({rows}).name") == "opus"
+    assert run('p.bestPick([{name: "a", cost: 2}, {name: "b", cost: 1}]).name') == "b"
+    assert run("p.bestPick([{name: 'a', cost: null}])") is None
+
+
+def test_req_s29_headline_and_notes_say_why():
+    assert run(f"p.headline({ROWS}, {{}})") == (
+        "opus is the pick: the highest rated here. The ones that cost less are rated lower.")
+    assert run(f"p.headline({ROWS}, {{plan: true}})") == (
+        "opus is the pick: the highest rated here. The ones that use less of the plan are rated lower.")
+    notes = run(f"(() => {{ const r = {ROWS}; return r.map(x => p.versus(x, r[0], false)); }})()")
+    assert notes == [
+        "",
+        "Costs 2.5× as much as opus; it only costs less if it needs under 40% of the answer tokens.",
+        "Costs 50% less than opus; it stays cheaper unless it needs over 2.0× the answer tokens.",
+    ]
+    assert run(f"(() => {{ const r = {ROWS}; return p.versus(r[1], r[0], true); }})()") == (
+        "Uses the plan 2.5× as fast as opus; it only uses less if it needs under 40% of the answer tokens.")
+    tied_rows = ROWS.replace('"rating": 1537, "low": 1526, "high": 1549, "cost": 0.043',
+                             '"rating": 1550, "low": 1545, "high": 1556, "cost": 0.043')
+    assert run(f"p.headline({tied_rows}, {{}})") == (
+        "opus is the pick: the votes cannot tell it apart from the highest rated, fable, and it costs less.")

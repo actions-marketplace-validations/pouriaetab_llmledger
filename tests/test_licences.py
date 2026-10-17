@@ -37,8 +37,8 @@ def test_req_s26_litellm_file_must_stay_in_the_mit_part():
 
 
 def test_req_s26_all_open_means_everything_is_used():
-    report, allowed = licences.check(fake(), pins)
-    assert [r["status"] for r in report] == ["open", "open", "open", "open"]
+    report, allowed = licences.check(fake(), pins, plugin=lambda: [("fastmcp", "4.1.0")])
+    assert [r["status"] for r in report] == ["open", "open", "open", "open", "open"]
     assert allowed == {"data": True, "ratings": True}
     assert licences.problems(report) == []
 
@@ -59,3 +59,22 @@ def test_req_s26_unreachable_ratings_are_left_out_not_failed():
     report, allowed = licences.check(fake(down=("huggingface",)), pins)
     assert allowed == {"data": True, "ratings": False}
     assert report[1]["status"] == "unchecked"
+
+
+def test_req_s26_the_plugin_packages_are_checked_and_a_closed_one_is_reported():
+    def get(url):
+        if "fastmcp" in url:
+            return json.dumps({"info": {"license_expression": "LicenseRef-Proprietary"}})
+        return fake()(url)
+    report, allowed = licences.check(get, pins, plugin=lambda: [("fastmcp", "4.1.0")])
+    row = next(r for r in report if r["source"] == "fastmcp 4.1.0")
+    assert row["role"] == "plug-in" and row["status"] == "not open"
+    assert allowed == {"data": True, "ratings": True}            # the page is not affected
+    assert any("plug-in (mcp/)" in line for line in licences.problems(report))
+
+
+def test_req_s26_plugin_pins_are_read_from_its_pyproject(tmp_path):
+    file = tmp_path / "pyproject.toml"
+    file.write_text('[build-system]\nrequires = ["hatchling==1.32.4"]\n[project]\ndependencies = ["fastmcp==4.1.0"]\n')
+    assert licences._plugin_requirements(file) == [("hatchling", "1.32.4"), ("fastmcp", "4.1.0")]
+    assert licences._plugin_requirements(tmp_path / "missing.toml") == []

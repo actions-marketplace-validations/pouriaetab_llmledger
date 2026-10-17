@@ -94,18 +94,70 @@ main { max-width: 1040px; margin: 0 auto; padding: 0 16px 32px; }
   color: var(--muted); font-size: 0.76rem; }
 .empty { text-align: center; color: var(--muted); padding: 18px 0; }
 
-/* compare side by side */
-#which .seg { margin: 0; max-width: 100%; }
-#which .seg button { white-space: nowrap; padding: 5px 12px; }
-#which-add { flex: 1 1 220px; }
-#which-table td input[type="number"] { width: 7.5em; text-align: right; }
-#which-table td .x { border: 0; background: none; color: var(--muted); padding: 0 4px; font-size: 1.1rem; line-height: 1; }
-#which-table td .x:hover { color: var(--text); }
-#which-table td b.lvl { font-weight: 650; }
-#which-verdict { margin: 12px 0 4px; }
-#which-verdict p { margin: 0 0 6px; }
+/* what the cards were picked from, and the Arena explainer */
+.card .arena { color: var(--muted); font-size: 0.8rem; margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; }
+.card .arena b { color: var(--text); font-weight: 650; }
+.info { border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px;
+  width: 18px; height: 18px; padding: 0; font: italic 600 11px/16px Georgia, serif; text-align: center; cursor: pointer; }
+.info:hover { color: var(--text); border-color: var(--muted); }
+.pop { max-width: 440px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text);
+  box-shadow: var(--shadow); padding: 18px 20px 14px; }
+.pop::backdrop { background: rgb(0 0 0 / 0.25); }
+.pop h3 { margin: 0 0 8px; }
+.pop p { font-size: 0.92rem; margin: 0 0 10px; }
 #which-open { white-space: nowrap; }
 .badge + .badge { margin-left: 4px; }
+
+/* compare side by side: one column per model, like the cards */
+#which .seg { margin: 0; max-width: 100%; }
+#which .seg button { white-space: nowrap; padding: 5px 12px; }
+.vs-sum { font-size: 1rem; margin: 12px 0 10px; }
+.vs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: 12px; overflow-x: auto;
+  scroll-snap-type: x mandatory; padding: 2px 2px 8px; }
+.vs .col { scroll-snap-align: start; background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 14px 16px; box-shadow: var(--shadow); min-width: 0; position: relative; }
+.vs .col.chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
+.vs .tags { display: flex; flex-wrap: wrap; gap: 4px; min-height: 20px; }
+.vs .tags span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 650; color: var(--muted); }
+.vs .tags span.on { color: var(--accent); }
+.vs .name { font-size: 1.02rem; font-weight: 650; margin: 4px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs .host { color: var(--muted); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs .big { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin: 10px 0 0; font-variant-numeric: tabular-nums; }
+.vs .big small { display: block; font-size: 0.78rem; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+.vs dl { margin: 6px 0 0; font-size: 0.88rem; }
+.vs dt { color: var(--muted); font-size: 0.74rem; margin-top: 9px; display: flex; align-items: center; gap: 6px; }
+.vs dd { margin: 1px 0 0; min-width: 0; }
+.vs dd small { color: var(--muted); font-size: 0.76rem; }
+.vs .meter { display: block; height: 6px; border-radius: 3px; background: var(--raised); margin-top: 3px; overflow: hidden; }
+.vs .meter i { display: block; height: 100%; border-radius: 3px; background: var(--muted); }
+.vs .col.chosen .meter i { background: var(--accent); }
+.vs .lvl { display: inline-block; padding: 0 8px; border-radius: 999px; background: var(--raised); font-weight: 600; }
+.vs input[type="number"] { width: 6.5em; padding: 2px 6px; }
+.vs .note { color: var(--muted); font-size: 0.8rem; margin: 10px 0 0; }
+.vs .x { position: absolute; top: 8px; right: 8px; border: 0; background: none; color: var(--muted); padding: 0 4px;
+  font-size: 1.1rem; line-height: 1; }
+.vs .x:hover { color: var(--text); }
+.vs .col.add { border-style: dashed; box-shadow: none; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.vs .col.add input { width: 100%; }
+
+/* quality ratings: each model's score and its 95% range on one scale */
+.rates { margin: 8px 0; }
+.rate { display: grid; grid-template-columns: 26px minmax(0, 1.4fr) minmax(120px, 2fr) 52px 74px; gap: 10px; align-items: center;
+  padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+.rate .rk { color: var(--muted); text-align: right; }
+.rate .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rate .nm small { color: var(--muted); }
+.rate .ci { position: relative; height: 14px; }
+.rate .ci .tie { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); border-radius: 3px; }
+.rate .ci .rng { position: absolute; top: 6px; height: 2px; background: var(--muted); border-radius: 1px; }
+.rate .ci .dot { position: absolute; top: 3px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%;
+  background: var(--text); box-shadow: 0 0 0 2px var(--card); }
+.rate.best .ci .dot { background: var(--accent); }
+.rate .num, .rate .cost { text-align: right; }
+.rate:hover { background: var(--raised); }
+.rate-head { color: var(--muted); font-size: 0.78rem; border-bottom: 1px solid var(--line); }
+.rate-head:hover { background: none; }
+td .cbar { display: inline-block; height: 6px; border-radius: 3px; background: var(--accent); opacity: 0.55; margin-right: 6px; vertical-align: 1px; }
 
 /* everything else hides behind a click */
 details.more { border-top: 1px solid var(--line); margin: 0; padding: 12px 2px; }
@@ -180,11 +232,14 @@ footer p { margin: 0 0 4px; }
 
 @media (max-width: 760px) {
   .cards { grid-template-columns: 1fr; }
+  .rate { grid-template-columns: 22px minmax(0, 1fr) minmax(80px, 1.2fr) 44px; }
+  .rate .cost { display: none; }
   .pick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero { padding-top: 28px; }
   .bar-in { gap: 10px; }
   #which .seg { display: flex; width: 100%; }
   #which .seg button { flex: 1 1 0; padding: 5px 6px; }
+  .vs { grid-auto-columns: minmax(78%, 1fr); }
 }
 @media (max-width: 560px) {
   .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
@@ -221,22 +276,17 @@ footer p { margin: 0 0 4px; }
 <p class="muted" style="text-align:center"><span id="value-using"></span>
   <a href="#ask" id="which-open">Compare side by side</a></p>
 
-<details class="more" id="which">
-<summary>Compare side by side<span>2 or more models, effort, your plan</span></summary>
+<details class="more" id="which" open>
+<summary>Compare side by side<span>follows your prompt; add models, or switch to your plan</span></summary>
 <div class="stack">
-  <div class="controls">
-    <div class="seg" role="group" aria-label="How you pay" id="which-pay">
-      <button type="button" data-pay="api" aria-pressed="true">Pay per use</button>
-      <button type="button" data-pay="claude">Claude plan</button>
-      <button type="button" data-pay="chatgpt">ChatGPT plan</button>
-    </div>
-    <input type="search" id="which-add" list="which-list" autocomplete="off"
-      placeholder="Add a model, for example claude-fable-5.1" aria-label="Add a model to compare">
-    <datalist id="which-list"></datalist>
-    <button type="button" id="which-reset">Reset</button>
+  <div class="seg" role="group" aria-label="How you pay" id="which-pay">
+    <button type="button" data-pay="api" aria-pressed="true">Pay per use</button>
+    <button type="button" data-pay="claude">Claude plan</button>
+    <button type="button" data-pay="chatgpt">ChatGPT plan</button>
   </div>
-  <div id="which-table"></div>
-  <div id="which-verdict"></div>
+  <p class="vs-sum" id="which-sum"></p>
+  <div class="vs" id="which-cols"></div>
+  <datalist id="which-list"></datalist>
   <p class="muted" id="which-note"></p>
 </div>
 </details>
@@ -294,9 +344,15 @@ footer p { margin: 0 0 4px; }
 </details>
 
 <details class="more">
-<summary>Quality ratings for this task<span>from Arena votes</span></summary>
+<summary>Quality ratings for this task<span>how people voted, on one scale</span></summary>
 <div class="stack">
-  <label class="check"><input type="checkbox" id="value-tied"> Only models the votes cannot tell apart from the top</label>
+  <div class="controls">
+    <span class="toggle" role="radiogroup" aria-label="Show as">
+      <label><input type="radio" name="rate-view" id="rate-chart" checked> Chart</label>
+      <label><input type="radio" name="rate-view" id="rate-table"> Table</label>
+    </span>
+    <label class="check"><input type="checkbox" id="value-tied"> Only models the votes cannot tell apart from the top</label>
+  </div>
   <div id="value-best"></div>
   <div id="value-table"></div>
   <p class="muted" id="value-credit"></p>
@@ -455,6 +511,18 @@ change $data_date. Page built $built with Python $python.</p>
 leaderboard, not what any model costs you or how well it will do your task.
 <a href="$repo/blob/main/DISCLAIMER.md">Disclaimer</a>.</p>
 </footer>
+
+<div id="arena-help" class="pop" popover>
+<h3>What is Arena?</h3>
+<p>Arena (<a href="https://arena.ai">arena.ai</a>, started at UC Berkeley in 2023) shows people two answers to their own
+prompt from two anonymous AI models, side by side. They vote for the better one.</p>
+<p>From over a million votes, each model gets a score, like a chess rating: about 1,500 is typical, and higher is better.
+A 100 point lead means people preferred that model about 64% of the time.</p>
+<p>The range under a score is a 95% interval. When two ranges overlap, the votes cannot tell the two models apart.
+This page uses Arena's scores with style control, which keeps long or heavily formatted answers from winning on looks alone.</p>
+<p class="muted" id="arena-credit">Ratings: the Arena leaderboard, licensed CC BY 4.0.</p>
+<button type="button" popovertarget="arena-help" popovertargetaction="hide">Close</button>
+</div>
 
 <details id="pick" class="sub">
 <summary id="pick-summary">Choose makers, models, versions and hosts</summary>

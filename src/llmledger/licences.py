@@ -9,7 +9,8 @@ The pipeline calls check() before building:
   stops and nothing is published;
 - the Arena ratings are optional, so if they are not open the page is built
   without them;
-- the test tools are only used to run the tests, so a change is reported.
+- the test tools are only used to run the tests, and the plug-in's packages (mcp/) only by
+  the plug-in, so a change to either is reported.
 Every problem is written to data/licence-problems.txt, and the daily refresh
 opens a GitHub issue from that file. Results go on the page as licences.json.
 """
@@ -75,7 +76,13 @@ def _requirements(path="requirements.txt"):
     return pins
 
 
-def sources(get=_text, requirements=_requirements):
+def _plugin_requirements(path="mcp/pyproject.toml"):
+    """The exact versions the plug-in (mcp/) pins: its dependencies and its build tool."""
+    file = Path(path)
+    return re.findall(r'"([A-Za-z0-9_.-]+)==([0-9][^"]*)"', file.read_text()) if file.exists() else []
+
+
+def sources(get=_text, requirements=_requirements, plugin=_plugin_requirements):
     """(name, role, licence found) for every outside source; None if unreachable."""
     def attempt(read):
         try:
@@ -90,16 +97,17 @@ def sources(get=_text, requirements=_requirements):
         ("Arena prompts", "measuring",
          attempt(lambda: (json.loads(get(ARENA_PROMPTS)).get("cardData") or {}).get("license"))),
     ]
-    for name, version in requirements():
-        found.append((f"{name} {version}", "tests", attempt(
-            lambda n=name, v=version: pypi_licence(json.loads(get(PYPI.format(name=n, version=v)))["info"]))))
+    for role, pins in (("tests", requirements()), ("plug-in", plugin())):
+        for name, version in pins:
+            found.append((f"{name} {version}", role, attempt(
+                lambda n=name, v=version: pypi_licence(json.loads(get(PYPI.format(name=n, version=v)))["info"]))))
     return found
 
 
-def check(get=_text, requirements=_requirements):
+def check(get=_text, requirements=_requirements, plugin=_plugin_requirements):
     """Returns (report, allowed): allowed says which optional parts may be used."""
     report = []
-    for name, role, licence in sources(get, requirements):
+    for name, role, licence in sources(get, requirements, plugin):
         if licence is None:
             status = "unchecked"
         else:
@@ -117,10 +125,11 @@ def problems(report):
             action = {"data": "Nothing was published.",
                       "ratings": "The page was built without them.",
                       "measuring": "Measure the task guess on another dataset.",
-                      "tests": "Find an open replacement for the tests."}[row["role"]]
+                      "tests": "Find an open replacement for the tests.",
+                      "plug-in": "Find an open replacement for the plug-in (mcp/) before its next release."}[row["role"]]
             lines.append(f"- {row['source']}: licence is now {row['licence']!r}, "
                          f"which is not open for business use. {action}")
-        elif row["status"] == "unchecked" and row["role"] != "tests":
+        elif row["status"] == "unchecked" and row["role"] not in ("tests", "plug-in"):
             lines.append(f"- {row['source']}: the licence could not be checked today."
                          + (" The ratings were left out." if row["role"] == "ratings" else ""))
     return lines

@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from string import Template
 
+from llmledger import export
 from llmledger.survival import OUTCOMES
 
 LABELS = {
@@ -170,6 +171,7 @@ def main(source, out_dir, info, data):
     here = Path(__file__).parent
     (folder / "survival.csv").write_text(Path(source).read_text())
     (folder / "data.js").write_text(data_script(data))
+    export.write(folder / "data.json", data, info)
     for name in ("app.js", "cost.js", "route.js", "pick.js", "table_protocol.js"):
         shutil.copyfile(here / name, folder / name)
     (folder / "index.html").write_text(render(load(source), info, versions(folder)))
