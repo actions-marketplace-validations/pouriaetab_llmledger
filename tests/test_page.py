@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
+from pathlib import Path
 
+from llmledger import page as page_module
 from llmledger.page import data_script, load, render
 
 ROWS = """definition,days,outcome,estimate,ci_low,ci_high,at_risk
@@ -110,3 +112,20 @@ def test_req_s36_every_view_fits_one_screen(tmp_path):
     assert '<details class="more"' not in page
     # a model's details open in a drawer outside the views, so they show over any view
     assert page.index('id="detail"') > page.index("</main>")
+
+
+def test_req_s36_about_rows_and_short_windows(tmp_path):
+    page = page_for(tmp_path)
+    about = page[page.index('id="tab-about"'):page.index("</main>")]
+    # About is a short line and rows that open on a click, all closed at first
+    assert about.count("<details") == about.count("<summary>") == 3
+    assert "<details open" not in about and "<section" not in about[1:]
+    app = (Path(page_module.__file__).parent / "app.js").read_text()
+    # a part a copy of the page adds to About (with a heading of its own) becomes one more closed row,
+    # and a link marked data-scope opens it
+    assert 'document.querySelectorAll("#tab-about > section")' in app
+    assert 'closest("a[data-scope]")' in app and "row.open = true" in app
+    # too short for the three answers: each drops its line of reasons, rather than the view scrolling
+    style = page[page.index("<style>"):page.index("</style>")]
+    assert "#tab-ask.tight .card .why { display: none; }" in style
+    assert 'askView.classList.add("tight")' in app and "new ResizeObserver" in app

@@ -263,6 +263,7 @@ details.more > summary span { color: var(--muted); font-weight: 400; font-size: 
 .stack { margin-top: 14px; }
 details.sub { margin: 10px 0; }
 details.sub > summary { cursor: pointer; color: var(--muted); }
+#tab-about > details.sub { margin: 10px 0; padding: 0; border: 0; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 10px 0; }
 .controls input[type="search"] { flex: 1 1 220px; }
@@ -438,6 +439,8 @@ footer { font-size: 0.72rem; }
   #tab-models > #notice:empty { min-height: 0; margin: 0; }
   #tab-models > details.sub { margin: 6px 0 0; }
   /* Price history: the panel in view scrolls inside */
+  #tab-about .page-head { padding: 12px 0 0; }
+  #tab-about .page-head h1 { font-size: 1.35rem; margin: 0 0 2px; }
   #tab-trends .page-head { padding: 12px 0 0; }
   #tab-trends .page-head h1 { font-size: 1.35rem; margin: 0 0 2px; }
   #tab-trends .tiles { margin: 10px 0 4px; }
@@ -520,6 +523,18 @@ footer { font-size: 0.72rem; }
   #tab-race .tcard .note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #race-legend { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
 }
+/* short phones (and a copy of the page under a site bar): Trends gives up a little chart height instead of scrolling */
+@media (max-width: 760px) and (max-height: 700px) {
+  #tab-race .page-head { padding-top: 8px; }
+  #tab-race .page-head h1 { font-size: 1.15rem; }
+  #tab-race .tlayout > .tcard > .chart.fill { min-height: 92px; }
+  .tside { height: clamp(112px, 19vh, 220px); }
+}
+@media (max-width: 760px) and (max-height: 600px) {
+  #tab-race .page-head { display: none; }
+  #tab-race .tlayout > .tcard > .chart.fill { min-height: 72px; }
+}
+#tab-ask.tight .card .why { display: none; }
 </style>
 </head>
 <body>
