@@ -274,7 +274,7 @@ def headline(rows, plan=False):
 
 def versus(r, pick, plan=False):
     """A short note on one choice against the pick, with the break-even share of answer tokens."""
-    if pick is None or r is pick or r.get("cost") is None or not (pick.get("cost") or 0) > 0:
+    if pick is None or r is pick or not (r.get("cost") or 0) > 0 or not (pick.get("cost") or 0) > 0:
         return ""
     ratio = r["cost"] / pick["cost"]
     name = pick["name"]

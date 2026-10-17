@@ -67,7 +67,8 @@ def test_req_s32_plugin_compares_the_same_way_as_the_page():
     rows = [{"name": "opus", "rating": 1548, "low": 1534, "high": 1561, "cost": 0.0172, "out": 20},
             {"name": "fable", "rating": 1550, "low": 1545, "high": 1556, "cost": 0.043, "out": 50},
             {"name": "sonnet", "rating": 1520, "low": 1510, "high": 1530, "cost": 0.0086, "out": 10},
-            {"name": "tiny", "rating": None, "low": None, "high": None, "cost": 0.00001, "out": 0.1}]
+            {"name": "tiny", "rating": None, "low": None, "high": None, "cost": 0.00001, "out": 0.1},
+            {"name": "free", "rating": 1400, "low": 1390, "high": 1410, "cost": 0, "out": 0}]      # a free listing: no note
     for plan in (False, True):
         page = node(f"(() => {{ const r = {json.dumps(rows)}; const k = p.bestPick(r); "
                     f"return [k.name, p.headline(r, {{plan: {json.dumps(plan)}}}), r.map(x => p.versus(x, k, {json.dumps(plan)})), "

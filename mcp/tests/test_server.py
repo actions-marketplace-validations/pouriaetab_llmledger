@@ -94,3 +94,12 @@ def test_suggest_for_project_reads_the_prompt():
     assert best["role"] == "best value" and best["model"] == "anthropic / claude-opus-5.5" and best["effort"] == "xhigh"
     plan = call("suggest_for_project", prompt="Write a short poem", pay="chatgpt")
     assert [p["model"] for p in plan["picks"]] == ["openai / gpt-6.1-sol"] and plan["picks"][0]["plan_use"] == 1.0
+
+
+def test_a_free_listing_is_never_the_price():
+    from llmledger_mcp import data, server
+    raw = json.loads(Path(__file__).with_name("fixture.json").read_text())
+    raw["models"].append(dict(raw["models"][0], key="freehost/claude-opus-5-5", host="freehost",
+                              input=0.0, output=0.0, cache_read=None))
+    m, cost = server.listing(data.Shelf(raw, "test"), "anthropic / claude-opus-5.5", input_tokens=100, output_tokens=100)
+    assert m["host"] == "anthropic" and cost > 0

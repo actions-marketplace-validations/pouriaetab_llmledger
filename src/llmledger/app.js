@@ -218,13 +218,17 @@
       "They describe what usually happens to entries in LiteLLM's catalogue, not a forecast for this model alone.</p>";
   }
 
+  // A model's details open in a drawer over the page, so the page itself never has to scroll to them.
+  const CLOSE = '<button type="button" class="close" data-close-detail aria-label="Close">×</button>';
+  const closeDetail = () => { $("detail").innerHTML = ""; };
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && $("detail").innerHTML) closeDetail(); });
   function showModel(key) {
     const m = byKey.get(key);
     if (!m) return;
     const id = m.maker + " / " + m.name;
     const events = (D.events[key] || []).slice().reverse().map(e => [
       e[0], change(e[1], e[2], e[3], e[4]) + tag(e[5]), value(e[2], e[3]), value(e[2], e[4])]);
-    $("detail").innerHTML =
+    $("detail").innerHTML = CLOSE +
       "<h3>" + esc(key) + "</h3>" +
       '<p class="muted">Host <b>' + esc(m.host || "unknown") + "</b> · grouped as " + groupLink(id) +
       " · " + esc(m.mode || "mode unknown") + " · <b>" + m.status + "</b></p>" +
@@ -238,19 +242,19 @@
       '<p><button type="button" data-add="' + esc(key) + '">Add to compare</button></p>' +
       "<h4>Outlook</h4>" + outlookFor(m) +
       "<h4>Timeline</h4>" + table(["Date", "Change", "Before", "After"], events, "timeline");
-    $("detail").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("detail").scrollTop = 0;
   }
 
   function showGroup(id) {
     const all = groups.get(id);
     if (!all) return;
     const rows = all.map(m => [modelLink(m), esc(m.host), m.status, money(m.input), money(m.output), m.repriced, m.last]);
-    $("detail").innerHTML = "<h3>" + esc(id) + "</h3>" +
+    $("detail").innerHTML = CLOSE + "<h3>" + esc(id) + "</h3>" +
       '<p class="muted">' + all.length + " listings on " + new Set(all.map(m => m.host)).size + " hosts, " +
       all.filter(m => m.status === "listed").length + " listed now. Grouped by naming rules, which can be wrong: " +
       "every listing is shown below under LiteLLM's own name.</p>" +
       table(["Model as listed", "Host", "Status", "Input $/1M", "Output $/1M", "Price changes", "Last change"], rows, "group-listings");
-    $("detail").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("detail").scrollTop = 0;
   }
 
   function renderCompare() {
@@ -291,6 +295,7 @@
       if (t.dataset.suggest) $("search").value = t.dataset.suggest; else browseAll = true;
       renderResults(); remember(); return;
     }
+    if (t.dataset.closeDetail !== undefined) { closeDetail(); return; }
     if (t.dataset.model) { e.preventDefault(); showModel(t.dataset.model); }
     else if (t.dataset.group) { e.preventDefault(); showGroup(t.dataset.group); }
     else if (t.dataset.add) { toggleCompare(t.dataset.add, true); renderResults(); }
@@ -462,6 +467,33 @@
         ranked.length.toLocaleString() + "</button></p>" : "");
   }
 
+  // ----- the panel under the answers: one tab open at a time -----
+  const DOCK = [...document.querySelectorAll("[data-dock]")].map(b => b.dataset.dock);
+  let dockTab = DOCK.includes(saved.dock) ? saved.dock : "which";
+  function showDock(name) {
+    if (!DOCK.includes(name) || $(name).dataset.off) name = DOCK.find(d => !$(d).dataset.off);
+    dockTab = name;
+    for (const d of DOCK) {
+      $(d).hidden = d !== name;
+      document.querySelector('[data-dock="' + d + '"]').setAttribute("aria-selected", d === name);
+    }
+    const tab = document.querySelector('[data-dock="' + name + '"]');
+    $("dock-title").textContent = tab.firstChild.textContent.trim();
+    $(name).dispatchEvent(new Event("dockshow"));
+  }
+  // On phones the tabs sit at the bottom and a tab opens its panel as a sheet over the page.
+  const SHEET = "(max-width: 760px), (max-height: 800px)";   // the same test as the page's style
+  const dock = document.querySelector(".dock");
+  const sheet = open => { dock.classList.toggle("open", open); if (open) $(dockTab).dispatchEvent(new Event("dockshow")); };
+  document.querySelector(".dock-tabs").addEventListener("click", e => {
+    const b = e.target.closest("[data-dock]");
+    if (!b) return;
+    showDock(b.dataset.dock); remember();
+    if (matchMedia(SHEET).matches) sheet(true);
+  });
+  dock.addEventListener("click", e => { if (e.target.closest(".sheet-close") || e.target === dock) sheet(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && dock.classList.contains("open")) sheet(false); });
+
   // ----- task guess (route.js) -----
   const R = window.LLMROUTE;
   function currentGuess() {
@@ -488,14 +520,15 @@
   function card(kind, cls, r, why, calls, facts) {
     const [maker, ...rest] = r.id.split(" / ");
     const odds = chance(r.m, "90");
+    const plain = text => String(text).replace(/<[^>]+>/g, "");
     return '<div class="card ' + cls + '"><div class="kind">' + kind + "</div>" +
       '<div class="name" title="' + esc(r.id) + '">' + esc(rest.join(" / ") || r.id) + "</div>" +
       '<div class="host">' + esc(maker) + " · on " + esc(r.m.host) + "</div>" +
-      '<div class="cost">' + dollars(r.cost) + '</div><div class="per">per answer' +
-      (calls > 1 ? " · " + dollars(r.cost * calls) + " for " + calls.toLocaleString() : "") + "</div>" +
-      (facts || "") + '<p class="why">' + why + "</p>" +
-      (odds !== "–" ? '<span class="badge" title="Chance this price changes in the next 90 days">' + odds +
-        " chance the price changes in 90 days</span>" : "") + effortBadge(r.m) + "</div>";
+      '<div class="tag-price"><span class="cost">' + dollars(r.cost) + '</span><span class="per">per answer' +
+      (calls > 1 ? " · " + dollars(r.cost * calls) + " for " + calls.toLocaleString() : "") + "</span></div>" +
+      (facts || "") + '<p class="why" title="' + esc(plain(why)) + '">' + why + "</p>" +
+      '<div class="badges">' + (odds !== "–" ? '<span class="badge" title="Chance this price changes in the next 90 days: ' + odds + '">' + odds +
+        " chance the price changes in 90 days</span>" : "") + effortBadge(r.m) + "</div></div>";
   }
   function mediaCards() {
     const L = lastRanked;
@@ -538,7 +571,8 @@
     const top = rows[0];
     const rated = rows.length, low = rows.reduce((a, r) => (!a || r.cost < a.cost ? r : a), null);   // cheapest model Arena rated
     const second = best === top ? rows[1] : top;
-    const facts = (r, extra) => '<div class="arena">Arena <b>' + r.rating.toFixed(0) + "</b>" + INFO + "<span>· " + extra + "</span></div>";
+    const facts = (r, extra) => '<div class="arena" title="Arena ' + r.rating.toFixed(0) + " · " + esc(extra) + '">Arena <b>' + r.rating.toFixed(0) + "</b>" +
+      INFO + "<span>· " + extra + "</span></div>";
     const rank = r => "#" + (rows.indexOf(r) + 1) + " of " + rated.toLocaleString() + " rated";
     if ($("cost-want").value === "text") {
       const times = x => (x.cost > 0 && top.cost / x.cost >= 1.05 ? (top.cost / x.cost).toFixed(top.cost / x.cost < 10 ? 1 : 0) + "×" : "");
@@ -630,7 +664,7 @@
   function effortBadge(m) {
     const s = suggestion(m);
     if (!s.level || !$("cost-text").value.trim()) return "";
-    return ' <span class="badge" title="Suggested effort for this prompt, a rule of thumb' +
+    return '<span class="badge effort" title="Suggested effort for this prompt, a rule of thumb' +
       (s.why.length ? ": " + esc(s.why.join(", ")) : "") + '">Effort: ' + esc(s.level) + "</span>";
   }
   // The listing a model is priced at: the cheapest one, or on a plan the plan's own host.
@@ -640,6 +674,7 @@
     for (const m of groups.get(id) || []) {
       if (m.status !== "listed" || (plan && m.host !== plan.host)) continue;
       const cost = C.priceFor(m, q);
+      if (!(m.input > 0 || m.output > 0) && !$("cost-free").checked) continue;   // free listings stay hidden, as in the other tables
       if (cost != null && (!found || cost < found.cost)) found = { m, cost };
     }
     return found;
@@ -653,7 +688,12 @@
   }
 
   function renderWhich() {
-    if (!P) { $("which").hidden = true; $("which-open").hidden = true; return; }
+    if (!P) {
+      $("which").dataset.off = "1";
+      document.querySelector('[data-dock="which"]').hidden = true;
+      if (dockTab === "which") showDock("frontier");
+      return;
+    }
     document.querySelectorAll("#which-pay [data-pay]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pay === pay));
     if ($("cost-want").value !== "text") {
       $("which-cols").innerHTML = '<p class="muted">Compare side by side works for text answers: choose "A text answer" in Options.</p>';
@@ -751,11 +791,6 @@
       renderWhich(); remember();
     }
   });
-  $("which-open").addEventListener("click", e => {
-    e.preventDefault();
-    $("which").open = true;
-    $("which").scrollIntoView({ behavior: "smooth", block: "start" });
-  });
   $("which").addEventListener("input", e => { if (e.target.id === "which-add" && groups.has(e.target.value)) whichAdd(e.target.value); });
   $("which").addEventListener("change", e => {
     const t = e.target;
@@ -783,7 +818,11 @@
   $("len-chips").addEventListener("click", e => {
     if (!e.target.dataset.len) return;
     $("cost-len").value = e.target.dataset.len; markLen();
-    if (e.target.dataset.len === "custom") { $("more-options").open = true; setTimeout(() => $("cost-out").focus(), 0); }
+    if (e.target.dataset.len === "custom") {
+      showDock("more-options");
+      if (matchMedia(SHEET).matches) sheet(true);
+      setTimeout(() => $("cost-out").focus(), 0);
+    }
     costAll = false; renderCost(); renderValue(); remember();
   });
   $("skill-boxes").innerHTML = Object.entries(SKILL_LABELS).map(([k, label]) =>
@@ -826,7 +865,7 @@
     for (const id of ["cost-out", "cost-count", "cost-calls", "att-images", "att-pages", "att-audio", "att-video",
       "cost-want", "cost-len", "cost-size", "value-task"]) out["c_" + id] = $(id).value;
     for (const k of Object.keys(pick)) out["pick_" + k] = pick[k] ? [...pick[k]] : [];
-    out.c_pay = pay; out.c_tokens = { ...tokensFor }; out.c_rate_table = $("rate-table").checked;
+    out.c_pay = pay; out.c_tokens = { ...tokensFor }; out.c_rate_table = $("rate-table").checked; out.dock = dockTab;
     for (const k of PAYS) out["which_" + k] = own[k];
     return out;
   };
@@ -848,8 +887,7 @@
   });
   $("cost-table").addEventListener("click", e => { if (e.target.id === "cost-all") { costAll = true; renderCost(); } });
   if (TR) TR.init({ esc, dollars, money, table, models,
-    openGroup: id => { history.replaceState(null, "", "#models"); showTab("models"); showGroup(id); remember(); },
-    openModel: key => { history.replaceState(null, "", "#models"); showTab("models"); showModel(key); remember(); } });
+    openGroup: id => showGroup(id), openModel: key => showModel(key) });
   onTab = name => {
     if (name === "race" && TR) TR.show();
     if (name !== "ask") return;
@@ -859,6 +897,7 @@
   onTab(currentTab);
   if ($("pick").parentElement === document.body) document.querySelector("#tab-ask [data-pick-slot]").appendChild($("pick"));
   markLen();
+  showDock(dockTab);
   renderPick();
   renderCost();
   renderValue();

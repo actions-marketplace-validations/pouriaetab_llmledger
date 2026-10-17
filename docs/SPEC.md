@@ -251,8 +251,8 @@ scoring, and the measurement in `src/llmledger/route_eval.json`.
 with answer length choices, and show at most three answers for it: best
 value, top rated and cheapest rated, each with its cost per answer and
 its chance of a price change in the next 90 days. Every other control and
-table shall be one click away, under Options, Models, Price history or
-About. Each script shall be loaded by an address that changes when the
+table shall be one click away: in the tabbed panel under the answers, or under
+Trends, Models, Price history or About. Each script shall be loaded by an address that changes when the
 file changes, so a browser never mixes an old script with a new page.
 Verified by: an automated test of the page's views and script addresses,
 and the page in a browser at desktop and phone widths.
@@ -331,6 +331,19 @@ latest catalogue changes, newest first: one line per listing and day, with
 a clean up, or four or more listings added, removed or priced for the
 first time on one day, folded into one line, and a link to every change in
 the last 7 days. Verified by: automated tests of both lists.
+
+**REQ-S36 One screen.** At any window size at least 480 pixels tall, the
+page itself shall not scroll up, down or sideways: each view shall fill the
+window under the bar, and only boxes inside it (a panel, a table, a list,
+a drawer) may scroll. On Ask, the three answers shall stay as they are,
+and the extras (Compare, Cost vs quality, Quality ratings, Every model,
+Options, How it works) shall be tabs in one panel under them: shown in
+place in windows taller than 800 pixels, and opened as a sheet over the
+page on phones and shorter windows. A model's details shall open in a
+drawer over any view. The Trends chart shall take the height left in its
+card. Verified by: an automated test of the page's layout and panel, and
+the page in a browser at nine window sizes from 375 x 560 to 1920 x 1080,
+light and dark, with no page scroll in any view.
 
 ## 5. Known limitations
 
@@ -452,10 +465,11 @@ the last 7 days. Verified by: automated tests of both lists.
 | D13, REQ-S29 | `test_req_s29_records_carry_cache_price_and_effort_levels`, `test_req_s29_effort_is_clamped_to_the_levels_a_model_takes`, `test_req_s29_effort_suggestion_known_answers`, `test_req_s29_effort_suggestion_says_why_and_respects_the_model`, `test_req_s29_plan_use_is_relative_to_the_least`, `test_req_s29_verdict_known_answer`, `test_req_s29_verdict_on_a_plan_and_without_ratings`, `test_req_s29_the_pick_is_the_cheapest_the_votes_cannot_tell_from_the_top`, `test_req_s29_headline_and_notes_say_why`, `test_req_s29_page_compares_models_side_by_side`; the page in a browser | test, demonstration |
 | REQ-S30 | `test_req_s30_arena_is_explained_on_the_page`; the page in a browser | test, demonstration |
 | REQ-S31 | `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook` | test |
-| REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (7 tests) | test |
+| REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (8 tests) | test |
 | REQ-S33 | `test_req_s33_renamed_arena_models_keep_one_line`, `test_req_s33_a_price_is_rolled_back_to_the_day`, `test_req_s33_lines_makers_and_the_price_race`, `test_req_s33_no_history_means_no_trends`, `test_req_s33_yesterdays_trends_are_kept_when_arena_is_down`, `test_req_s33_a_rating_gap_in_plain_odds`, `test_req_s33_a_line_is_drawn_between_its_points_and_ends_after_a_month`, `test_req_s33_labels_never_overlap_and_stay_inside`, `test_req_s33_round_ticks`, `test_req_s33_trends_view_replays_the_leaderboards`, `test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_charts`; the page in a browser at 1366 and 390 pixels wide, light and dark | test, demonstration |
 | REQ-S34 | `test_req_s34_the_edge_keeps_only_models_nobody_beats_on_both`, `test_req_s34_cost_vs_quality_sits_on_ask`; the page in a browser | test, demonstration |
 | REQ-S35 | `test_req_s35_new_arrivals_are_new_groups_with_a_text_price`, `test_req_s35_latest_changes_fold_batches_and_join_price_fields` | test |
+| REQ-S36 | `test_req_s36_every_view_fits_one_screen`; every view in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1280 x 650, 1024 x 700, 768 x 1024, 390 x 664, 360 x 740 and 375 x 560 | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
 | REQ-S25 | `test_req_s25_arena_names_are_tried_longest_first`, `test_req_s25_matching_prefers_the_arena_maker`, `test_req_s25_best_variant_kept_and_unmatched_left_out`, `test_req_s25_arena_down_means_no_ratings`, `test_req_s25_best_value_is_the_cheapest_tied_with_the_top`; the Best value tab | test, demonstration |
