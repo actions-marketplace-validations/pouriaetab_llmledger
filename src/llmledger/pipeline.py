@@ -5,7 +5,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from llmledger import arena, catalog, events, history, licences, page, route_eval, sql, survival
+from llmledger import arena, catalog, events, history, licences, page, route_eval, sql, survival, trends
 
 SOURCE = "https://github.com/BerriAI/litellm.git"
 UPSTREAM = Path("data/upstream")
@@ -53,6 +53,15 @@ def main():
         data["arena"] = arena.previous(LIVE + "data.js")
         if data["arena"]:
             print("Arena ratings: kept the ones on the live page, published", data["arena"]["date"])
+    rows_over_time = trends.fetch() if allowed["trends"] else None
+    data["trends"] = trends.build(rows_over_time, data["models"], data["events"]) if rows_over_time else None
+    if data["trends"] is None and allowed["trends"]:
+        data["trends"] = trends.previous(LIVE + "data.js")
+        if data["trends"]:
+            print("Trends: kept the ones on the live page, up to", data["trends"]["date"])
+    elif data["trends"]:
+        print(f"Trends: {len(data['trends']['dates'])} Arena leaderboards, "
+              f"{data['trends']['dates'][0]} to {data['trends']['date']}")
     data["licences"] = report
     if route_eval.RESULT.exists():
         data["route_eval"] = json.loads(route_eval.RESULT.read_text())

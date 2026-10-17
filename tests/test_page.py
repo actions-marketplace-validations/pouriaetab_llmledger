@@ -58,7 +58,7 @@ def test_req_s21_page_compares_every_change_with_real_changes(tmp_path):
 def test_req_s28_page_opens_on_the_prompt_box(tmp_path):
     page = page_for(tmp_path)
     assert page.index('id="tab-ask"') < page.index('id="tab-models"')
-    for view in ("ask", "models", "trends", "about"):
+    for view in ("ask", "race", "models", "trends", "about"):
         assert f'data-tab="{view}"' in page
     assert 'id="cost-text"' in page and 'id="picks"' in page
     assert "app.js?v=" in page and "data.js?v=" in page
@@ -77,3 +77,21 @@ def test_req_s30_arena_is_explained_on_the_page(tmp_path):
     page = page_for(tmp_path)
     assert '<div id="arena-help" class="pop" popover>' in page and "What is Arena?" in page
     assert 'id="rate-chart"' in page and 'id="rate-table"' in page
+
+
+def test_req_s33_trends_view_replays_the_leaderboards(tmp_path):
+    page = page_for(tmp_path)
+    view = page[page.index('id="tab-race"'):page.index('id="tab-models"')]
+    for view_id in ("open", "makers", "price"):
+        assert f'data-view="{view_id}"' in view
+    for part in ('id="race-chart"', 'id="race-play"', 'id="race-at"', 'id="race-legend"', 'id="race-table"',
+                 'id="arrivals"', 'id="changes"', 'href="#week"'):
+        assert part in view
+    assert page.index("trends.js?v=") < page.index("app.js?v=")
+
+
+def test_req_s34_cost_vs_quality_sits_on_ask(tmp_path):
+    page = page_for(tmp_path)
+    ask = page[page.index('id="tab-ask"'):page.index('id="tab-race"')]
+    assert 'id="frontier"' in ask and 'id="front-chart"' in ask and 'id="front-list"' in ask
+    assert ask.index('id="which"') < ask.index('id="frontier"')

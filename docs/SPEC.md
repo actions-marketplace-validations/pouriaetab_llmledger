@@ -226,10 +226,12 @@ and of a failed download.
 
 **REQ-S26 Licences.** Every run shall read the current licence of each
 outside source (LiteLLM's licence file, the Arena dataset card, and the
-test tools on PyPI) and accept only licences open for business use (MIT,
-Apache-2.0, BSD, ISC, CC BY 4.0, CC0). If LiteLLM's is not, the run shall
-stop before publishing. If Arena's is not, or cannot be read, the page
-shall be built without ratings. Every problem shall be written to
+packages pinned in `requirements.txt` and `mcp/pyproject.toml` on PyPI) and
+accept only licences open for business use (MIT, Apache-2.0, BSD, ISC,
+CC BY 4.0, CC0). If LiteLLM's is not, the run shall stop before publishing.
+If Arena's is not, or cannot be read, the page shall be built without
+ratings or trends. If pyarrow's is not, the page shall be built without
+the trend charts. Every problem shall be written to
 `data/licence-problems.txt`, from which the daily refresh opens a GitHub
 issue, and the licences found shall be shown on the page.
 Verified by: automated tests with each source open, closed and
@@ -292,6 +294,43 @@ and a prompt, reading `data.json` once a day with a bundled copy for the
 first run. Its task guess and comparison shall give the same answers as
 the page's route.js and pick.js. Verified by: the parity tests in the
 repository and the plug-in's own tests through FastMCP's in-memory client.
+
+**REQ-S33 Trends.** A Trends view shall replay Arena's past overall
+leaderboards (the dataset's full history, CC BY 4.0) as a moving line
+chart, in three views: Open vs closed (the best closed and the best open
+rating at each leaderboard, the gap between them shaded and said in
+plain words as the share of people who would pick the leader, and today's
+top 3 of each as thin lines), Top 5 makers (each maker's best rating), and
+Price race (the price of the top rated model that can be priced, the
+cheapest of the top 10, and the cheapest model rated at least as high as
+the model that was first a year earlier). A price is per 1M tokens,
+counting 3 read for every 1 written, at the model's cheapest host on that
+day, rebuilt by rolling today's price back through every later change
+(unit fixes are not rolled back; free listings are not prices). Arena
+models renamed between leaderboards shall keep one line. The replay shall
+play once when the view opens, not move for readers who ask for reduced
+motion, and offer play, pause and a slider; hovering shall show every
+line's value at the nearest leaderboard, and a table shall give the
+numbers. If the history cannot be read, the page shall keep the trends
+from the live page, or be built without them. Verified by: automated tests
+of the series, the price roll back, the renamed models, the fallback and
+the drawing helpers, and the page in a browser.
+
+**REQ-S34 Cost vs quality.** Under Compare side by side, the page shall
+draw every model Arena rated for the task within 200 points of the top,
+at its cheapest listing's cost for the prompt (log scale) against its
+score, and mark the edge: the models no other model beats on both price
+and score, listed best first with the three answers named. It shall
+follow the prompt like the answers. Verified by: an automated test of the
+edge and the page in a browser.
+
+**REQ-S35 What is new.** The Trends view shall list the newest text models
+in the catalogue (grouped models whose first listing is newest and that
+have a token price) with their best Arena rank across tasks, and the
+latest catalogue changes, newest first: one line per listing and day, with
+a clean up, or four or more listings added, removed or priced for the
+first time on one day, folded into one line, and a link to every change in
+the last 7 days. Verified by: automated tests of both lists.
 
 ## 5. Known limitations
 
@@ -357,6 +396,13 @@ repository and the plug-in's own tests through FastMCP's in-memory client.
 - **L17** The plug-in's copy of the task rules reads word boundaries next
   to accented letters a little more generously than the browser does, so
   a rare prompt in Spanish, French or German can get a different guess.
+- **L18** Arena recomputes every rating each time it publishes, so a
+  model's line moves partly because the pool of models around it changed,
+  not only because people liked it more or less. The price race only sees
+  models the naming rules can match to the catalogue (about 4 in 5 of the
+  top 10), and a catalogue price, not what a provider charged that day.
+  "Open" means Arena lists a licence other than proprietary, which includes
+  some licences that do not allow business use.
 
 ## 6. Known-answer example
 
@@ -407,6 +453,9 @@ repository and the plug-in's own tests through FastMCP's in-memory client.
 | REQ-S30 | `test_req_s30_arena_is_explained_on_the_page`; the page in a browser | test, demonstration |
 | REQ-S31 | `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook` | test |
 | REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (7 tests) | test |
+| REQ-S33 | `test_req_s33_renamed_arena_models_keep_one_line`, `test_req_s33_a_price_is_rolled_back_to_the_day`, `test_req_s33_lines_makers_and_the_price_race`, `test_req_s33_no_history_means_no_trends`, `test_req_s33_yesterdays_trends_are_kept_when_arena_is_down`, `test_req_s33_a_rating_gap_in_plain_odds`, `test_req_s33_a_line_is_drawn_between_its_points_and_ends_after_a_month`, `test_req_s33_labels_never_overlap_and_stay_inside`, `test_req_s33_round_ticks`, `test_req_s33_trends_view_replays_the_leaderboards`, `test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_charts`; the page in a browser at 1366 and 390 pixels wide, light and dark | test, demonstration |
+| REQ-S34 | `test_req_s34_the_edge_keeps_only_models_nobody_beats_on_both`, `test_req_s34_cost_vs_quality_sits_on_ask`; the page in a browser | test, demonstration |
+| REQ-S35 | `test_req_s35_new_arrivals_are_new_groups_with_a_text_price`, `test_req_s35_latest_changes_fold_batches_and_join_price_fields` | test |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
 | REQ-S25 | `test_req_s25_arena_names_are_tried_longest_first`, `test_req_s25_matching_prefers_the_arena_maker`, `test_req_s25_best_variant_kept_and_unmatched_left_out`, `test_req_s25_arena_down_means_no_ratings`, `test_req_s25_best_value_is_the_cheapest_tied_with_the_top`; the Best value tab | test, demonstration |
