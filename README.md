@@ -14,11 +14,12 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.6. The data and the page refresh every day.
+**Status:** version 1.7. The data and the page refresh every day.
 
 Paste a prompt on the live page to see the best value model for it, the top rated one and the
 cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
-Everything else (every model, quality ratings, price history, method) is one click away.
+Everything else (every model, quality ratings, price history, method) is one click away. The
+Trends view replays two years of Arena's leaderboards and what top quality has cost.
 
 > **Not financial or procurement advice.** The numbers describe edits to a public
 > catalogue, not what any model costs you. See [DISCLAIMER.md](DISCLAIMER.md).
@@ -78,6 +79,16 @@ Everything else (every model, quality ratings, price history, method) is one cli
 13. **Works inside Claude.** The plug-in in `mcp/` (llmledger-mcp) answers the
     same questions inside Claude, Cursor or any app that speaks MCP, from the
     daily `data.json`. See [Use it inside Claude](#use-it-inside-claude).
+14. **Replays the leaderboards.** The Trends view plays every past Arena
+    leaderboard as a moving chart: the best closed model against the best
+    open one (and how often people would pick the leader), the top 5 makers,
+    and a price race: the top rated model's price, the cheapest of the top 10,
+    and what a model as good as last year's #1 costs now, rebuilt from every
+    price change in the catalogue. Next to it: the newest models with their
+    best Arena rank, and the latest price changes and retirements.
+15. **Shows cost against quality.** For your prompt, every rated model's cost
+    against its Arena score, with the edge marked: the models no other model
+    beats on both.
 
 ## First results
 
@@ -128,7 +139,9 @@ requirement to the test that verifies it. In short:
 ## Run it
 
 Python 3.14.7 (pinned in `.python-version`; 3.12 or newer works), standard
-library only. One command downloads LiteLLM's history, rebuilds everything and
+library only, plus pyarrow (pinned in `requirements.txt`) to read Arena's past
+leaderboards for the Trends view; without it the page is built without the
+trend charts. One command downloads LiteLLM's history, rebuilds everything and
 writes the results page:
 
 ```bash
@@ -136,10 +149,11 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (114 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
-Arena matching, task guess, model comparison, plug-in parity, licences, page and
-version checks; the prompt cost, task guess, comparison and parity tests need
-Node.js and are skipped without it; the plug-in has 7 more in `mcp/tests`),
+Tests (129 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+Arena matching, task guess, model comparison, plug-in parity, trends, licences,
+page and version checks; the prompt cost, task guess, comparison, trends drawing
+and parity tests need Node.js and are skipped without it; the plug-in has 7 more
+in `mcp/tests`),
 with the exact versions pinned in `requirements.txt`:
 
 ```bash
@@ -178,7 +192,8 @@ here. llmledger is independent and not affiliated with or endorsed by BerriAI.
 
 Quality ratings on the Best value tab come from the
 [Arena leaderboard dataset](https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset)
-by LMArena, used under CC BY 4.0 and read once a day. The task guess is
+by LMArena, used under CC BY 4.0 and read once a day; the Trends view reads
+its full history of past leaderboards from the same dataset. The task guess is
 measured on prompts from Arena's
 [human preference dataset](https://huggingface.co/datasets/lmarena-ai/arena-human-preference-140k),
 also CC BY 4.0. llmledger is not affiliated with or endorsed by LMArena.
@@ -195,6 +210,7 @@ src/llmledger/       history.py, events.py, flags.py (corrections),
                      licences.py (daily licence check), route.js and
                      route_eval.py (task guess and how often it is right),
                      pick.js (compare side by side), export.py (data.json),
+                     trends.py and trends.js (the Trends view, cost vs quality),
                      table_protocol.js (results page), pipeline.py
 tests/               known answer, simulation, naming, page and version tests
 mcp/                 the plug-in (llmledger-mcp): FastMCP server, tests, server.json

@@ -9,6 +9,8 @@ The pipeline calls check() before building:
   stops and nothing is published;
 - the Arena ratings are optional, so if they are not open the page is built
   without them;
+- pyarrow reads Arena's past leaderboards for the Trends view, so if it is not open the page
+  is built without the trend charts;
 - the test tools are only used to run the tests, and the plug-in's packages (mcp/) only by
   the plug-in, so a change to either is reported.
 Every problem is written to data/licence-problems.txt, and the daily refresh
@@ -29,6 +31,8 @@ LITELLM_FILE = "model_prices_and_context_window.json"
 ARENA = "https://huggingface.co/api/datasets/lmarena-ai/leaderboard-dataset"
 ARENA_PROMPTS = "https://huggingface.co/api/datasets/lmarena-ai/arena-human-preference-140k"
 PYPI = "https://pypi.org/pypi/{name}/{version}/json"
+# Packages in requirements.txt that the daily build itself uses; the rest only run the tests.
+PIPELINE = {"pyarrow"}
 PROBLEMS = Path("data/licence-problems.txt")
 
 
@@ -97,10 +101,11 @@ def sources(get=_text, requirements=_requirements, plugin=_plugin_requirements):
         ("Arena prompts", "measuring",
          attempt(lambda: (json.loads(get(ARENA_PROMPTS)).get("cardData") or {}).get("license"))),
     ]
-    for role, pins in (("tests", requirements()), ("plug-in", plugin())):
-        for name, version in pins:
-            found.append((f"{name} {version}", role, attempt(
-                lambda n=name, v=version: pypi_licence(json.loads(get(PYPI.format(name=n, version=v)))["info"]))))
+    pins = [("pipeline" if name in PIPELINE else "tests", name, version) for name, version in requirements()]
+    pins += [("plug-in", name, version) for name, version in plugin()]
+    for role, name, version in pins:
+        found.append((f"{name} {version}", role, attempt(
+            lambda n=name, v=version: pypi_licence(json.loads(get(PYPI.format(name=n, version=v)))["info"]))))
     return found
 
 
@@ -115,6 +120,8 @@ def check(get=_text, requirements=_requirements, plugin=_plugin_requirements):
         report.append({"source": name, "role": role, "licence": licence, "status": status})
     roles = {row["role"]: row["status"] for row in report if row["role"] in ("data", "ratings")}
     allowed = {"data": roles.get("data") != "not open", "ratings": roles.get("ratings") == "open"}
+    allowed["trends"] = allowed["ratings"] and all(row["status"] != "not open" for row in report
+                                                   if row["role"] == "pipeline")
     return report, allowed
 
 
@@ -126,10 +133,11 @@ def problems(report):
                       "ratings": "The page was built without them.",
                       "measuring": "Measure the task guess on another dataset.",
                       "tests": "Find an open replacement for the tests.",
+                      "pipeline": "The trend charts were left out; find an open replacement.",
                       "plug-in": "Find an open replacement for the plug-in (mcp/) before its next release."}[row["role"]]
             lines.append(f"- {row['source']}: licence is now {row['licence']!r}, "
                          f"which is not open for business use. {action}")
-        elif row["status"] == "unchecked" and row["role"] not in ("tests", "plug-in"):
+        elif row["status"] == "unchecked" and row["role"] not in ("tests", "plug-in", "pipeline"):
             lines.append(f"- {row['source']}: the licence could not be checked today."
                          + (" The ratings were left out." if row["role"] == "ratings" else ""))
     return lines

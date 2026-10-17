@@ -1,6 +1,7 @@
 /* llmledger results page: model lookup, compare, prompt cost, best value, compare side by side,
    last 7 days, top lists. Reads window.LLMLEDGER, written by page.py from the daily pipeline, and
-   window.LLMCOST from cost.js, window.LLMROUTE from route.js and window.LLMPICK from pick.js. */
+   window.LLMCOST from cost.js, window.LLMROUTE from route.js, window.LLMPICK from pick.js and
+   window.LLMTRENDS from trends.js (the Trends view and the cost vs quality chart). */
 (function () {
   const D = window.LLMLEDGER;
   if (!D) return;
@@ -93,7 +94,7 @@
   const groupLink = id => '<a href="#" data-group="' + esc(id) + '">' + esc(id) + "</a>";
 
   /* ---------- tabs ---------- */
-  const TABS = ["ask", "models", "trends", "about"];
+  const TABS = ["ask", "race", "models", "trends", "about"];
   const OLD = { lookup: "models", cost: "ask", value: "ask", week: "trends", top: "trends", overview: "trends" };
   let currentTab = "ask";
   function showTab(name) {
@@ -511,7 +512,9 @@
     if (!A) {
       if ($("cost-want").value === "text") mediaCards();
       $("value-best").innerHTML = "<p>Arena ratings could not be loaded with today's data. The other tabs are not affected.</p>";
-      $("value-table").innerHTML = ""; renderWhich(); return;
+      $("value-table").innerHTML = ""; renderWhich();
+      if (TR) TR.frontier(null, { why: "Arena ratings could not be loaded with today's data." });
+      return;
     }
     let task = $("value-task").value;
     $("value-guess").innerHTML = "";
@@ -553,6 +556,10 @@
     }
     const scale = rows.slice();      // every rated model, for one shared scale
     lastScale = scale.map(r => r.id);
+    if (TR) {
+      if ($("cost-want").value === "text") TR.frontier(scale, { best, top, low, task: taskLabel(task).toLowerCase() });
+      else TR.frontier(null, { why: 'Cost vs quality works for text answers: choose "A text answer" in Options.' });
+    }
     rows.forEach(r => { r.tied = top && r.high >= top.low; });
     if ($("value-tied").checked) rows = rows.filter(r => r.tied);
     $("value-using").textContent = ($("cost-want").value === "text" ? "Picked from " + cheapest.size.toLocaleString() + " priced models, " +
@@ -595,6 +602,7 @@
 
   // ----- compare side by side: columns that follow the prompt, plus the reader's own picks -----
   const P = window.LLMPICK;
+  const TR = window.LLMTRENDS && window.LLMTRENDS.init ? window.LLMTRENDS : null;
   const PLANS = { claude: { maker: "anthropic", host: "anthropic", app: "Claude" },
     chatgpt: { maker: "openai", host: "openai", app: "ChatGPT" } };
   const PAYS = ["api", "claude", "chatgpt"];
@@ -839,7 +847,11 @@
     costAll = false; renderCost(); renderValue(); remember();
   });
   $("cost-table").addEventListener("click", e => { if (e.target.id === "cost-all") { costAll = true; renderCost(); } });
+  if (TR) TR.init({ esc, dollars, money, table, models,
+    openGroup: id => { history.replaceState(null, "", "#models"); showTab("models"); showGroup(id); remember(); },
+    openModel: key => { history.replaceState(null, "", "#models"); showTab("models"); showModel(key); remember(); } });
   onTab = name => {
+    if (name === "race" && TR) TR.show();
     if (name !== "ask") return;
     document.querySelector("#tab-ask [data-pick-slot]").appendChild($("pick"));
     renderPick();

@@ -124,7 +124,7 @@ def corrections(results):
 
 
 ASSETS = {"data": "data.js", "cost": "cost.js", "route": "route.js", "pick": "pick.js",
-          "table": "table_protocol.js", "app": "app.js"}
+          "trends": "trends.js", "table": "table_protocol.js", "app": "app.js"}
 
 
 def versions(folder):
@@ -172,7 +172,7 @@ def main(source, out_dir, info, data):
     (folder / "survival.csv").write_text(Path(source).read_text())
     (folder / "data.js").write_text(data_script(data))
     export.write(folder / "data.json", data, info)
-    for name in ("app.js", "cost.js", "route.js", "pick.js", "table_protocol.js"):
+    for name in ("app.js", "cost.js", "route.js", "pick.js", "trends.js", "table_protocol.js"):
         shutil.copyfile(here / name, folder / name)
     (folder / "index.html").write_text(render(load(source), info, versions(folder)))
     return folder / "index.html"

@@ -21,6 +21,10 @@
   --retirement: #eb6834;
   --removed: #1baf7a;
   --none: #d9d8d2;
+  /* chart series, in this fixed order (checked for colour blindness as a set) */
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --good: #0ca30c; --bad: #d03b3b;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -29,6 +33,8 @@
     --line: #383835; --accent: #3987e5; --accent-soft: #1c2a3d;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
     --price: #3987e5; --retirement: #d95926; --removed: #199e70; --none: #4a4a46;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
   }
 }
 :root[data-theme="dark"] {
@@ -37,6 +43,8 @@
   --line: #383835; --accent: #3987e5; --accent-soft: #1c2a3d;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.25);
   --price: #3987e5; --retirement: #d95926; --removed: #199e70; --none: #4a4a46;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--surface); color: var(--text);
@@ -159,6 +167,90 @@ main { max-width: 1040px; margin: 0 auto; padding: 0 16px 32px; }
 .rate-head:hover { background: none; }
 td .cbar { display: inline-block; height: 6px; border-radius: 3px; background: var(--accent); opacity: 0.55; margin-right: 6px; vertical-align: 1px; }
 
+/* Trends: the replaying chart, cost vs quality, new arrivals and the latest changes */
+.tlayout { display: grid; grid-template-columns: minmax(0, 1fr) 316px; gap: 14px; align-items: start; margin-top: 12px; }
+.tside { display: grid; gap: 14px; }
+.tcard { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+  padding: 14px 16px; min-width: 0; }
+.thead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 14px; }
+.thead .seg { margin: 0; flex: none; }
+.thead .when { font-size: 0.8rem; white-space: nowrap; }
+.tplay { display: flex; align-items: center; gap: 10px; margin: 2px 0 0 44px; }
+.tplay input[type="range"] { flex: 1 1 auto; min-width: 0; padding: 0; border: 0; background: none; accent-color: var(--accent); }
+.play { border-radius: 999px; padding: 3px 14px; font-weight: 600; min-width: 76px; font-size: 0.86rem; }
+.tsum { margin: 10px 0 4px; min-height: 2.8em; font-size: 0.93rem; line-height: 1.45; }
+.tcard .note { margin: 4px 0 0; font-size: 0.76rem; }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; max-width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis, .chart .mtick { stroke: var(--muted); stroke-opacity: 0.45; stroke-width: 1; }
+.chart .tick, .chart .corner { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .ln.dash { stroke-dasharray: 6 4; }
+.chart .ln.thin { stroke-width: 1.25; }
+.chart .env { fill: none; stroke-width: 2.5; stroke-linejoin: round; }
+.chart .env.dash { stroke-dasharray: 7 4; }
+.chart .gap { fill: var(--accent); fill-opacity: 0.09; }
+.chart .head { stroke: var(--card); stroke-width: 2; }
+.chart .lead { stroke: var(--muted); stroke-opacity: 0.4; stroke-width: 1; fill: none; }
+.chart .pill rect { fill: var(--card); stroke: var(--line); }
+.chart .pill text { fill: var(--text); font-size: 11.5px; }
+.chart .cross { stroke: var(--muted); stroke-opacity: 0.6; stroke-width: 1; }
+.chart .pt { fill: var(--muted); fill-opacity: 0.35; }
+.chart .edge { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.chart .ept { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
+.chart .ept.best { fill: var(--card); stroke: var(--accent); stroke-width: 3; }
+.chart .elabel { fill: var(--text); font-size: 11px; paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
+.chart .elabel.k { font-weight: 650; }
+.tip { position: absolute; z-index: 3; pointer-events: none; background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: var(--shadow); padding: 8px 10px; font-size: 0.8rem; min-width: 150px; max-width: 320px; }
+.tip-h { color: var(--muted); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tip-r { display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
+.tip-r i { display: inline-block; width: 12px; height: 2px; border-radius: 1px; flex: none; }
+.tip-r b { font-variant-numeric: tabular-nums; }
+.tip-r span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.tlegend { margin: 6px 0 2px; font-size: 0.8rem; gap: 4px 14px; }
+.tlegend i { width: 16px; height: 0; border-radius: 0; background: none; border-top: 2px solid var(--c); vertical-align: 3px; }
+.tlegend i.k-dash { border-top-style: dashed; }
+.tlegend i.k-band { height: 10px; border: 0; background: var(--accent); opacity: 0.2; border-radius: 3px; vertical-align: -1px; }
+.tcard h2 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+.tcard .sub { margin: 2px 0 6px; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tab-race .page-head { padding-top: 22px; }
+.feed.arrivals { max-height: 182px; }
+.feed.changes { max-height: 140px; }
+.tcard > .muted:last-child { margin-bottom: 0; }
+.feed { list-style: none; margin: 0; padding: 0; max-height: 196px; overflow-y: auto; }
+.feed li { display: grid; gap: 1px 10px; align-items: center; padding: 6px 2px; border-bottom: 1px solid var(--line);
+  font-size: 0.84rem; min-width: 0; }
+.feed li:last-child { border-bottom: 0; }
+.feed li > * { min-width: 0; }
+.feed small { display: block; color: var(--muted); font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arrivals li { grid-template-columns: minmax(0, 1fr) auto; }
+.arrivals .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.changes li { grid-template-columns: 44px minmax(0, 1fr); position: relative; padding-left: 14px; align-items: start; }
+.changes li::before { content: ""; position: absolute; left: 1px; top: 12px; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.changes time { line-height: 1.55rem; }
+.changes li.c-down::before { background: var(--good); }
+.changes li.c-up::before { background: var(--bad); }
+.changes li.c-add::before { background: var(--accent); }
+.changes time { color: var(--muted); font-size: 0.76rem; }
+.more-link { margin: 6px 0 0; font-size: 0.84rem; }
+.pulse { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--good); animation: pulse 2.2s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgb(12 163 12 / 0.45); } 70% { box-shadow: 0 0 0 7px rgb(12 163 12 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(12 163 12 / 0); } }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+.fgrid { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.fgrid h3 { margin: 0 0 4px; font-size: 0.9rem; }
+.edge-list { max-height: 270px; }
+.edge-list li { grid-template-columns: minmax(0, 1fr) auto; }
+.edge-list li > span { color: var(--muted); font-size: 0.78rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.edge-list li > span b { color: var(--text); }
+@media (max-width: 980px) {
+  .tlayout { grid-template-columns: 1fr; }
+  .tside { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 /* everything else hides behind a click */
 details.more { border-top: 1px solid var(--line); margin: 0; padding: 12px 2px; }
 details.more:last-of-type { border-bottom: 1px solid var(--line); }
@@ -240,6 +332,10 @@ footer p { margin: 0 0 4px; }
   #which .seg { display: flex; width: 100%; }
   #which .seg button { flex: 1 1 0; padding: 5px 6px; }
   .vs { grid-auto-columns: minmax(78%, 1fr); }
+  .tside, .fgrid { grid-template-columns: 1fr; }
+  .tplay { margin-left: 0; }
+  #race-view { display: flex; width: 100%; }
+  #race-view button { flex: 1 1 0; padding: 5px 4px; white-space: nowrap; font-size: 0.82rem; }
 }
 @media (max-width: 560px) {
   .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
@@ -253,6 +349,7 @@ footer p { margin: 0 0 4px; }
   <a class="brand" href="#ask" data-goto="ask">llmledger</a>
   <nav class="tabs" role="tablist">
     <button type="button" role="tab" data-tab="ask">Ask</button>
+    <button type="button" role="tab" data-tab="race">Trends</button>
     <button type="button" role="tab" data-tab="models">Models</button>
     <button type="button" role="tab" data-tab="trends">Price history</button>
     <button type="button" role="tab" data-tab="about">About</button>
@@ -288,6 +385,18 @@ footer p { margin: 0 0 4px; }
   <div class="vs" id="which-cols"></div>
   <datalist id="which-list"></datalist>
   <p class="muted" id="which-note"></p>
+</div>
+</details>
+
+<details class="more" id="frontier">
+<summary>Cost vs quality<span>for your prompt: the models no other model beats on both</span></summary>
+<div class="stack">
+  <p class="vs-sum" id="front-sum"></p>
+  <div class="fgrid">
+    <div class="chart" id="front-chart"></div>
+    <div><h3>On the edge, best first</h3><ol class="feed edge-list" id="front-list"></ol></div>
+  </div>
+  <p class="muted" id="front-note"></p>
 </div>
 </details>
 
@@ -369,6 +478,49 @@ footer p { margin: 0 0 4px; }
   <p><b>Effort</b> is how hard a thinking model works on your prompt. The suggestion is a rule of thumb from the task and your words; the levels each model takes come from LiteLLM.</p>
 </div>
 </details>
+</section>
+
+<!-- ============ Trends: how the top models move ============ -->
+<section id="tab-race" hidden>
+<div class="page-head">
+  <h1>How the top models move</h1>
+  <p>Two years of Arena's leaderboards, replayed, and what top quality costs.</p>
+</div>
+<div class="tlayout">
+<div class="tcard">
+  <div class="thead">
+    <div class="seg" role="group" aria-label="Trend views" id="race-view">
+      <button type="button" data-view="open" aria-pressed="true">Open vs closed</button>
+      <button type="button" data-view="makers" aria-pressed="false">Top 5 makers</button>
+      <button type="button" data-view="price" aria-pressed="false">Price race</button>
+    </div>
+    <span class="muted when" id="race-when"></span>
+  </div>
+  <p class="tsum" id="race-sum" aria-live="polite"></p>
+  <div class="chart" id="race-chart"></div>
+  <div class="tplay">
+    <button type="button" class="play" id="race-play">Play</button>
+    <input type="range" id="race-at" step="1" aria-label="Day shown">
+  </div>
+  <div class="legend tlegend" id="race-legend"></div>
+  <details class="sub"><summary>The numbers at this point, and how this is made</summary>
+    <div id="race-table"></div><p class="muted" id="race-how"></p></details>
+  <p class="muted note" id="race-note"></p>
+</div>
+<div class="tside">
+  <div class="tcard">
+    <h2>New arrivals</h2>
+    <p class="muted sub">Newest text models, best Arena rank</p>
+    <ol class="feed arrivals" id="arrivals"></ol>
+  </div>
+  <div class="tcard">
+    <h2><span class="pulse" aria-hidden="true"></span>Latest changes</h2>
+    <p class="muted sub">Prices and retirements, as of <span id="pulse-date"></span></p>
+    <ol class="feed changes" id="changes"></ol>
+    <p class="more-link"><a href="#week" id="changes-all">All changes in the last 7 days</a></p>
+  </div>
+</div>
+</div>
 </section>
 
 <!-- ============ Models: search first ============ -->
@@ -540,6 +692,7 @@ which can be wrong.</p>
 <script src="cost.js?v=$v_cost"></script>
 <script src="route.js?v=$v_route"></script>
 <script src="pick.js?v=$v_pick"></script>
+<script src="trends.js?v=$v_trends"></script>
 <script src="table_protocol.js?v=$v_table"></script>
 <script src="app.js?v=$v_app"></script>
 </body>

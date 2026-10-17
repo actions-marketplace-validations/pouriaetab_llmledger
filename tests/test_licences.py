@@ -39,13 +39,13 @@ def test_req_s26_litellm_file_must_stay_in_the_mit_part():
 def test_req_s26_all_open_means_everything_is_used():
     report, allowed = licences.check(fake(), pins, plugin=lambda: [("fastmcp", "4.1.0")])
     assert [r["status"] for r in report] == ["open", "open", "open", "open", "open"]
-    assert allowed == {"data": True, "ratings": True}
+    assert allowed == {"data": True, "ratings": True, "trends": True}
     assert licences.problems(report) == []
 
 
 def test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported():
     report, allowed = licences.check(fake(arena="cc-by-nc-4.0"), pins)
-    assert allowed == {"data": True, "ratings": False}
+    assert allowed == {"data": True, "ratings": False, "trends": False}
     assert "Arena leaderboard" in licences.problems(report)[0]
 
 
@@ -57,7 +57,7 @@ def test_req_s26_a_closed_data_licence_stops_publishing():
 
 def test_req_s26_unreachable_ratings_are_left_out_not_failed():
     report, allowed = licences.check(fake(down=("huggingface",)), pins)
-    assert allowed == {"data": True, "ratings": False}
+    assert allowed == {"data": True, "ratings": False, "trends": False}
     assert report[1]["status"] == "unchecked"
 
 
@@ -69,7 +69,7 @@ def test_req_s26_the_plugin_packages_are_checked_and_a_closed_one_is_reported():
     report, allowed = licences.check(get, pins, plugin=lambda: [("fastmcp", "4.1.0")])
     row = next(r for r in report if r["source"] == "fastmcp 4.1.0")
     assert row["role"] == "plug-in" and row["status"] == "not open"
-    assert allowed == {"data": True, "ratings": True}            # the page is not affected
+    assert allowed == {"data": True, "ratings": True, "trends": True}    # the page is not affected
     assert any("plug-in (mcp/)" in line for line in licences.problems(report))
 
 
@@ -78,3 +78,19 @@ def test_req_s26_plugin_pins_are_read_from_its_pyproject(tmp_path):
     file.write_text('[build-system]\nrequires = ["hatchling==1.32.4"]\n[project]\ndependencies = ["fastmcp==4.1.0"]\n')
     assert licences._plugin_requirements(file) == [("hatchling", "1.32.4"), ("fastmcp", "4.1.0")]
     assert licences._plugin_requirements(tmp_path / "missing.toml") == []
+
+
+def test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_charts():
+    def get(url):
+        if "pyarrow" in url:
+            return json.dumps({"info": {"license_expression": "LicenseRef-Proprietary"}})
+        return fake()(url)
+    with_pyarrow = lambda: [("pyarrow", "25.0.1"), ("pytest", "9.1.1")]
+    report, allowed = licences.check(get, with_pyarrow, plugin=lambda: [])
+    row = next(r for r in report if r["source"] == "pyarrow 25.0.1")
+    assert row["role"] == "pipeline" and row["status"] == "not open"
+    assert next(r for r in report if r["source"] == "pytest 9.1.1")["role"] == "tests"
+    assert allowed == {"data": True, "ratings": True, "trends": False}
+    assert any("trend charts were left out" in line for line in licences.problems(report))
+    report, allowed = licences.check(fake(), with_pyarrow, plugin=lambda: [])
+    assert allowed["trends"] is True
