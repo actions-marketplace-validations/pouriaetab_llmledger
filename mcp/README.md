@@ -1,0 +1,60 @@
+# llmledger-mcp
+
+<!-- mcp-name: io.github.pouriaetab/llmledger -->
+
+Ask Claude (or Cursor, ChatGPT desktop, any app that speaks MCP) which AI model to use and what it
+costs, in the middle of your work. The answers come from [llmledger](https://pouriaetab.github.io/llmledger/):
+LiteLLM's public price catalogue, Arena's ratings by task, and every price change since 2023 with how
+likely a price is to change next. Rebuilt every day.
+
+## Install
+
+Needs [uv](https://docs.astral.sh/uv/). Nothing to host and no keys: the plug-in runs on your computer
+and reads the day's data from the llmledger page, cached for a day, with a bundled copy for offline use.
+
+Claude Code:
+
+```bash
+claude mcp add llmledger -- uvx llmledger-mcp
+```
+
+Claude Desktop (Settings, Developer, Edit config) or Cursor (`.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "llmledger": { "command": "uvx", "args": ["llmledger-mcp"] }
+  }
+}
+```
+
+A LiteLLM proxy can offer it to a whole team through its MCP gateway, as a stdio server with the same
+command.
+
+## What you can ask
+
+| Tool | For example |
+|---|---|
+| `suggest_for_project` | "Which model and effort for this project?" with the starting prompt; `pay` can be `claude` or `chatgpt` to compare within a plan |
+| `compare_models` | "Opus 5.5 or Fable 5.1 for coding, and when is Fable cheaper?" |
+| `estimate_cost` | "What do 2,000 calls a day of 10K tokens in and 1K out cost on these three?" |
+| `find_models` | "The best rated coding models under $10 per 1M answer tokens that read images" |
+| `price_history` | "Has Claude Opus 5.5's price changed, and how likely is it to change soon?" |
+
+Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, `pick_a_model`.
+
+## Good to know
+
+- Costs and ratings are estimates. Arena ratings say which answers people preferred, not what will work
+  best for you. Plan use (Claude, ChatGPT) assumes a plan runs down in step with API prices, because
+  plans do not publish per-model limits. Not financial or procurement advice.
+- Effort levels come from LiteLLM; the suggested level is a rule of thumb. No open source measures
+  tokens per task at each effort level yet.
+- Set `LLMLEDGER_DATA` to a local data.json or another address to use your own copy.
+
+## Data and licences
+
+Prices: LiteLLM's `model_prices_and_context_window.json` (MIT). Ratings: the Arena leaderboard
+(CC BY 4.0). Price history and outlook: [llmledger](https://github.com/pouriaetab/llmledger) (MIT).
+Built with [FastMCP](https://github.com/PrefectHQ/fastmcp) (Apache-2.0). Independent; not affiliated
+with BerriAI, LiteLLM or Arena.

@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llmledger-mcp"
+version = "0.1.0"
+description = "Which AI model, and what it costs: LiteLLM prices, Arena ratings and price history, inside Claude and other AI apps."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+keywords = ["mcp", "llm", "pricing", "litellm", "model selection", "fastmcp"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = ["fastmcp==4.1.0"]
+
+[project.scripts]
+llmledger-mcp = "llmledger_mcp.server:main"
+
+[project.urls]
+Homepage = "https://pouriaetab.github.io/llmledger/"
+Source = "https://github.com/pouriaetab/llmledger/tree/main/mcp"
+Issues = "https://github.com/pouriaetab/llmledger/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llmledger_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/llmledger_mcp", "tests", "scripts", "README.md", "LICENSE", "server.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

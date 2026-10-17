@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.pouriaetab/llmledger",
+  "description": "Which AI model, and what it costs: LiteLLM prices, Arena ratings and price history.",
+  "repository": {
+    "url": "https://github.com/pouriaetab/llmledger",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "llmledger-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

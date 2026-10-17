@@ -14,7 +14,7 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.5. The data and the page refresh every day.
+**Status:** version 1.6. The data and the page refresh every day.
 
 Paste a prompt on the live page to see the best value model for it, the top rated one and the
 cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
@@ -69,12 +69,15 @@ Everything else (every model, quality ratings, price history, method) is one cli
     of every outside source. If one is no longer open for business use, it
     stops using it (or stops publishing, for the core data) and opens a GitHub
     issue.
-12. **Compares models side by side.** Two to six models in one table: Arena
-    rating for the task, the effort levels each takes with a suggested level
-    for the prompt, prices, answer tokens and cost per task, and one sentence
-    each on how it compares with the top model, including the break-even
-    share of tokens. A Claude or ChatGPT plan mode shows how fast each model
-    uses the plan instead of dollars.
+12. **Compares models side by side.** Columns that follow the prompt (the
+    three answers, or a Claude or ChatGPT plan's top rated models) plus up to
+    three of your own: Arena rating and rank, effort levels with a suggested
+    level, prices, answer tokens and cost per task, or how fast each uses the
+    plan. It names the pick and says, for each other model, how few answer
+    tokens it would need to cost the same.
+13. **Works inside Claude.** The plug-in in `mcp/` (llmledger-mcp) answers the
+    same questions inside Claude, Cursor or any app that speaks MCP, from the
+    daily `data.json`. See [Use it inside Claude](#use-it-inside-claude).
 
 ## First results
 
@@ -133,16 +136,29 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (106 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
-Arena matching, task guess, model comparison, licences, page and version checks;
-the prompt cost, task guess and comparison tests need Node.js and are skipped
-without it),
+Tests (114 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+Arena matching, task guess, model comparison, plug-in parity, licences, page and
+version checks; the prompt cost, task guess, comparison and parity tests need
+Node.js and are skipped without it; the plug-in has 7 more in `mcp/tests`),
 with the exact versions pinned in `requirements.txt`:
 
 ```bash
 python -m pip install -r requirements.txt
 python -m pytest
 ```
+
+## Use it inside Claude
+
+The plug-in `llmledger-mcp` (in [`mcp/`](mcp/)) gives Claude and other AI apps five tools:
+suggest a model and effort for a project, compare models, estimate a budget, find models,
+and a model's price history with its outlook. It runs on your computer and reads the daily
+`data.json`; no keys, nothing to host.
+
+```bash
+claude mcp add llmledger -- uvx llmledger-mcp
+```
+
+Other apps and details: [mcp/README.md](mcp/README.md).
 
 ## Cite
 
@@ -178,9 +194,10 @@ src/llmledger/       history.py, events.py, flags.py (corrections),
                      cost.js (prompt cost), arena.py (quality ratings),
                      licences.py (daily licence check), route.js and
                      route_eval.py (task guess and how often it is right),
-                     pick.js (compare side by side),
+                     pick.js (compare side by side), export.py (data.json),
                      table_protocol.js (results page), pipeline.py
 tests/               known answer, simulation, naming, page and version tests
+mcp/                 the plug-in (llmledger-mcp): FastMCP server, tests, server.json
 docs/SPEC.md         definitions, requirements, limitations, traceability
 .github/workflows/   tests on every pull request; refresh rebuilds and
                      publishes the results page every day

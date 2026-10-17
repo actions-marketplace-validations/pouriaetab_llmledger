@@ -67,7 +67,13 @@ def test_req_s28_page_opens_on_the_prompt_box(tmp_path):
 def test_req_s29_page_compares_models_side_by_side(tmp_path):
     page = page_for(tmp_path)
     ask = page[page.index('id="tab-ask"'):page.index('id="tab-models"')]
-    assert 'id="which"' in ask and 'id="which-table"' in ask and 'id="which-verdict"' in ask
+    assert 'id="which"' in ask and 'id="which-cols"' in ask and 'id="which-sum"' in ask
     for pay in ("api", "claude", "chatgpt"):
         assert f'data-pay="{pay}"' in ask
     assert page.index("pick.js?v=") < page.index("app.js?v=")
+
+
+def test_req_s30_arena_is_explained_on_the_page(tmp_path):
+    page = page_for(tmp_path)
+    assert '<div id="arena-help" class="pop" popover>' in page and "What is Arena?" in page
+    assert 'id="rate-chart"' in page and 'id="rate-table"' in page

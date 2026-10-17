@@ -437,6 +437,10 @@
     const ranked = every ? C.cheapestPerGroup(rows, r => r.m.key, r => r.cost)
       : C.cheapestPerGroup(rows, r => r.m.maker + " / " + r.m.name, r => r.cost);
     const shown = costAll ? ranked : ranked.slice(0, SHOWN);
+    const positive = shown.map(r => r.cost).filter(c => c > 0);
+    const cmin = Math.log(Math.min(...positive)), cmax = Math.log(Math.max(...positive));
+    const cbar = c => c > 0 && positive.length > 1 ? '<span class="cbar" style="width:' +
+      Math.round(4 + 56 * (cmax > cmin ? (Math.log(c) - cmin) / (cmax - cmin) : 1)) + 'px" aria-hidden="true"></span>' : "";
     const timesLabel = q.calls === 1 ? "Cost for 1 time" : "Cost for " + q.calls.toLocaleString() + " times";
     const priceHead = want.unit ? [want.unit[0]] : ["Input $/1M", "Output $/1M"];
     const body = shown.map((r, i) => {
@@ -444,7 +448,7 @@
       const start = every ? [i + 1, modelLink(m), esc(m.host)]
         : [i + 1, groupLink(r.id), modelLink(m), groups.get(r.id).filter(g => g.status === "listed").length];
       const price = want.unit ? [dollars(C.priceFor(m, { want: q.want, count: want.unit[1] }))] : [money(m.input), money(m.output)];
-      return start.concat(price, [dollars(r.cost), dollars(r.cost * q.calls), chance(m, "90"), esc(m.retire || "–")]);
+      return start.concat(price, [cbar(r.cost) + dollars(r.cost), dollars(r.cost * q.calls), chance(m, "90"), esc(m.retire || "–")]);
     });
     const head = (every ? ["Rank", "Model as listed", "Host"] : ["Rank", "Model (grouped)", "Cheapest listing", "Listings"])
       .concat(priceHead, ["Cost per time", timesLabel, "Price change chance, 90 days", "Retirement date"]);
@@ -479,7 +483,8 @@
 
   // ----- best value (Arena ratings) -----
   // ----- the three answers on Ask -----
-  function card(kind, cls, r, why, calls) {
+  const INFO = ' <button type="button" class="info" popovertarget="arena-help" aria-label="What is Arena?" title="What is Arena?">i</button>';
+  function card(kind, cls, r, why, calls, facts) {
     const [maker, ...rest] = r.id.split(" / ");
     const odds = chance(r.m, "90");
     return '<div class="card ' + cls + '"><div class="kind">' + kind + "</div>" +
@@ -487,7 +492,7 @@
       '<div class="host">' + esc(maker) + " · on " + esc(r.m.host) + "</div>" +
       '<div class="cost">' + dollars(r.cost) + '</div><div class="per">per answer' +
       (calls > 1 ? " · " + dollars(r.cost * calls) + " for " + calls.toLocaleString() : "") + "</div>" +
-      '<p class="why">' + why + "</p>" +
+      (facts || "") + '<p class="why">' + why + "</p>" +
       (odds !== "–" ? '<span class="badge" title="Chance this price changes in the next 90 days">' + odds +
         " chance the price changes in 90 days</span>" : "") + effortBadge(r.m) + "</div>";
   }
@@ -528,36 +533,58 @@
       id: a[0], arenaName: a[1], rating: a[2], low: a[3], high: a[4], votes: a[5], ...cheapest.get(a[0]) }));
     const best = C.bestValue(rows);
     const top = rows[0];
+    const rated = rows.length, low = rows.reduce((a, r) => (!a || r.cost < a.cost ? r : a), null);   // cheapest model Arena rated
+    const second = best === top ? rows[1] : top;
+    const facts = (r, extra) => '<div class="arena">Arena <b>' + r.rating.toFixed(0) + "</b>" + INFO + "<span>· " + extra + "</span></div>";
+    const rank = r => "#" + (rows.indexOf(r) + 1) + " of " + rated.toLocaleString() + " rated";
     if ($("cost-want").value === "text") {
-      const low = rows.reduce((a, r) => (!a || r.cost < a.cost ? r : a), null);   // cheapest model Arena rated
       const times = x => (x.cost > 0 && top.cost / x.cost >= 1.05 ? (top.cost / x.cost).toFixed(top.cost / x.cost < 10 ? 1 : 0) + "×" : "");
+      const cheaper = r => { const n = rows.filter(x => x.cost > r.cost).length; return n ? ", cheaper than " + Math.round(100 * n / rated) + "% of them" : ""; };
       $("picks").innerHTML = !best ? '<p class="empty">No rated model matches these choices.</p>' :
         card("Best value", "best", best, best === top ? "It is also the top rated model for this task."
-          : "The votes cannot tell it apart from the top model, which costs " + (times(best) || "about the same") + (times(best) ? " as much." : "."), q.calls) +
-        ((best === top ? rows[1] : top) ? card(best === top ? "Runner up" : "Top rated", "", best === top ? rows[1] : top,
+          : "The votes cannot tell it apart from the top model, which costs " + (times(best) || "about the same") + (times(best) ? " as much." : "."), q.calls,
+          facts(best, rank(best) + cheaper(best))) +
+        (second ? card(best === top ? "Runner up" : "Top rated", "", second,
           (best === top ? "Next highest Arena rating for " : "Highest Arena rating for ") + esc(taskLabel(task).toLowerCase()) +
-          " (" + (best === top ? rows[1] : top).rating.toFixed(0) + ").", q.calls) : "") +
+          " (" + second.rating.toFixed(0) + ").", q.calls, facts(second, rank(second))) : "") +
         (low && low !== best ? card("Cheapest rated", "", low, "Arena rating " + low.rating.toFixed(0) + " for this task, against " +
-          top.rating.toFixed(0) + " for the top.", q.calls) : "");
-    }
-    if ($("cost-want").value === "text") {
-      const second = best === top ? rows[1] : top;
-      const low = rows.reduce((a, r) => (!a || r.cost < a.cost ? r : a), null);
+          top.rating.toFixed(0) + " for the top.", q.calls, facts(low, "cheapest of " + rated.toLocaleString() + " rated")) : "");
       lastPicks = [...new Set([best, second, low].filter(Boolean).map(r => r.id))];
     }
+    const scale = rows.slice();      // every rated model, for one shared scale
+    lastScale = scale.map(r => r.id);
     rows.forEach(r => { r.tied = top && r.high >= top.low; });
     if ($("value-tied").checked) rows = rows.filter(r => r.tied);
-    $("value-using").textContent = "Priced for " + describe(q) + (q.calls > 1 ? ", " + q.calls.toLocaleString() + " times" : "") + ".";
+    $("value-using").textContent = ($("cost-want").value === "text" ? "Picked from " + cheapest.size.toLocaleString() + " priced models, " +
+      rated.toLocaleString() + " of them rated for " + taskLabel(task).toLowerCase() + ". " : "") +
+      "Priced for " + describe(q) + (q.calls > 1 ? ", " + q.calls.toLocaleString() + " times" : "") + ".";
     $("value-best").innerHTML = best ? "<p><b>Best value: " + esc(best.id) + "</b> on " + esc(best.m.host) + ", " +
       dollars(best.cost) + " per time. Its rating (" + best.rating.toFixed(0) + ") cannot be told apart from the top model, " +
       esc(top.id) + " (" + top.rating.toFixed(0) + ", " + dollars(top.cost) + ")" +
       (top.cost > best.cost ? ", which costs " + (top.cost / best.cost).toFixed(1) + " times as much" : "") + ".</p>"
       : "<p>No rated model matches these choices.</p>";
-    $("value-table").innerHTML = table(["Rank", "Model (grouped)", "Arena rating", "Votes", "Cheapest listing",
-      "Cost per time", "Tied with the top", "Price change chance, 90 days"], rows.slice(0, 200).map((r, i) => [
-      i + 1, groupLink(r.id) + (r === best ? ' <span class="tag">best value</span>' : "") + "<small>" + esc(r.arenaName) + "</small>",
-      r.rating.toFixed(0) + "<small>" + r.low.toFixed(0) + " to " + r.high.toFixed(0) + "</small>",
-      r.votes.toLocaleString(), modelLink(r.m), dollars(r.cost), r.tied ? "yes" : "–", chance(r.m, "90")]), "value-" + task);
+    if ($("rate-chart").checked && rows.length) {
+      const shown = rateAll ? rows : rows.slice(0, 25);      // the scale fits the rows shown, so close scores stay readable
+      const lo = Math.min(...shown.map(r => r.low)), hi = Math.max(...shown.map(r => r.high), top.high), span = hi - lo || 1;
+      const x = v => (100 * Math.max(0, v - lo) / span).toFixed(2) + "%";
+      $("value-table").innerHTML = '<div class="rates" role="list"><div class="rate rate-head"><span></span><span>Model</span>' +
+        "<span>Score and its 95% range; shaded: the votes cannot tell it from the top</span><span>Score</span><span>Per time</span></div>" +
+        shown.map(r => '<div class="rate' + (r === best ? " best" : "") + '" role="listitem" title="' + esc(r.id + ": " + r.rating.toFixed(0) + " (" +
+          r.low.toFixed(0) + " to " + r.high.toFixed(0) + "), " + r.votes.toLocaleString() + " votes; " + dollars(r.cost) + " per time on " + r.m.host +
+          (r === best ? "; best value" : "")) + '"><span class="rk">' + (scale.indexOf(r) + 1) + '</span><span class="nm">' + groupLink(r.id) +
+          (r === best ? ' <span class="tag">best value</span>' : "") + '</span><span class="ci"><span class="tie" style="left:' + x(top.low) +
+          ";width:calc(100% - " + x(top.low) + ')"></span><span class="rng" style="left:' + x(r.low) + ";width:calc(" + x(r.high) + " - " + x(r.low) +
+          ')"></span><span class="dot" style="left:' + x(r.rating) + '"></span></span><span class="num">' + r.rating.toFixed(0) +
+          '</span><span class="cost">' + dollars(r.cost) + "</span></div>").join("") + "</div>" +
+        (rows.length > shown.length ? '<p><button type="button" id="rate-all">Show all ' + rows.length.toLocaleString() + "</button></p>" : "");
+    } else {
+      $("value-table").innerHTML = table(["Rank", "Model (grouped)", "Arena rating", "Votes", "Cheapest listing",
+        "Cost per time", "Tied with the top", "Price change chance, 90 days"], rows.slice(0, 200).map(r => [
+        scale.indexOf(r) + 1, groupLink(r.id) + (r === best ? ' <span class="tag">best value</span>' : "") + "<small>" + esc(r.arenaName) + "</small>",
+        r.rating.toFixed(0) + "<small>" + r.low.toFixed(0) + " to " + r.high.toFixed(0) + "</small>",
+        r.votes.toLocaleString(), modelLink(r.m), dollars(r.cost), r.tied ? "yes" : "–", chance(r.m, "90")]), "value-" + task);
+    }
+    $("arena-credit").textContent = "Ratings: the Arena leaderboard, published " + A.date + ", licensed CC BY 4.0.";
     $("value-credit").innerHTML = 'Ratings: <a href="' + esc(A.source) + '">Arena leaderboard</a>, published ' +
       esc(A.date) + ", licensed CC BY 4.0. " + A.matched + " of " + A.total +
       " Arena models were matched to the catalogue by naming rules; the rest are not shown. " +
@@ -566,18 +593,18 @@
   }
 
 
-  // ----- compare side by side: 2 or more models, the effort to use, or a plan -----
+  // ----- compare side by side: columns that follow the prompt, plus the reader's own picks -----
   const P = window.LLMPICK;
   const PLANS = { claude: { maker: "anthropic", host: "anthropic", app: "Claude" },
     chatgpt: { maker: "openai", host: "openai", app: "ChatGPT" } };
-  const MAX_WHICH = 6;
   const PAYS = ["api", "claude", "chatgpt"];
+  const MAX_OWN = 3;
   let pay = PAYS.includes(saved.c_pay) ? saved.c_pay : "api";
-  let lastTask = "overall", lastPicks = [], listedFor = null;
-  const whichLists = {};   // the models chosen for each way of paying; null means the defaults
+  let lastTask = "overall", lastPicks = [], lastScale = [], listedFor = null, rateAll = false;
+  const own = {};          // the models the reader added, for each way of paying
   for (const k of PAYS) {
     const kept = saved["which_" + k];
-    whichLists[k] = Array.isArray(kept) ? kept.filter(id => groups.has(id)).slice(0, MAX_WHICH) : null;
+    own[k] = Array.isArray(kept) ? kept.filter(id => groups.has(id)).slice(0, MAX_OWN) : [];
   }
   const tokensFor = {};    // answer tokens typed for a model, remembered in this browser only
   for (const [id, v] of Object.entries(saved.c_tokens && typeof saved.c_tokens === "object" ? saved.c_tokens : {})) {
@@ -586,6 +613,7 @@
   const shortName = id => id.split(" / ").slice(1).join(" / ") || id;
   const levelsText = levels => levels.length === 1 ? levels[0] : levels[0] + " to " + levels[levels.length - 1];
   const tokensText = n => n >= 1e6 ? +(n / 1e6).toFixed(1) + "M" : n >= 1000 ? Math.round(n / 1000) + "K" : String(n);
+  const timesText = x => (x < 10 ? x.toFixed(1) : x.toFixed(0)) + "×";
 
   function suggestion(m) {
     if (!P || !m || !m.effort) return { level: null, why: [] };
@@ -597,7 +625,7 @@
     return ' <span class="badge" title="Suggested effort for this prompt, a rule of thumb' +
       (s.why.length ? ": " + esc(s.why.join(", ")) : "") + '">Effort: ' + esc(s.level) + "</span>";
   }
-  // The listing a row is priced at: the cheapest one, or on a plan the plan's own host.
+  // The listing a model is priced at: the cheapest one, or on a plan the plan's own host.
   function listingFor(id, q) {
     const plan = PLANS[pay];
     let found = null;
@@ -608,64 +636,87 @@
     }
     return found;
   }
-  function defaultIds(q) {
-    if (pay === "api") return lastPicks.slice();
+  // The columns that follow the prompt: the three answers, or on a plan its three highest rated for the task.
+  function liveIds(q) {
+    if (pay === "api") return lastPicks.slice(0, 3);
     const plan = PLANS[pay], A = D.arena;
     const rated = A ? (A.tasks[lastTask] || A.tasks.overall || []).map(a => a[0]) : [];
-    const pool = rated.length ? rated : [...groups.keys()];
-    return pool.filter(id => id.startsWith(plan.maker + " / ") && listingFor(id, q)).slice(0, 4);
+    return (rated.length ? rated : [...groups.keys()]).filter(id => id.startsWith(plan.maker + " / ") && listingFor(id, q)).slice(0, 3);
   }
-  const currentIds = q => (whichLists[pay] || defaultIds(q)).slice(0, MAX_WHICH);
 
   function renderWhich() {
-    const box = $("which");
-    if (!P) { box.hidden = true; return; }
+    if (!P) { $("which").hidden = true; $("which-open").hidden = true; return; }
     document.querySelectorAll("#which-pay [data-pay]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pay === pay));
     if ($("cost-want").value !== "text") {
-      $("which-table").innerHTML = '<p class="muted">Compare side by side works for text answers: choose "A text answer" in Options.</p>';
-      $("which-verdict").innerHTML = ""; $("which-note").textContent = ""; return;
+      $("which-cols").innerHTML = '<p class="muted">Compare side by side works for text answers: choose "A text answer" in Options.</p>';
+      $("which-sum").textContent = ""; $("which-note").textContent = ""; return;
     }
     const q = query("text");
     const plan = PLANS[pay];
-    const ratings = new Map(((D.arena && D.arena.tasks[lastTask]) || []).map(a => [a[0], a]));
-    const taskName = taskLabel(lastTask).toLowerCase();
-    const rows = currentIds(q).map(id => {
+    const all = (D.arena && D.arena.tasks[lastTask]) || [];
+    const ratings = new Map(all.map(a => [a[0], { a, rank: lastScale.indexOf(a[0]) + 1 }]));
+    const lo = all.length ? Math.min(...all.map(a => a[2])) : 0, hi = all.length ? Math.max(...all.map(a => a[2])) : 1;
+    const live = liveIds(q);
+    const ids = live.concat(own[pay].filter(id => !live.includes(id)));
+    const rows = ids.map(id => {
       const found = listingFor(id, q);
-      const m = found ? found.m : (groups.get(id) || []).find(x => x.status === "listed") || (groups.get(id) || [])[0];
+      const m = found ? found.m : (groups.get(id) || []).find(x => x.status === "listed") || (groups.get(id) || [])[0] || {};
       const outTok = tokensFor[id] != null ? tokensFor[id] : q.outTok;
       const cost = found ? C.priceFor(found.m, { ...q, outTok }) : null;
-      const a = ratings.get(id);
-      return { id, m, found, outTok, cost, effort: suggestion(m),
-        rating: a ? a[2] : null, low: a ? a[3] : null, high: a ? a[4] : null };
+      const r = ratings.get(id);
+      return { id, m, found, outTok, cost, live: live.includes(id), effort: suggestion(m), rank: r ? r.rank : null,
+        rating: r ? r.a[2] : null, low: r ? r.a[3] : null, high: r ? r.a[4] : null };
     });
+    const pv = rows.map(r => ({ name: shortName(r.id), rating: r.rating, low: r.low, high: r.high, cost: r.cost,
+      out: r.found ? r.found.m.output : null }));
+    const pick = P.bestPick(pv);
+    const rated = pv.filter(r => r.rating != null), priced = pv.filter(r => r.cost != null);
+    const top = rated.length ? rated.reduce((a, b) => (b.rating > a.rating ? b : a)) : null;
+    const least = priced.length ? priced.reduce((a, b) => (b.cost < a.cost ? b : a)) : null;
     const use = P.planMultiples(rows.map(r => r.cost));
-    const head = ["", "Model", "Arena rating", "Effort", "Price per 1M tokens", "Answer tokens",
-      plan ? "Uses the plan" : (q.calls > 1 ? "Cost per task, and " + q.calls.toLocaleString() + " times" : "Cost per task"), "Prompt size"];
-    const body = rows.map((r, i) => {
-      const m = r.m || {};
-      const levels = m.effort || [];
-      return ['<button type="button" class="x" data-which-remove="' + esc(r.id) + '" aria-label="Remove ' + esc(r.id) + '">×</button>',
-        groupLink(r.id) + "<small>" + (r.found ? "on " + esc(r.found.m.host) : plan ? "not on the " + plan.app + " host" : "no price for this") + "</small>",
-        r.rating == null ? '–<small>not rated</small>' : r.rating.toFixed(0) + "<small>" + r.low.toFixed(0) + " to " + r.high.toFixed(0) + "</small>",
-        levels.length ? '<span title="' + esc(r.effort.why.length ? "Suggested for this prompt: " + r.effort.why.join(", ") : "The levels this model takes") + '">' +
-          (r.effort.level ? '<b class="lvl">' + esc(r.effort.level) + "</b>" : "") + "<small>" + esc(levelsText(levels)) + "</small></span>" : "–<small>none listed</small>",
-        r.found ? money(m.input) + " / " + money(m.output) + "<small>" + (m.cache != null ? "cache read " + money(m.cache) : "in / out") + "</small>" : "–",
-        '<input type="number" min="0" step="100" data-tokens="' + esc(r.id) + '" value="' + r.outTok + '" aria-label="Answer tokens for ' + esc(r.id) + '">' +
-          (tokensFor[r.id] != null ? "<small>yours</small>" : "<small>the answer length</small>"),
-        plan ? (use[i] == null ? "–" : use[i] < 1.005 ? "1×<small>uses it least</small>" : (use[i] < 10 ? use[i].toFixed(1) : use[i].toFixed(0)) + "×<small>" + dollars(r.cost) + " at API prices</small>")
-          : dollars(r.cost) + (q.calls > 1 && r.cost != null ? "<small>" + dollars(r.cost * q.calls) + "</small>" : ""),
-        m.size ? tokensText(m.size) : "–"];
+    $("which-sum").textContent = P.headline(pv, { plan: !!plan });
+    const cols = rows.map((r, i) => {
+      const v = pv[i], m = r.m, levels = m.effort || [];
+      const tags = [];
+      if (v === pick) tags.push('<span class="on">The pick</span>');
+      if (v === top && v !== pick) tags.push("<span>Top rated</span>");
+      if (v === least && v !== pick) tags.push("<span>" + (plan ? "Lightest on the plan" : "Cheapest") + "</span>");
+      if (!r.live) tags.push("<span>Your pick</span>");
+      const big = plan
+        ? (use[i] == null ? "–" : use[i] < 1.005 ? "1×<small>the lightest on your plan</small>"
+          : timesText(use[i]) + "<small>as fast as the lightest</small>")
+        : dollars(r.cost) + "<small>per task" + (q.calls > 1 && r.cost != null ? " · " + dollars(r.cost * q.calls) + " for " + q.calls.toLocaleString() : "") + "</small>";
+      return '<div class="col' + (v === pick ? " chosen" : "") + '">' +
+        (r.live ? "" : '<button type="button" class="x" data-which-remove="' + esc(r.id) + '" aria-label="Remove ' + esc(r.id) + '">×</button>') +
+        '<div class="tags">' + tags.join("") + "</div>" +
+        '<div class="name" title="' + esc(r.id) + '">' + esc(shortName(r.id)) + "</div>" +
+        '<div class="host">' + esc(r.id.split(" / ")[0]) + (r.found ? " · on " + esc(r.found.m.host) : plan ? " · not on " + plan.app : " · no price") +
+          (m.size ? " · " + tokensText(m.size) + " prompt" : "") + "</div>" +
+        '<div class="big">' + big + "</div><dl>" +
+        "<dt>Arena" + (i ? "" : INFO) + "</dt><dd>" + (r.rating == null ? "<small>not rated for this task</small>"
+          : "<b>" + r.rating.toFixed(0) + "</b> <small>" + (r.rank ? "#" + r.rank + " of " + lastScale.length : "no price") + '</small><span class="meter"><i style="width:' +
+            Math.max(4, Math.round(100 * (r.rating - lo) / (hi - lo || 1))) + '%"></i></span>') + "</dd>" +
+        "<dt>Effort</dt><dd>" + (levels.length ? (r.effort.level ? '<span class="lvl" title="' + esc(r.effort.why.length ?
+          "Suggested for this prompt: " + r.effort.why.join(", ") : "Suggested") + '">' + esc(r.effort.level) + "</span> " : "") +
+          "<small>" + esc(levelsText(levels)) + "</small>" : "<small>none listed</small>") + "</dd>" +
+        "<dt>Per 1M</dt><dd" + (m.cache != null ? ' title="Cache read ' + money(m.cache) + ' per 1M"' : "") + ">" +
+          (r.found ? money(m.input) + " / " + money(m.output) + " <small>in / out</small>" : "–") + "</dd>" +
+        '<dt><label for="tok-' + i + '">Answer tokens</label></dt><dd><input type="number" id="tok-' + i + '" min="0" step="100" data-tokens="' +
+          esc(r.id) + '" value="' + r.outTok + '"' + (tokensFor[r.id] != null ? ' title="Your number"' : ' title="The answer length you picked; type what you see"') + "></dd>" +
+        (plan && r.cost != null ? "<dt>API price</dt><dd>" + dollars(r.cost) + " <small>per task</small></dd>" : "") + "</dl>" +
+        (P.versus(v, pick, !!plan) ? '<p class="note">' + esc(P.versus(v, pick, !!plan)) + "</p>" : "") + "</div>";
     });
-    $("which-table").innerHTML = rows.length ? table(head, body, "which-" + pay) :
-      '<p class="empty">Add a model to compare' + (plan ? " (the " + plan.app + " models)" : "") + ".</p>";
-    const lines = P.verdict(rows.map(r => ({ name: shortName(r.id), rating: r.rating, low: r.low, high: r.high,
-      cost: r.cost, out: r.found ? r.found.m.output : null })), { task: taskName, plan: !!plan });
-    $("which-verdict").innerHTML = rows.length ? lines.map(s => "<p>" + esc(s) + "</p>").join("") : "";
+    const full = own[pay].length >= MAX_OWN;
+    cols.push('<div class="col add"><label class="muted" for="which-add">' + (full ? "You can add up to " + MAX_OWN + " models" : "Add a model to compare") + "</label>" +
+      '<input type="search" id="which-add" list="which-list" autocomplete="off" placeholder="' + (plan ? "for example " + (pay === "claude" ? "claude-fable-5.1" : "gpt-5.5") : "for example claude-fable-5.1") +
+      '"' + (full ? " disabled" : "") + ">" +
+      (own[pay].length || Object.keys(tokensFor).length ? '<button type="button" id="which-reset">Reset</button>' : "") + "</div>");
+    $("which-cols").innerHTML = cols.join("");
     $("which-note").textContent = (plan
-      ? "An estimate: plans do not publish per-model limits, so this assumes a plan is used up in step with each model's price on " + plan.host + ". "
-      : "Your prompt (" + q.inTok.toLocaleString() + " tokens) and the answer tokens, at each model's cheapest listed price. ") +
-      "Higher effort adds hidden answer tokens that no open source measures yet, so type the ones you see. " +
-      "The effort in bold is a rule of thumb for this prompt" + (pay === "claude" ? "; xhigh is Extra in the Claude app." : ".");
+      ? "The first columns are " + plan.app + "'s highest rated for this task and change with your prompt. Plan use is an estimate: plans do not publish per-model limits, so it assumes a plan runs down in step with each model's price on " + plan.host + ". "
+      : "The first columns are the three answers above and change with your prompt. ") +
+      "Answer tokens start at the length you picked; higher effort adds hidden tokens that no open source measures yet, so type what you see. " +
+      "The effort is a rule of thumb" + (pay === "claude" ? "; xhigh is Extra in the Claude app." : ".");
     if (listedFor !== pay) {   // the models that can be added, redrawn only when the way of paying changes
       listedFor = pay;
       const options = [...groups.keys()].filter(id => (!plan || id.startsWith(plan.maker + " / ")) && listingFor(id, { ...q, inTok: 0, outTok: 0 }));
@@ -678,24 +729,16 @@
     const id = groups.has(text) ? text : [...groups.keys()].find(k => norm(k) === want || norm(shortName(k)) === want) ||
       (byKey.get(text) ? byKey.get(text).maker + " / " + byKey.get(text).name : null);
     if (!id) return false;
-    const ids = currentIds(query("text"));
-    if (!ids.includes(id)) {
-      if (ids.length >= MAX_WHICH) { $("which-note").textContent = "You can compare up to " + MAX_WHICH + " models."; return true; }
-      ids.push(id);
-    }
-    whichLists[pay] = ids;
-    $("which-add").value = "";
+    if (!own[pay].includes(id) && !liveIds(query("text")).includes(id) && own[pay].length < MAX_OWN) own[pay].push(id);
     renderWhich(); remember();
     return true;
   }
   $("which").addEventListener("click", e => {
     const t = e.target;
     if (t.dataset.pay) { pay = t.dataset.pay; renderWhich(); remember(); }
-    else if (t.dataset.whichRemove) {
-      whichLists[pay] = currentIds(query("text")).filter(id => id !== t.dataset.whichRemove);
-      renderWhich(); remember();
-    } else if (t.id === "which-reset") {
-      whichLists[pay] = null;
+    else if (t.dataset.whichRemove) { own[pay] = own[pay].filter(id => id !== t.dataset.whichRemove); renderWhich(); remember(); }
+    else if (t.id === "which-reset") {
+      own[pay] = [];
       for (const k of Object.keys(tokensFor)) delete tokensFor[k];
       renderWhich(); remember();
     }
@@ -715,6 +758,8 @@
       renderWhich(); remember();
     }
   });
+  $("value-table").addEventListener("click", e => { if (e.target.id === "rate-all") { rateAll = true; renderValue(); } });
+  ["rate-chart", "rate-table"].forEach(id => $(id).addEventListener("change", () => { renderValue(); remember(); }));
 
   // ----- set up, restore and wire -----
   $("cost-len").innerHTML = Object.entries(C.ANSWERS).map(([k, a]) =>
@@ -765,6 +810,7 @@
   if (saved.c_every) $("cost-every").checked = true;
   if (saved.c_free) $("cost-free").checked = true;
   if (saved.c_tied) $("value-tied").checked = true;
+  if (saved.c_rate_table) $("rate-table").checked = true;
   for (const box of document.querySelectorAll("#skill-boxes input")) box.checked = (saved.c_needs || []).includes(box.value);
   costSettings = () => {
     const out = { c_search: $("cost-search").value, c_every: $("cost-every").checked, c_free: $("cost-free").checked,
@@ -772,8 +818,8 @@
     for (const id of ["cost-out", "cost-count", "cost-calls", "att-images", "att-pages", "att-audio", "att-video",
       "cost-want", "cost-len", "cost-size", "value-task"]) out["c_" + id] = $(id).value;
     for (const k of Object.keys(pick)) out["pick_" + k] = pick[k] ? [...pick[k]] : [];
-    out.c_pay = pay; out.c_tokens = { ...tokensFor };
-    for (const k of Object.keys(whichLists)) out["which_" + k] = whichLists[k];
+    out.c_pay = pay; out.c_tokens = { ...tokensFor }; out.c_rate_table = $("rate-table").checked;
+    for (const k of PAYS) out["which_" + k] = own[k];
     return out;
   };
   $("cost-text").addEventListener("input", () => {
@@ -807,7 +853,7 @@
 
   /* ---------- licences, checked on every build ---------- */
   if (D.licences) {
-    const used = D.licences.filter(r => r.role !== "tests");
+    const used = D.licences.filter(r => r.role !== "tests" && r.role !== "plug-in");
     $("licences").textContent = "Licences checked when this page was built: " +
       used.map(r => r.source + " " + (r.licence || "unchecked") + " (" + r.status + ")").join(", ") + ".";
   }

@@ -99,7 +99,61 @@
     return lines;
   }
 
-  const api = { LEVELS, HARD_TASKS, clamp, suggestEffort, planMultiples, tied, verdict };
+  // The one to pick: among the choices the votes cannot tell apart from the highest rated,
+  // the one that costs least (on a plan: uses it least). Without ratings, the cheapest.
+  // rows: [{ name, rating, low, high, cost }]. Returns one of the rows, or null.
+  function bestPick(rows) {
+    const priced = rows.filter(r => r.cost != null);
+    if (!priced.length) return null;
+    const cheapest = list => list.reduce((a, b) => (b.cost < a.cost ? b : a));
+    const rated = priced.filter(r => r.rating != null);
+    if (!rated.length) return cheapest(priced);
+    const top = rated.reduce((a, b) => (b.rating > a.rating ? b : a));
+    return cheapest(rated.filter(r => tied(r, top)));
+  }
+
+  // One sentence on which to pick, and why. opts: { plan }.
+  function headline(rows, opts) {
+    const plan = !!(opts && opts.plan);
+    const pick = bestPick(rows);
+    if (!pick) return "";
+    const priced = rows.filter(r => r.cost != null);
+    if (priced.length < 2) return "Add a model to compare with " + pick.name + ".";
+    const rated = priced.filter(r => r.rating != null);
+    const top = rated.length ? rated.reduce((a, b) => (b.rating > a.rating ? b : a)) : null;
+    const least = priced.reduce((a, b) => (b.cost < a.cost ? b : a));
+    const light = plan ? "lightest on your plan" : "cheapest";
+    if (!top) return pick.name + " is the " + light + " here; none of these is rated for this task.";
+    if (pick === top && pick === least) return pick.name + " is the pick: the highest rated here, and the " + light + ".";
+    if (pick === top) return pick.name + " is the pick: the highest rated here. The ones that " +
+      (plan ? "use less of the plan" : "cost less") + " are rated lower.";
+    return pick.name + " is the pick: the votes cannot tell it apart from the highest rated, " + top.name +
+      ", and it " + (plan ? "uses less of the plan" : "costs less") + ".";
+  }
+
+  // A short note on one choice against the pick, with the break-even share of answer tokens.
+  function versus(r, pick, plan) {
+    if (!pick || r === pick || r.cost == null || !(pick.cost > 0)) return "";
+    const ratio = r.cost / pick.cost;
+    let line;
+    if (plan) {
+      line = ratio >= 1.05 ? "Uses the plan " + times(ratio) + " as fast as " + pick.name
+        : ratio <= 0.95 ? "Uses " + (ratio <= 0.1 ? "1/" + Math.round(1 / ratio) + " as much" : percent(1 - ratio) + " less") + " of the plan than " + pick.name
+        : "Uses the plan at about the same rate as " + pick.name;
+    } else {
+      line = ratio >= 1.05 ? "Costs " + times(ratio) + " as much as " + pick.name
+        : ratio <= 0.95 ? "Costs " + (ratio <= 0.1 ? "1/" + Math.round(1 / ratio) + " as much as " : percent(1 - ratio) + " less than ") + pick.name
+        : "Costs about the same as " + pick.name;
+    }
+    const k = r.out > 0 && pick.out > 0 ? r.out / pick.out : null;
+    if (k != null && k > 0.1 && k < 10 && Math.abs(k - 1) >= 0.05) {
+      line += k > 1 ? "; it only " + (plan ? "uses less" : "costs less") + " if it needs under " + percent(1 / k) + " of the answer tokens"
+        : "; it stays " + (plan ? "lighter" : "cheaper") + " unless it needs over " + times(1 / k) + " the answer tokens";
+    }
+    return line + ".";
+  }
+
+  const api = { LEVELS, HARD_TASKS, clamp, suggestEffort, planMultiples, tied, verdict, bestPick, headline, versus };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.LLMPICK = api;
 })(this);
