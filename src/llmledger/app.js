@@ -129,6 +129,25 @@
     showTab(h);
     if (h === "week" || h === "top" || h === "overview") showPanel(h);
   });
+  // About fits one screen: a part added to it with a heading of its own (a copy of this page may add its scope
+  // note) becomes one more row that opens on a click, like the rows already there; a link marked data-scope opens it.
+  for (const part of document.querySelectorAll("#tab-about > section")) {
+    const head = part.querySelector("h2, h3");
+    if (!head) continue;
+    const row = document.createElement("details"), label = document.createElement("summary");
+    row.className = "sub"; if (part.id) row.id = part.id;
+    label.textContent = head.textContent; head.remove(); row.appendChild(label);
+    while (part.firstChild) row.appendChild(part.firstChild);
+    part.replaceWith(row);
+  }
+  document.addEventListener("click", e => {
+    const a = e.target.closest && e.target.closest("a[data-scope]");
+    const row = a && $("scope");
+    if (row && row.tagName === "DETAILS") {
+      showTab("about"); row.open = true;
+      requestAnimationFrame(() => { a.parentElement.scrollLeft = 0; });   // a one-line footer slides back after the click
+    }
+  });
 
   /* ---------- look up ---------- */
   function fillSelect(select, counts, all) {
@@ -895,6 +914,20 @@
     renderPick();
   };
   onTab(currentTab);
+  // Ask fits one screen: when the window is too short for the three cards (a phone, or a copy of the page under a
+  // site bar), each card drops its second line of reasons; the price, rating and model stay.
+  const askView = $("tab-ask"), askCards = askView.querySelector(".cards");
+  let fitting = 0;
+  const fitAsk = () => {
+    fitting = 0;
+    if (askView.hidden) return;
+    askView.classList.remove("tight");
+    if (askView.scrollHeight > askView.clientHeight + 1) askView.classList.add("tight");
+  };
+  if (window.ResizeObserver && askCards) {
+    const ro = new ResizeObserver(() => { if (!fitting) fitting = requestAnimationFrame(fitAsk); });
+    ro.observe(askView); ro.observe(askCards);
+  }
   if ($("pick").parentElement === document.body) document.querySelector("#tab-ask [data-pick-slot]").appendChild($("pick"));
   markLen();
   showDock(dockTab);
