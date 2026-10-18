@@ -496,22 +496,14 @@
       $(d).hidden = d !== name;
       document.querySelector('[data-dock="' + d + '"]').setAttribute("aria-selected", d === name);
     }
-    const tab = document.querySelector('[data-dock="' + name + '"]');
-    $("dock-title").textContent = tab.firstChild.textContent.trim();
     $(name).dispatchEvent(new Event("dockshow"));
   }
-  // On phones the tabs sit at the bottom and a tab opens its panel as a sheet over the page.
-  const SHEET = "(max-width: 760px), (max-height: 800px)";   // the same test as the page's style
-  const dock = document.querySelector(".dock");
-  const sheet = open => { dock.classList.toggle("open", open); if (open) $(dockTab).dispatchEvent(new Event("dockshow")); };
+  // The open tab's panel shows in place under the tabs, at its full height; the page scrolls when it is long.
   document.querySelector(".dock-tabs").addEventListener("click", e => {
     const b = e.target.closest("[data-dock]");
     if (!b) return;
     showDock(b.dataset.dock); remember();
-    if (matchMedia(SHEET).matches) sheet(true);
   });
-  dock.addEventListener("click", e => { if (e.target.closest(".sheet-close") || e.target === dock) sheet(false); });
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && dock.classList.contains("open")) sheet(false); });
 
   // ----- task guess (route.js) -----
   const R = window.LLMROUTE;
@@ -839,7 +831,6 @@
     $("cost-len").value = e.target.dataset.len; markLen();
     if (e.target.dataset.len === "custom") {
       showDock("more-options");
-      if (matchMedia(SHEET).matches) sheet(true);
       setTimeout(() => $("cost-out").focus(), 0);
     }
     costAll = false; renderCost(); renderValue(); remember();
@@ -914,21 +905,16 @@
     renderPick();
   };
   onTab(currentTab);
-  // Ask fits one screen: when the window is too short for the three cards (a phone, or a copy of the page under a
-  // site bar), each card drops its second line of reasons; the price, rating and model stay.
-  const askView = $("tab-ask"), askCards = askView.querySelector(".cards");
-  let fitting = 0;
-  const fitAsk = () => {
-    fitting = 0;
-    if (askView.hidden) return;
-    askView.classList.remove("tight");
-    if (askView.scrollHeight > askView.clientHeight + 1) askView.classList.add("tight");
-  };
-  if (window.ResizeObserver && askCards) {
-    const ro = new ResizeObserver(() => { if (!fitting) fitting = requestAnimationFrame(fitAsk); });
-    ro.observe(askView); ro.observe(askCards);
-  }
   if ($("pick").parentElement === document.body) document.querySelector("#tab-ask [data-pick-slot]").appendChild($("pick"));
+  // The prompt box grows with what is typed (up to 40% of the window), so a prompt is never cut inside it.
+  const grow = () => {
+    const ta = $("cost-text");
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight + 2, Math.max(120, Math.round(innerHeight * 0.4))) + "px";
+  };
+  $("cost-text").addEventListener("input", grow);
+  addEventListener("resize", grow);
+  grow();
   markLen();
   showDock(dockTab);
   renderPick();

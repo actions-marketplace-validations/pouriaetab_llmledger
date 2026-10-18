@@ -99,22 +99,33 @@ def test_req_s34_cost_vs_quality_sits_on_ask(tmp_path):
     assert ask.index('id="which"') < ask.index('id="frontier"')
 
 
-def test_req_s36_every_view_fits_one_screen(tmp_path):
+def test_req_s36_one_page_or_natural_scrolling(tmp_path):
     page = page_for(tmp_path)
     style = page[page.index("<style>"):page.index("</style>")]
-    # the page itself never scrolls: the body is the window's height and only boxes inside it scroll
-    assert "body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }" in style
-    assert "main > section:not([hidden]) { flex: 1 1 auto; min-height: 0;" in style
-    # the extras on Ask are tabs in one panel, not sections stacked below the answers
+    # the page scrolls the normal way when a view is long: no window-high body, no views that scroll inside
+    assert "100dvh" not in style and "height: 100vh" not in style and "body { display: flex" not in style
+    assert "main > section:not([hidden]) { flex: 1 1 auto" not in style
+    # nothing is cut: no line limits, no ellipsis on what people read, no lists or panels that scroll inside
+    assert "line-clamp" not in style
+    for rule in (".card .name", ".card .host", ".vs .name", ".rate .nm", ".feed a", ".feed small", ".pick label"):
+        line = next(x for x in style.splitlines() if x.startswith(rule + " {"))
+        assert "ellipsis" not in line and "nowrap" not in line, line
+    assert ".feed { list-style: none; margin: 0; padding: 0; }" in style
+    assert ".dock-body { padding: 12px 16px 16px; min-width: 0; }" in style
+    assert "grid-auto-flow: column" not in style and "scroll-snap" not in style
+    assert "sheet" not in page
+    # the extras on Ask are tabs in one panel under the answers, the open one shown in place
     ask = page[page.index('id="tab-ask"'):page.index('id="tab-race"')]
     for panel in ("which", "frontier", "rates", "every", "more-options", "how"):
         assert f'data-dock="{panel}"' in ask and f'id="{panel}"' in ask
     assert '<details class="more"' not in page
+    # charts have a height of their own instead of filling what is left of the window
+    assert ".chart.fill { position: relative; height: 360px; }" in style
     # a model's details open in a drawer outside the views, so they show over any view
     assert page.index('id="detail"') > page.index("</main>")
 
 
-def test_req_s36_about_rows_and_short_windows(tmp_path):
+def test_req_s36_about_rows_and_the_prompt_box(tmp_path):
     page = page_for(tmp_path)
     about = page[page.index('id="tab-about"'):page.index("</main>")]
     # About is a short line and rows that open on a click, all closed at first
@@ -125,7 +136,6 @@ def test_req_s36_about_rows_and_short_windows(tmp_path):
     # and a link marked data-scope opens it
     assert 'document.querySelectorAll("#tab-about > section")' in app
     assert 'closest("a[data-scope]")' in app and "row.open = true" in app
-    # too short for the three answers: each drops its line of reasons, rather than the view scrolling
-    style = page[page.index("<style>"):page.index("</style>")]
-    assert "#tab-ask.tight .card .why { display: none; }" in style
-    assert 'askView.classList.add("tight")' in app and "new ResizeObserver" in app
+    # the prompt box grows with the prompt (up to 40% of the window), and nothing is hidden to make room
+    assert "ta.style.height = Math.min(ta.scrollHeight + 2" in app
+    assert "tight" not in app and "tight" not in page

@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: "Emami Tabrizi"
     given-names: "Pouria"
-version: 1.9.0
+version: 1.10.0
 date-released: 2026-10-17
 license: MIT
 doi: 10.5281/zenodo.23330454
