@@ -14,7 +14,7 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.10. The data and the page refresh every day.
+**Status:** version 1.11. The data and the page refresh every day.
 
 Paste a prompt on the live page to see the best value model for it, the top rated one and the
 cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
@@ -97,6 +97,11 @@ replays two years of Arena's leaderboards and what top quality has cost.
     window holds, the page scrolls the normal way: nothing is cut, squeezed
     into a box that scrolls inside, or shrunk to fit. About shows each part
     as a row that opens on a click.
+17. **Measures how many price changes are corrections.** A labelled random
+    sample of first price changes, with a written guide, shows how often the
+    catalogue fixes its own entry instead of recording a real price change,
+    and how well simple rules and a small model tell the two apart. See
+    [How many first price changes are corrections?](#how-many-first-price-changes-are-corrections)
 
 ## First results
 
@@ -116,13 +121,46 @@ removed, its price can no longer change. Analysing each exit on its own would
 overstate all three.
 
 Counting only input and output token prices, the one year price change estimate
-is 12.5%. Ignoring price changes in a model's first week, it is 12.0%. Some early
-changes correct a wrong first entry rather than reprice the model.
+is 12.5%. Ignoring price changes in a model's first week, it is 12.0%. Many of
+the changes counted are corrections of the catalogue, not real price changes:
+see the next section.
 
 Corrections and clean ups matter more for removals. The one year removal
 estimate above includes a clean up that removed about 500 OpenRouter rows on
 9 October 2026. Leaving out bulk clean ups, unit fixes and reverted changes, it
 is 5.7% (5.0 to 6.5).
+
+### How many first price changes are corrections?
+
+A stratified random sample of 200 models' first price changes (100 from a
+model's first 7 days, 100 from later, out of 800) was labelled from the LiteLLM
+commit behind each change: a correction when the catalogue's number had been
+wrong, a repricing when the host changed its price, unclear when the evidence
+cannot tell (33 rows). The guide, every label and its reason are in
+[`docs/corrections`](docs/corrections); the numbers are in
+`src/llmledger/corrections_eval.json`. Intervals are 95%, from a bootstrap of
+whole LiteLLM commits, since one commit often changes many rows.
+
+| First price changes | Share that are corrections |
+|:--|--:|
+| All | 59% (41 to 75) |
+| In a model's first 7 days | 86% (54 to 97) |
+| Later | 51% (34 to 71) |
+
+How well simple rules find the corrections:
+
+| Rule | Precision | Recall |
+|:--|--:|--:|
+| The page's tags (unit fixes, reverted changes) | 93% (51 to 100) | 36% (5 to 59) |
+| Any first change in the first 7 days | 86% (54 to 97) | 30% (11 to 53) |
+| Either of the two | 87% (60 to 96) | 46% (19 to 66) |
+| First 7 days, or a change of 10 times or more | 92% (76 to 98) | 55% (30 to 73) |
+| A small model (cross-validated logistic regression) | 76% (57 to 89) | 78% (59 to 90) |
+
+So about six in ten first price changes correct the catalogue rather than
+reprice the model, and corrections are common after the first week too. The
+tags miss most of them. Counting the unclear rows as repricings instead, the
+share is 46%; counting them as corrections, 70%.
 
 ## How it works
 
@@ -219,10 +257,12 @@ src/llmledger/       history.py, events.py, flags.py (corrections),
                      route_eval.py (task guess and how often it is right),
                      pick.js (compare side by side), export.py (data.json),
                      trends.py and trends.js (the Trends view, cost vs quality),
+                     corrections.py (how many price changes are corrections),
                      table_protocol.js (results page), pipeline.py
 tests/               known answer, simulation, naming, page and version tests
 mcp/                 the plug-in (llmledger-mcp): FastMCP server, tests, server.json
 docs/SPEC.md         definitions, requirements, limitations, traceability
+docs/corrections/    labelling guide and the labelled sample (issue #7)
 .github/workflows/   tests on every pull request; refresh rebuilds and
                      publishes the results page every day
 ```

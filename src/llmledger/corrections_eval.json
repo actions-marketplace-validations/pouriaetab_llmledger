@@ -1,0 +1,342 @@
+{
+ "question": "Is a model's first price change a correction of the first entry or a real price change? (issue #7)",
+ "population": {
+  "first_price_changes": 800,
+  "strata": {
+   "first_week": 165,
+   "later": 635
+  },
+  "events_through": "2026-10-17T06:56:22+00:00",
+  "first_week_days": 7
+ },
+ "sample": {
+  "per_stratum": 100,
+  "seed": 7,
+  "labels": {
+   "correction": 119,
+   "repricing": 48,
+   "unclear": 33
+  },
+  "labels_by_stratum": {
+   "first_week": {
+    "correction": 83,
+    "repricing": 14,
+    "unclear": 3
+   },
+   "later": {
+    "unclear": 30,
+    "repricing": 34,
+    "correction": 36
+   }
+  }
+ },
+ "method": "Stratified random sample; weighted by stratum size; 95% intervals from a bootstrap of whole commits within strata (2000 resamples); the model is a weighted logistic regression scored by 5-fold cross-validation with folds of whole commits.",
+ "rules_text": {
+  "tags": "The page's current tags: a unit fix (100 times or more) or a change undone within 30 days (D11, D12)",
+  "first_week": "Any first change in a model's first 7 days",
+  "tags_or_first_week": "Either of the two above",
+  "first_week_or_tenfold": "A first change in the first 7 days, or one of 10 times or more either way (or from 0)"
+ },
+ "main": {
+  "cases": 167,
+  "by_stratum": {
+   "first_week": 97,
+   "later": 70
+  },
+  "corrections": {
+   "all": {
+    "share": 0.585,
+    "share_95": [
+     0.41,
+     0.751
+    ],
+    "labelled": 167
+   },
+   "first_week": {
+    "share": 0.856,
+    "share_95": [
+     0.536,
+     0.967
+    ],
+    "labelled": 97
+   },
+   "later": {
+    "share": 0.514,
+    "share_95": [
+     0.341,
+     0.714
+    ],
+    "labelled": 70
+   }
+  },
+  "rules": {
+   "tags": {
+    "precision": 0.931,
+    "precision_95": [
+     0.513,
+     1.0
+    ],
+    "recall": 0.359,
+    "recall_95": [
+     0.048,
+     0.589
+    ]
+   },
+   "first_week": {
+    "precision": 0.856,
+    "precision_95": [
+     0.536,
+     0.967
+    ],
+    "recall": 0.302,
+    "recall_95": [
+     0.11,
+     0.532
+    ]
+   },
+   "tags_or_first_week": {
+    "precision": 0.867,
+    "precision_95": [
+     0.599,
+     0.964
+    ],
+    "recall": 0.457,
+    "recall_95": [
+     0.187,
+     0.658
+    ]
+   },
+   "first_week_or_tenfold": {
+    "precision": 0.916,
+    "precision_95": [
+     0.761,
+     0.979
+    ],
+    "recall": 0.554,
+    "recall_95": [
+     0.303,
+     0.731
+    ]
+   },
+   "model": {
+    "precision": 0.763,
+    "precision_95": [
+     0.573,
+     0.89
+    ],
+    "recall": 0.776,
+    "recall_95": [
+     0.591,
+     0.895
+    ]
+   }
+  }
+ },
+ "unclear_as_repricing": {
+  "cases": 200,
+  "by_stratum": {
+   "first_week": 100,
+   "later": 100
+  },
+  "corrections": {
+   "all": {
+    "share": 0.457,
+    "share_95": [
+     0.304,
+     0.618
+    ],
+    "labelled": 200
+   },
+   "first_week": {
+    "share": 0.83,
+    "share_95": [
+     0.5,
+     0.95
+    ],
+    "labelled": 100
+   },
+   "later": {
+    "share": 0.36,
+    "share_95": [
+     0.241,
+     0.52
+    ],
+    "labelled": 100
+   }
+  },
+  "rules": {
+   "tags": {
+    "precision": 0.803,
+    "precision_95": [
+     0.229,
+     0.974
+    ],
+    "recall": 0.392,
+    "recall_95": [
+     0.049,
+     0.636
+    ]
+   },
+   "first_week": {
+    "precision": 0.83,
+    "precision_95": [
+     0.5,
+     0.95
+    ],
+    "recall": 0.375,
+    "recall_95": [
+     0.145,
+     0.618
+    ]
+   },
+   "tags_or_first_week": {
+    "precision": 0.758,
+    "precision_95": [
+     0.426,
+     0.917
+    ],
+    "recall": 0.514,
+    "recall_95": [
+     0.224,
+     0.722
+    ]
+   },
+   "first_week_or_tenfold": {
+    "precision": 0.752,
+    "precision_95": [
+     0.505,
+     0.895
+    ],
+    "recall": 0.6,
+    "recall_95": [
+     0.342,
+     0.773
+    ]
+   },
+   "model": {
+    "precision": 0.737,
+    "precision_95": [
+     0.491,
+     0.882
+    ],
+    "recall": 0.639,
+    "recall_95": [
+     0.381,
+     0.808
+    ]
+   }
+  }
+ },
+ "unclear_as_correction": {
+  "cases": 200,
+  "by_stratum": {
+   "first_week": 100,
+   "later": 100
+  },
+  "corrections": {
+   "all": {
+    "share": 0.701,
+    "share_95": [
+     0.556,
+     0.829
+    ],
+    "labelled": 200
+   },
+   "first_week": {
+    "share": 0.86,
+    "share_95": [
+     0.559,
+     0.966
+    ],
+    "labelled": 100
+   },
+   "later": {
+    "share": 0.66,
+    "share_95": [
+     0.516,
+     0.812
+    ],
+    "labelled": 100
+   }
+  },
+  "rules": {
+   "tags": {
+    "precision": 0.946,
+    "precision_95": [
+     0.688,
+     1.0
+    ],
+    "recall": 0.301,
+    "recall_95": [
+     0.064,
+     0.514
+    ]
+   },
+   "first_week": {
+    "precision": 0.86,
+    "precision_95": [
+     0.559,
+     0.966
+    ],
+    "recall": 0.253,
+    "recall_95": [
+     0.096,
+     0.456
+    ]
+   },
+   "tags_or_first_week": {
+    "precision": 0.881,
+    "precision_95": [
+     0.669,
+     0.965
+    ],
+    "recall": 0.389,
+    "recall_95": [
+     0.18,
+     0.578
+    ]
+   },
+   "first_week_or_tenfold": {
+    "precision": 0.921,
+    "precision_95": [
+     0.794,
+     0.978
+    ],
+    "recall": 0.479,
+    "recall_95": [
+     0.278,
+     0.655
+    ]
+   },
+   "model": {
+    "precision": 0.694,
+    "precision_95": [
+     0.534,
+     0.82
+    ],
+    "recall": 0.787,
+    "recall_95": [
+     0.634,
+     0.914
+    ]
+   }
+  }
+ },
+ "model": {
+  "features": [
+   "intercept",
+   "log(1 + days since added)",
+   "size of the change, |log10(new / old)| (up to 3)",
+   "log(1 + price changes in the same commit)",
+   "1 if the price went down"
+  ],
+  "coefficients": [
+   4.681,
+   -0.548,
+   1.826,
+   -0.858,
+   -0.642
+  ],
+  "call": "a correction when its chance is 0.5 or more"
+ }
+}
