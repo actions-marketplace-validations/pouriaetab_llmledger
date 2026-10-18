@@ -80,6 +80,11 @@
     "recall_95": [
      0.048,
      0.589
+    ],
+    "corrections_left": 0.484,
+    "corrections_left_95": [
+     0.338,
+     0.67
     ]
    },
    "first_week": {
@@ -92,6 +97,11 @@
     "recall_95": [
      0.11,
      0.532
+    ],
+    "corrections_left": 0.514,
+    "corrections_left_95": [
+     0.341,
+     0.714
     ]
    },
    "tags_or_first_week": {
@@ -104,6 +114,11 @@
     "recall_95": [
      0.187,
      0.658
+    ],
+    "corrections_left": 0.459,
+    "corrections_left_95": [
+     0.301,
+     0.667
     ]
    },
    "first_week_or_tenfold": {
@@ -116,6 +131,11 @@
     "recall_95": [
      0.303,
      0.731
+    ],
+    "corrections_left": 0.404,
+    "corrections_left_95": [
+     0.238,
+     0.614
     ]
    },
    "model": {
@@ -128,6 +148,11 @@
     "recall_95": [
      0.591,
      0.895
+    ],
+    "corrections_left": 0.323,
+    "corrections_left_95": [
+     0.154,
+     0.61
     ]
    }
   }
@@ -175,6 +200,11 @@
     "recall_95": [
      0.049,
      0.636
+    ],
+    "corrections_left": 0.358,
+    "corrections_left_95": [
+     0.254,
+     0.492
     ]
    },
    "first_week": {
@@ -187,6 +217,11 @@
     "recall_95": [
      0.145,
      0.618
+    ],
+    "corrections_left": 0.36,
+    "corrections_left_95": [
+     0.241,
+     0.52
     ]
    },
    "tags_or_first_week": {
@@ -199,6 +234,11 @@
     "recall_95": [
      0.224,
      0.722
+    ],
+    "corrections_left": 0.322,
+    "corrections_left_95": [
+     0.213,
+     0.465
     ]
    },
    "first_week_or_tenfold": {
@@ -211,6 +251,11 @@
     "recall_95": [
      0.342,
      0.773
+    ],
+    "corrections_left": 0.287,
+    "corrections_left_95": [
+     0.175,
+     0.437
     ]
    },
    "model": {
@@ -223,6 +268,11 @@
     "recall_95": [
      0.381,
      0.808
+    ],
+    "corrections_left": 0.273,
+    "corrections_left_95": [
+     0.162,
+     0.427
     ]
    }
   }
@@ -270,6 +320,11 @@
     "recall_95": [
      0.064,
      0.514
+    ],
+    "corrections_left": 0.631,
+    "corrections_left_95": [
+     0.498,
+     0.779
     ]
    },
    "first_week": {
@@ -282,6 +337,11 @@
     "recall_95": [
      0.096,
      0.456
+    ],
+    "corrections_left": 0.66,
+    "corrections_left_95": [
+     0.516,
+     0.812
     ]
    },
    "tags_or_first_week": {
@@ -294,6 +354,11 @@
     "recall_95": [
      0.18,
      0.578
+    ],
+    "corrections_left": 0.621,
+    "corrections_left_95": [
+     0.475,
+     0.784
     ]
    },
    "first_week_or_tenfold": {
@@ -306,6 +371,11 @@
     "recall_95": [
      0.278,
      0.655
+    ],
+    "corrections_left": 0.575,
+    "corrections_left_95": [
+     0.408,
+     0.754
     ]
    },
    "model": {
@@ -318,6 +388,11 @@
     "recall_95": [
      0.634,
      0.914
+    ],
+    "corrections_left": 0.728,
+    "corrections_left_95": [
+     0.41,
+     1.0
     ]
    }
   }

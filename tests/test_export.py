@@ -34,3 +34,12 @@ def test_req_s31_data_json_lists_listed_models_with_prices_and_outlook():
     assert out["models"][1]["outlook"] is None          # already changed once
     assert set(out["events"]) == {"a", "c"} and out["ratings"]["tasks"]["overall"][0][2] == 1500.0
     assert "MIT" in out["credits"]["prices"] and "CC BY 4.0" in out["credits"]["ratings"]
+
+
+def test_req_s31_data_json_explains_the_tags_and_carries_the_corrections_measured():
+    out = export.machine({**DATA, "corrections": {"first_week": {"share": 0.856}}}, INFO)
+    assert set(out["units"]["flags"]) == {"bulk", "unit", "reverted", "likely"}
+    assert "first 7 days" in out["units"]["flags"]["likely"]
+    assert out["corrections"] == {"first_week": {"share": 0.856}}
+    assert export.machine(DATA, INFO)["corrections"] is None
+

@@ -11,7 +11,10 @@ EXITS = ("price", "retirement", "removed")
 OUTCOMES = EXITS + ("none",)
 TIE_ORDER = {"cleanup": 0, "removed": 0, "retirement": 1, "price": 2}
 HEADLINE = {"input_cost_per_token", "output_cost_per_token"}
-DEFINITIONS = ("main", "headline", "no_first_week", "real_only")
+DEFINITIONS = ("main", "headline", "no_first_week", "real_only", "likely_real")
+# The tags each definition leaves out (D11 unit fix, D12 reverted, D14 likely correction); both also
+# censor a model removed in a bulk clean up (D10) on that day.
+LEFT_OUT = {"real_only": ("unit", "reverted"), "likely_real": ("unit", "reverted", "likely")}
 DAYS = (30, 90, 180, 365, 730)
 
 def _is_number(value):
@@ -21,8 +24,9 @@ def _is_number(value):
 
 
 def _exit_kind(row, definition, days_in):
-    flag = row.get("flag", "") if definition == "real_only" else ""
-    if flag in ("unit", "reverted"):
+    left_out = LEFT_OUT.get(definition, ())
+    flag = row.get("flag", "") if left_out else ""
+    if flag in left_out:
         return None
     if row["kind"] == "removed":
         return "cleanup" if flag == "bulk" else "removed"

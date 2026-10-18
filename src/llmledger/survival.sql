@@ -1,7 +1,7 @@
 -- One row per model: how many days it was followed and how that ended.
 -- The same table as survival.subject_table in Python, built independently
 -- in SQL. The pipeline stops before publishing if the two disagree.
--- :definition is main, headline, no_first_week or real_only.
+-- :definition is main, headline, no_first_week, real_only or likely_real.
 WITH ev AS (
   SELECT n, model, kind, field, old, new,
          CAST(strftime('%s', at) AS INTEGER) AS secs,
@@ -47,13 +47,16 @@ priced AS (
 -- days, or the change that undid one. The first change on a field has
 -- no change before it, so prev_a is NULL there, and NULL = b is neither
 -- true nor false. COALESCE turns that unknown into false.
+-- Tenfold (part of a likely correction): from 0, or 10 times larger or
+-- smaller. b / a is NULL when a is 0, so a = 0 is tested first.
 corrections AS (
   SELECT n,
          COALESCE(
            (a <> 0 AND b <> 0 AND (b / a >= 100 OR b / a <= 1.0 / 100))
            OR (prev_a = b AND prev_b = a AND secs - prev_secs <= 30 * 86400)
            OR (next_b = a AND next_a = b AND next_secs - secs <= 30 * 86400),
-           0) AS fixed
+           0) AS fixed,
+         COALESCE(a = 0 OR b / a >= 10 OR b / a <= 1.0 / 10, 0) AS tenfold
   FROM priced
 ),
 
@@ -61,7 +64,7 @@ exits AS (
   SELECT ev.model, ev.secs,
     CASE
       WHEN ev.kind = 'removed' THEN
-        CASE WHEN :definition = 'real_only' AND r.same_day >= 50
+        CASE WHEN :definition IN ('real_only', 'likely_real') AND r.same_day >= 50
              THEN 'cleanup' ELSE 'removed' END
       WHEN ev.kind = 'deprecation' AND ev.old = 'null' AND ev.new <> 'null'
         THEN 'retirement'
@@ -70,7 +73,11 @@ exits AS (
                  ('input_cost_per_token', 'output_cost_per_token'))
         AND NOT (:definition = 'no_first_week'
                  AND ev.secs - s.start <= 7 * 86400)
-        AND NOT (:definition = 'real_only' AND c.fixed)
+        AND NOT (:definition IN ('real_only', 'likely_real') AND c.fixed)
+        -- a likely correction (D14): in the first 7 days after the model
+        -- was added, or tenfold
+        AND NOT (:definition = 'likely_real'
+                 AND (ev.secs - s.start <= 7 * 86400 OR c.tenfold))
         THEN 'price'
     END AS cause
   FROM ev

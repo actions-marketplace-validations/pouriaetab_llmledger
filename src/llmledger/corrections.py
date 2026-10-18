@@ -21,7 +21,7 @@ from llmledger import flags, survival
 HERE = Path(__file__).parent
 SAMPLE = HERE.parent.parent / "docs" / "corrections" / "sample.csv"
 OUT = HERE / "corrections_eval.json"
-FIRST_WEEK = 7
+FIRST_WEEK = flags.FIRST_WEEK
 PER_STRATUM = 100
 SEED = 7
 RESAMPLES = 2000
@@ -76,12 +76,12 @@ def _ratio(case):
 
 
 def rules(case):
-    """Each rule's call: True means 'a correction'."""
-    ratio, days = _ratio(case), float(case["days_in"])
+    """Each rule's call: True means 'a correction'. first_week_or_tenfold is the page's likely correction tag
+    (D14, flags.likely), so the scores below are the scores of that tag on first price changes."""
+    days = float(case["days_in"])
     tagged = case["flag"] in ("unit", "reverted")
-    tenfold = ratio is None or ratio >= 10 or ratio <= 0.1
     return {"tags": tagged, "first_week": days <= FIRST_WEEK, "tags_or_first_week": tagged or days <= FIRST_WEEK,
-            "first_week_or_tenfold": days <= FIRST_WEEK or tenfold}
+            "first_week_or_tenfold": flags.likely(float(case["old"]), float(case["new"]), days)}
 
 
 RULE_TEXT = {
@@ -209,12 +209,21 @@ def evaluate(cases, strata, unclear="drop"):
     def rated(rows, name):
         return scores([calls[name][i] for i in rows], [truth[i] for i in rows], [weight[i] for i in rows])
 
+    def left(rows, name):
+        """The share of corrections among the changes the rule does not call one: what it leaves in."""
+        kept = [i for i in rows if not calls[name][i]]
+        total = sum(weight[i] for i in kept)
+        return sum(weight[i] for i in kept if truth[i]) / total if total else None
+
     out = {}
     for name in calls:
         precision, recall = rated(range(len(cases)), name)
-        boot = _bootstrap(cases, lambda rows, name=name: rated(rows, name))
+        boot = _bootstrap(cases, lambda rows, name=name: rated(rows, name) + (left(rows, name),))
+        rest = left(range(len(cases)), name)
         out[name] = {"precision": round(precision, 3), "precision_95": interval([b[0] for b in boot]),
-                     "recall": round(recall, 3), "recall_95": interval([b[1] for b in boot])}
+                     "recall": round(recall, 3), "recall_95": interval([b[1] for b in boot]),
+                     "corrections_left": None if rest is None else round(rest, 3),
+                     "corrections_left_95": interval([b[2] for b in boot])}
 
     def share(rows, stratum=None):
         picked = [i for i in rows if stratum is None or cases[i]["stratum"] == stratum]
@@ -263,6 +272,18 @@ def report(cases, strata, events_through):
         "model": {"features": FEATURE_TEXT, "coefficients": [round(b, 3) for b in beta],
                   "call": "a correction when its chance is 0.5 or more"},
     }
+
+
+def summary(result):
+    """The part of the report the page and data.json carry: the share of first price changes that are
+    corrections, and how the likely correction tag (D14) does."""
+    main = result["main"]
+    tag = main["rules"]["first_week_or_tenfold"]
+    return {"labelled": sum(result["sample"]["labels"].values()), "events_through": result["population"]["events_through"],
+            "first_week_days": result["population"]["first_week_days"],
+            **{k: {"share": v["share"], "share_95": v["share_95"]} for k, v in main["corrections"].items()},
+            "likely_tag": {k: tag[k] for k in ("precision", "precision_95", "recall", "recall_95",
+                                               "corrections_left", "corrections_left_95")}}
 
 
 def main(events="data/events.csv", sample=SAMPLE, out=OUT):

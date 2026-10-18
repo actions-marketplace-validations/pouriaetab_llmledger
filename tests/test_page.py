@@ -51,10 +51,19 @@ def test_page_data_cannot_close_its_script_tag():
 
 def test_req_s21_page_compares_every_change_with_real_changes(tmp_path):
     source = tmp_path / "survival.csv"
-    source.write_text(ROWS + ROWS.split("\n", 1)[1].replace("main,", "real_only,"))
+    body = ROWS.split("\n", 1)[1]
+    source.write_text(ROWS + body.replace("main,", "real_only,") +
+                      body.replace("main,", "likely_real,").replace("0.152978,0.14143,0.165948", "0.1,0.09,0.11"))
     page = render(load(source), INFO)
-    assert "<tr><th>Real changes only</th><td>15.3%<small>14.1 to 16.6" in page
-    assert "<tr><th>Leaving out corrections</th>" in page
+    assert "<tr><th>Leaving out unit fixes and undone changes</th><td>15.3%<small>14.1 to 16.6" in page
+    assert "<tr><th>Leaving out likely corrections as well</th><td>10.0%<small>9.0 to 11.0" in page
+    assert "Leaving out likely corrections, 10.0% (9.0 to 11.0) changed price within a year." in page
+    assert "Real changes only" not in page     # no estimate here leaves out every correction
+
+
+def test_req_s21_page_says_when_the_estimate_without_corrections_is_missing(tmp_path):
+    page = page_for(tmp_path)
+    assert "rather than change what a host charges.\n</p>" in page and "Leaving out likely corrections," not in page
 
 
 def test_req_s28_page_opens_on_the_prompt_box(tmp_path):
@@ -139,3 +148,28 @@ def test_req_s36_about_rows_and_the_prompt_box(tmp_path):
     # the prompt box grows with the prompt (up to 40% of the window), and nothing is hidden to make room
     assert "ta.style.height = Math.min(ta.scrollHeight + 2" in app
     assert "tight" not in app and "tight" not in page
+
+
+def test_req_s39_old_data_is_named_on_the_page(tmp_path):
+    page = page_for(tmp_path)
+    assert '<main>\n<p id="stale" class="stale" role="status" hidden></p>' in page
+    app = (Path(page_module.__file__).parent / "app.js").read_text()
+    assert "const STALE_DAYS = 3;" in app and "Date.parse(D.built || D.end)" in app
+    assert "the daily rebuild has not run since" in app
+
+
+def test_req_s20_tags_and_the_outlook_say_what_a_correction_is(tmp_path):
+    app = (Path(page_module.__file__).parent / "app.js").read_text()
+    assert 'likely: "likely correction"' in app and "function correctionNote()" in app
+    assert "correctionNote() + " in app
+    page = page_for(tmp_path)
+    assert "<b>likely\ncorrections</b>" in page and "likely corrections are not counted" in page
+
+
+def test_req_s40_a_failed_refresh_opens_one_issue_and_a_good_one_closes_it():
+    flow = (Path(page_module.__file__).parents[2] / ".github" / "workflows" / "refresh.yml").read_text()
+    job = flow[flow.index("  report:"):]
+    assert "needs: [build, deploy]" in job and "if: always()" in job
+    assert 'gh issue create --title "Daily refresh failed"' in job and '[ -z "$open" ]' in job
+    assert 'gh issue close "$n"' in job and '[ "$BUILD" = "success" ] && [ "$DEPLOY" = "success" ]' in job
+

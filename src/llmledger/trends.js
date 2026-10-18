@@ -612,7 +612,7 @@
           const pc = Math.round(100 * (n - o) / o);
           dirs.push(Math.sign(n - o));
           return fieldName(f.field) + (pc < 0 ? " down " : " up ") + Math.abs(pc) + "% to " + money(n);
-        }).join(", ") + (it.flag ? " (" + (it.flag === "unit" ? "unit fix" : it.flag) + ")" : "");
+        }).join(", ") + (it.flag ? " (" + ({ unit: "unit fix", likely: "likely correction" }[it.flag] || it.flag) + ")" : "");
         cls = dirs.some(d => d > 0) ? "c-up" : dirs.some(d => d < 0) ? "c-down" : "c-add";
       } else if (it.kind === "deprecation") {
         const f = it.fields[0];

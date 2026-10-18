@@ -103,3 +103,35 @@ def test_a_free_listing_is_never_the_price():
                               input=0.0, output=0.0, cache_read=None))
     m, cost = server.listing(data.Shelf(raw, "test"), "anthropic / claude-opus-5.5", input_tokens=100, output_tokens=100)
     assert m["host"] == "anthropic" and cost > 0
+
+
+def test_price_history_explains_its_flags_and_says_corrections_are_counted(monkeypatch):
+    from llmledger_mcp import data, server
+    raw = json.loads(Path(__file__).with_name("fixture.json").read_text())
+    raw["events"]["bedrock/claude-opus-5-5"].append(["2026-09-03", "price", "output_cost_per_token", 2.5e-05, 2.5e-06, "likely"])
+    monkeypatch.setattr(server, "_SHELF", data.Shelf(raw, "test"))     # data older than the tag text: built-in meanings
+    out = call("price_history", model="bedrock/claude-opus-5-5")
+    assert list(out["flags"]) == ["likely"] and "first 7 days" in out["flags"]["likely"]
+    assert not any("labelled sample, " in n for n in out["notes"])     # no measured shares in this data
+    raw["units"] = {"flags": {"likely": "likely correction (from the data)"}}
+    raw["corrections"] = {"first_week": {"share": 0.856}, "later": {"share": 0.514}}
+    monkeypatch.setattr(server, "_SHELF", data.Shelf(raw, "test"))
+    out = call("price_history", model="bedrock/claude-opus-5-5")
+    assert out["flags"] == {"likely": "likely correction (from the data)"}
+    assert any("86% of first price changes in a model's first week and 51% of later ones" in n for n in out["notes"])
+
+
+def test_old_data_says_how_old_it_is():
+    from datetime import datetime, timezone
+
+    from llmledger_mcp import data, server
+    now = datetime(2026, 10, 20, 12, tzinfo=timezone.utc)
+    assert server.age_days("2026-10-16T12:00:00+00:00", now) == 4
+    assert server.age_days("2026-10-18T13:00:00+00:00", now) == 1
+    assert server.age_days(None, now) is None and server.age_days("not a date", now) is None
+    assert server.age_days("2026-10-16T12:00:00", now) is None          # no time zone: unknown, not a crash
+    raw = json.loads(Path(__file__).with_name("fixture.json").read_text())
+    fresh = server.footer(data.Shelf(dict(raw, built=datetime.now(timezone.utc).isoformat()), "test"))
+    assert "warning" not in fresh["data"]
+    old = server.footer(data.Shelf(dict(raw, built="2026-01-01T00:00:00+00:00"), "test"))
+    assert old["data"]["warning"].startswith("This data is ") and "days old" in old["data"]["warning"]

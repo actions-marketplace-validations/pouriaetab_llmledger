@@ -50,6 +50,10 @@ Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, 
   plans do not publish per-model limits. Not financial or procurement advice.
 - Effort levels come from LiteLLM; the suggested level is a rule of thumb. No open source measures
   tokens per task at each effort level yet.
+- Many price changes in the catalogue fix a wrong entry rather than change a price: in a labelled sample,
+  about 6 in 10 first price changes. `price_history` says what each flag on a change means (a likely
+  correction, a unit fix, a change undone) and how often such changes were corrections.
+- Every answer carries the date of its data. When the data is 3 or more days old, the answer says so.
 - Set `LLMLEDGER_DATA` to a local data.json or another address to use your own copy.
 
 ## Data and licences

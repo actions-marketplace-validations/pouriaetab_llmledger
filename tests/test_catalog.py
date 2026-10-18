@@ -49,13 +49,14 @@ def test_req_s19_last_seven_days_lists_every_change():
 def test_req_s20_corrections_are_tagged_and_not_counted():
     rows = mark([
         row(1, "a", "added"),
-        row(2, "a", "price", "input_cost_per_token", "1e-06", "0.0001"),
-        row(3, "a", "price", "input_cost_per_token", "0.0001", "2e-06"),
+        row(2, "a", "price", "input_cost_per_token", "1e-06", "0.0001"),       # 100 times: a unit fix
+        row(3, "a", "price", "input_cost_per_token", "0.0001", "0.00012"),     # in its first week: likely
+        row(20, "a", "price", "input_cost_per_token", "0.00012", "0.00024"),   # later and twice: counted
     ])
     records, events = model_records(rows, {}, END)
     assert records[0][11] == 1
-    assert [e[5] for e in events["a"]] == ["", "unit", ""]
-    assert [r[6] for r in recent(rows, END, days=30)] == ["", "unit", ""]
+    assert [e[5] for e in events["a"]] == ["", "unit", "likely", ""]
+    assert [r[6] for r in recent(rows, END, days=30)] == ["", "unit", "likely", ""]
 
 
 def test_req_s24_records_carry_skills_size_and_media_prices():

@@ -43,6 +43,12 @@ old, new`.
   low, medium and high for a model with `supports_reasoning`, plus each
   level LiteLLM marks with `supports_<level>_reasoning_effort`. The
   default is `default_reasoning_effort` when listed.
+- **D14 Likely correction:** a price change (D5) that is not a unit fix
+  or reverted (D11, D12) and that comes within 7 days after time zero, or
+  is from 0, or whose new number is at least 10 times larger or smaller
+  than the old one. For a model in the first version, whose time zero is
+  unknown, only the last two parts apply. This is the rule measured in
+  REQ-S37 (first week or tenfold).
 
 ## 4. Requirements
 
@@ -169,18 +175,25 @@ price change and retirement date change in the 7 days before the
 latest data.
 Verified by: an automated test.
 
-**REQ-S20 Corrections.** Every change that meets D10, D11 or D12 shall
-be tagged as a bulk clean up, a unit fix or reverted. The page shall
-show the tag next to the change, shall offer to hide tagged changes in
-the last 7 days, and shall leave unit fixes and reverted changes out of
-each model's count of price changes.
+**REQ-S20 Corrections.** Every change that meets D10, D11, D12 or D14
+shall be tagged as a bulk clean up, a unit fix, reverted or a likely
+correction, in that order when more than one applies to a price change.
+The page shall show the tag next to the change with what it means,
+shall offer to hide tagged changes in the last 7 days, and shall leave
+tagged changes out of each model's count of price changes. A model's
+outlook shall say how many first price changes were corrections in the
+labelled sample of REQ-S37.
 Verified by: automated tests at and just below each threshold.
 
-**REQ-S21 Real changes only.** Alongside the main result, the analysis
-shall report the same estimates with unit fixes and reverted changes
-ignored, and with a model removed in a bulk clean up censored on that
-day rather than removed. The page shall show both at 1 year, side by
-side.
+**REQ-S21 Leaving out corrections.** Alongside the main result, the
+analysis shall report the same estimates with unit fixes and reverted
+changes ignored (definition `real_only`), and with likely corrections
+ignored as well (`likely_real`), each with a model removed in a bulk
+clean up censored on that day rather than removed. The page shall show
+all three at 1 year, side by side, shall give the one year chance of a
+price change without likely corrections under the headline numbers, and
+shall say that both still count some corrections (REQ-S37). No estimate
+shall be called "real changes only".
 Verified by: automated tests on a small example and on the page.
 
 **REQ-S22 SQL cross-check.** Every run shall build the table of
@@ -306,7 +319,8 @@ cheapest of the top 10, and the cheapest model rated at least as high as
 the model that was first a year earlier). A price is per 1M tokens,
 counting 3 read for every 1 written, at the model's cheapest host on that
 day, rebuilt by rolling today's price back through every later change
-(unit fixes are not rolled back; free listings are not prices). Arena
+(unit fixes and likely corrections are not rolled back; free listings are
+not prices). Arena
 models renamed between leaderboards shall keep one line. The replay shall
 play once when the view opens, not move for readers who ask for reduced
 motion, and offer play, pause and a slider; hovering shall show every
@@ -364,9 +378,32 @@ both, of a first-week-or-tenfold rule and of a cross-validated logistic
 model, shall be reported weighted to the population, with 95% intervals from
 a bootstrap of whole LiteLLM commits within strata, in
 `src/llmledger/corrections_eval.json` and the README, also with the unclear
-rows counted as repricings and as corrections. Verified by: automated tests
-of the population, the sample, the rules, the scores and the model, and a
-test that the report is rebuilt exactly from the labelled sample.
+rows counted as repricings and as corrections. For each rule, the share of
+corrections among the first price changes it does not call one shall be
+reported too, with its interval. The first-week-or-tenfold rule shall be the
+same function as the tag D14. Verified by: automated tests of the population,
+the sample, the rules, the scores and the model, a test that the report is
+rebuilt exactly from the labelled sample, and a test that the page quotes
+the numbers measured.
+
+**REQ-S38 No step back.** Before publishing, every run shall compare its
+data with the page that is live now and stop, publishing nothing, if it
+knows fewer than 99% of the live page's models, lists fewer than 75% of
+its listed models (the largest one-day clean up so far removed 10%), or
+its data ends before the live page's. If the live page cannot be read,
+the run shall go on and say so. Setting `LLMLEDGER_SKIP_LIVE_CHECK=1`
+shall publish anyway. Verified by: automated tests at and around each
+threshold, and that the check comes before the page is written.
+
+**REQ-S39 Old data named.** When the page's data was built 3 or more days
+ago, the page shall say so at the top of every view, with the build date.
+The plug-in shall add the same warning to every answer. Verified by:
+automated tests of the page and of the plug-in.
+
+**REQ-S40 Failed refresh reported.** When the daily refresh does not
+publish, the workflow shall open one issue about it (not one a day), and
+shall close it when a later refresh is published. Verified by: an
+automated test of the workflow file, and demonstration.
 
 ## 5. Known limitations
 
@@ -374,9 +411,12 @@ test that the report is rebuilt exactly from the labelled sample.
   when a provider changed a price. The lag is unknown.
 - **L2** Many price changes correct the catalogue rather than reprice the
   model: in the labelled sample of REQ-S37, about 59% of first price changes
-  (95% interval 41 to 75%), 86% in a model's first week and 51% later. D11
-  and D12 tag about a third of them, which the real-changes-only estimate
-  (REQ-S21) leaves out; the main estimate counts them all.
+  (95% interval 41 to 75%), 86% in a model's first week and 51% later. The
+  main estimate counts them all. D11 and D12 tag about a third of them; the
+  first-week-or-tenfold rule of D14 finds 55% (30 to 73%). Of the first
+  price changes that rule does not call a correction, about 40% (24 to 61%)
+  are still corrections, so even the estimate leaving out likely
+  corrections (REQ-S21) overstates real price changes.
 - **L3** A renamed model appears as one removal and one
   addition.
 - **L4** A retirement announcement counts even if the date
@@ -396,14 +436,21 @@ test that the report is rebuilt exactly from the labelled sample.
   always shows LiteLLM's own names as well.
 - **L10** The outlook for one model is the experience of similar models
   at the same age, not a forecast of that model in particular.
-- **L11** The tags in D10 to D12 come from fixed rules, not from
+- **L11** The tags in D10 to D12 and D14 come from fixed rules, not from
   reading each change. A real price cut of 100 times would be tagged as
-  a unit fix, and a clean up spread over several days of fewer than 50
-  removals would not be tagged. How often the rules are right has not
-  yet been checked against a hand labelled sample (issue #7).
+  a unit fix, a real introductory price in a model's first week as a likely
+  correction, and a clean up spread over several days of fewer than 50
+  removals would not be tagged. On first price changes, the labelled sample
+  of REQ-S37 measures them: 93% of those D11 or D12 tag, and 92% of those the
+  first-week-or-tenfold rule of D14 calls a correction, are corrections. D14
+  was measured on first price changes only; later changes may differ.
 - **L12** The page depends on LiteLLM keeping the same file name and on
   GitHub Actions. If a daily refresh fails, nothing is published and the
-  page keeps the last good build, with its data date in the footer.
+  page keeps the last good build, with its data date in the footer; after
+  3 days the page says its data is old (REQ-S39), and the repository has an
+  open issue about it (REQ-S40). The check against the live page (REQ-S38)
+  catches a build made from a broken copy of the history only when it is
+  smaller or older than the live page.
 - **L13** Prompt costs are estimates. Each model counts tokens its own
   way, often 10 to 30% differently from 4 characters per token, and
   caching, batch discounts, long prompt prices and taxes are left out.
@@ -481,20 +528,24 @@ test that the report is rebuilt exactly from the labelled sample.
 | D10 | `test_req_s20_bulk_clean_up_starts_at_50_removals_in_a_day` | test |
 | D11 | `test_req_s20_unit_fix_is_100_times_either_way` | test |
 | D12 | `test_req_s20_a_change_undone_within_30_days_is_reverted` | test |
-| REQ-S20 | `test_req_s20_corrections_are_tagged_and_not_counted` | test |
-| REQ-S21 | `test_req_s21_real_changes_only`, `test_req_s21_page_compares_every_change_with_real_changes` | test |
+| D14 | `test_req_s20_likely_correction_is_the_first_week_or_ten_times`, `test_req_s37_the_likely_correction_tag_is_the_rule_measured` | test |
+| REQ-S20 | `test_req_s20_corrections_are_tagged_and_not_counted`, `test_req_s20_tags_and_the_outlook_say_what_a_correction_is` | test |
+| REQ-S21 | `test_req_s21_real_changes_only`, `test_req_s21_leaving_out_likely_corrections_as_well`, `test_req_s21_page_compares_every_change_with_real_changes`, `test_req_s21_page_says_when_the_estimate_without_corrections_is_missing` | test |
 | REQ-S22 | `test_req_s22_sql_and_python_agree`, `test_req_s22_sql_known_answer`, `test_req_s22_a_disagreement_stops_the_check`; the "SQL check" line in every daily run | test, demonstration |
 | REQ-S23 | `test_req_s23_tokens_are_estimated_at_four_characters`, `test_req_s23_cost_known_answer`, `test_req_s23_cheapest_listing_per_model`, `test_req_s23_only_text_models_are_priced`; the Prompt cost tab | test, demonstration |
 | REQ-S24 | `test_req_s24_answer_lengths_are_fixed_sizes`, `test_req_s24_attachments_add_cost_and_need_the_skill`, `test_req_s24_listed_per_unit_prices_win_over_estimates`, `test_req_s24_images_video_and_speech_out`, `test_req_s24_family_and_version_from_a_grouped_name`, `test_req_s24_records_carry_skills_size_and_media_prices`; the Prompt cost tab | test, demonstration |
 | REQ-S28 | `test_req_s28_page_opens_on_the_prompt_box`; the page at 1366 and 390 pixels wide | test, demonstration |
 | D13, REQ-S29 | `test_req_s29_records_carry_cache_price_and_effort_levels`, `test_req_s29_effort_is_clamped_to_the_levels_a_model_takes`, `test_req_s29_effort_suggestion_known_answers`, `test_req_s29_effort_suggestion_says_why_and_respects_the_model`, `test_req_s29_plan_use_is_relative_to_the_least`, `test_req_s29_verdict_known_answer`, `test_req_s29_verdict_on_a_plan_and_without_ratings`, `test_req_s29_the_pick_is_the_cheapest_the_votes_cannot_tell_from_the_top`, `test_req_s29_headline_and_notes_say_why`, `test_req_s29_page_compares_models_side_by_side`; the page in a browser | test, demonstration |
 | REQ-S30 | `test_req_s30_arena_is_explained_on_the_page`; the page in a browser | test, demonstration |
-| REQ-S31 | `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook` | test |
-| REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (8 tests) | test |
-| REQ-S33 | `test_req_s33_renamed_arena_models_keep_one_line`, `test_req_s33_a_price_is_rolled_back_to_the_day`, `test_req_s33_lines_makers_and_the_price_race`, `test_req_s33_no_history_means_no_trends`, `test_req_s33_yesterdays_trends_are_kept_when_arena_is_down`, `test_req_s33_a_rating_gap_in_plain_odds`, `test_req_s33_a_line_is_drawn_between_its_points_and_ends_after_a_month`, `test_req_s33_labels_never_overlap_and_stay_inside`, `test_req_s33_round_ticks`, `test_req_s33_trends_view_replays_the_leaderboards`, `test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_charts`; the page in a browser at 1366 and 390 pixels wide, light and dark | test, demonstration |
+| REQ-S31 | `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook`, `test_req_s31_data_json_explains_the_tags_and_carries_the_corrections_measured` | test |
+| REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (10 tests) | test |
+| REQ-S33 | `test_req_s33_renamed_arena_models_keep_one_line`, `test_req_s33_a_price_is_rolled_back_to_the_day`, `test_req_s33_a_likely_correction_is_not_rolled_back`, `test_req_s33_lines_makers_and_the_price_race`, `test_req_s33_no_history_means_no_trends`, `test_req_s33_yesterdays_trends_are_kept_when_arena_is_down`, `test_req_s33_a_rating_gap_in_plain_odds`, `test_req_s33_a_line_is_drawn_between_its_points_and_ends_after_a_month`, `test_req_s33_labels_never_overlap_and_stay_inside`, `test_req_s33_round_ticks`, `test_req_s33_trends_view_replays_the_leaderboards`, `test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_charts`; the page in a browser at 1366 and 390 pixels wide, light and dark | test, demonstration |
 | REQ-S34 | `test_req_s34_the_edge_keeps_only_models_nobody_beats_on_both`, `test_req_s34_cost_vs_quality_sits_on_ask`; the page in a browser | test, demonstration |
 | REQ-S35 | `test_req_s35_new_arrivals_are_new_groups_with_a_text_price`, `test_req_s35_latest_changes_fold_batches_and_join_price_fields` | test |
-| REQ-S37 | `test_req_s37_first_price_changes_and_strata`, `test_req_s37_the_sample_is_the_same_every_time`, `test_req_s37_rules_known_answers`, `test_req_s37_weighted_scores_known_answer`, `test_req_s37_model_learns_a_clear_pattern`, `test_req_s37_labelled_sample_is_complete`, `test_req_s37_report_rebuilds_from_the_sample`; `corrections_eval.json` | test, analysis |
+| REQ-S37 | `test_req_s37_first_price_changes_and_strata`, `test_req_s37_the_sample_is_the_same_every_time`, `test_req_s37_rules_known_answers`, `test_req_s37_weighted_scores_known_answer`, `test_req_s37_model_learns_a_clear_pattern`, `test_req_s37_labelled_sample_is_complete`, `test_req_s37_report_rebuilds_from_the_sample`, `test_req_s37_the_likely_correction_tag_is_the_rule_measured`, `test_req_s37_the_page_quotes_the_numbers_measured`; `corrections_eval.json` | test, analysis |
+| REQ-S38 | `test_req_s38_a_normal_day_passes`, `test_req_s38_a_step_back_is_named`, `test_req_s38_a_broken_build_is_not_published`, `test_req_s38_no_live_page_means_nothing_to_compare`, `test_req_s38_the_pipeline_checks_before_it_writes_the_page`; the "Live check" line in every daily run | test, demonstration |
+| REQ-S39 | `test_req_s39_old_data_is_named_on_the_page`; `test_old_data_says_how_old_it_is` in `mcp/tests` | test |
+| REQ-S40 | `test_req_s40_a_failed_refresh_opens_one_issue_and_a_good_one_closes_it`; the `report` job of the `refresh` workflow | test, demonstration |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
