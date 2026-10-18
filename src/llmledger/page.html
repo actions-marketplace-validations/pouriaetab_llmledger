@@ -87,14 +87,14 @@ main { max-width: 1040px; margin: 0 auto; padding: 0 16px 32px; }
 .taskline select { font-weight: 600; }
 
 /* the three answers */
-.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 16px 0 6px; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 12px 0 6px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px;
   box-shadow: var(--shadow); min-width: 0; }
 .card.best { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
 .card .kind { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
 .card.best .kind { color: var(--accent); }
-.card .name { font-size: 1.12rem; font-weight: 650; margin: 6px 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card .host { color: var(--muted); font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .name { font-size: 1.12rem; font-weight: 650; margin: 6px 0 2px; overflow-wrap: anywhere; }
+.card .host { color: var(--muted); font-size: 0.82rem; overflow-wrap: anywhere; }
 .card .cost { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; margin: 10px 0 0; font-variant-numeric: tabular-nums; }
 .card .per { color: var(--muted); font-size: 0.8rem; }
 .card .why { font-size: 0.86rem; margin: 10px 0 0; }
@@ -120,16 +120,15 @@ main { max-width: 1040px; margin: 0 auto; padding: 0 16px 32px; }
 #which .seg { margin: 0; max-width: 100%; }
 #which .seg button { white-space: nowrap; padding: 5px 12px; }
 .vs-sum { font-size: 1rem; margin: 12px 0 10px; }
-.vs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: 12px; overflow-x: auto;
-  scroll-snap-type: x mandatory; padding: 2px 2px 8px; }
-.vs .col { scroll-snap-align: start; background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+.vs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 2px 2px 8px; }
+.vs .col { background: var(--card); border: 1px solid var(--line); border-radius: 16px;
   padding: 14px 16px; box-shadow: var(--shadow); min-width: 0; position: relative; }
 .vs .col.chosen { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
 .vs .tags { display: flex; flex-wrap: wrap; gap: 4px; min-height: 20px; }
 .vs .tags span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 650; color: var(--muted); }
 .vs .tags span.on { color: var(--accent); }
-.vs .name { font-size: 1.02rem; font-weight: 650; margin: 4px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vs .host { color: var(--muted); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs .name { font-size: 1.02rem; font-weight: 650; margin: 4px 0 0; overflow-wrap: anywhere; }
+.vs .host { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
 .vs .big { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin: 10px 0 0; font-variant-numeric: tabular-nums; }
 .vs .big small { display: block; font-size: 0.78rem; font-weight: 400; color: var(--muted); letter-spacing: 0; }
 .vs dl { margin: 6px 0 0; font-size: 0.88rem; }
@@ -153,7 +152,7 @@ main { max-width: 1040px; margin: 0 auto; padding: 0 16px 32px; }
 .rate { display: grid; grid-template-columns: 26px minmax(0, 1.4fr) minmax(120px, 2fr) 52px 74px; gap: 10px; align-items: center;
   padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 0.86rem; font-variant-numeric: tabular-nums; }
 .rate .rk { color: var(--muted); text-align: right; }
-.rate .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rate .nm { overflow-wrap: anywhere; }
 .rate .nm small { color: var(--muted); }
 .rate .ci { position: relative; height: 14px; }
 .rate .ci .tie { position: absolute; top: 0; bottom: 0; background: var(--accent-soft); border-radius: 3px; }
@@ -214,18 +213,16 @@ td .cbar { display: inline-block; height: 6px; border-radius: 3px; background: v
 .tlegend i.k-dash { border-top-style: dashed; }
 .tlegend i.k-band { height: 10px; border: 0; background: var(--accent); opacity: 0.2; border-radius: 3px; vertical-align: -1px; }
 .tcard h2 { margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
-.tcard .sub { margin: 2px 0 6px; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tcard .sub { margin: 2px 0 6px; font-size: 0.78rem; }
 #tab-race .page-head { padding-top: 22px; }
-.feed.arrivals { max-height: 182px; }
-.feed.changes { max-height: 140px; }
 .tcard > .muted:last-child { margin-bottom: 0; }
-.feed { list-style: none; margin: 0; padding: 0; max-height: 196px; overflow-y: auto; }
+.feed { list-style: none; margin: 0; padding: 0; }
 .feed li { display: grid; gap: 1px 10px; align-items: center; padding: 6px 2px; border-bottom: 1px solid var(--line);
   font-size: 0.84rem; min-width: 0; }
 .feed li:last-child { border-bottom: 0; }
 .feed li > * { min-width: 0; }
-.feed small { display: block; color: var(--muted); font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.feed a { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed small { display: block; color: var(--muted); font-size: 0.74rem; overflow-wrap: anywhere; }
+.feed a { display: block; overflow-wrap: anywhere; }
 .arrivals li { grid-template-columns: minmax(0, 1fr) auto; }
 .arrivals .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .changes li { grid-template-columns: 44px minmax(0, 1fr); position: relative; padding-left: 14px; align-items: start; }
@@ -242,7 +239,6 @@ td .cbar { display: inline-block; height: 6px; border-radius: 3px; background: v
 @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
 .fgrid { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .fgrid h3 { margin: 0 0 4px; font-size: 0.9rem; }
-.edge-list { max-height: 270px; }
 .edge-list li { grid-template-columns: minmax(0, 1fr) auto; }
 .edge-list li > span { color: var(--muted); font-size: 0.78rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .edge-list li > span b { color: var(--text); }
@@ -315,9 +311,9 @@ td:has(> a[data-model]), td:has(> a[data-group]) { min-width: 220px; white-space
 #compare:not(:empty) { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 4px; }
 
 .pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
-.pick .list { max-height: 200px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px;
+.pick .list { max-height: 320px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px;
   padding: 6px 8px; font-size: 0.84rem; background: var(--card); }
-.pick label { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick label { display: block; overflow-wrap: anywhere; }
 
 footer { max-width: 1040px; margin: 24px auto 0; padding: 14px 16px 28px; border-top: 1px solid var(--line);
   color: var(--muted); font-size: 0.78rem; }
@@ -325,14 +321,13 @@ footer p { margin: 0 0 4px; }
 
 @media (max-width: 760px) {
   .cards { grid-template-columns: 1fr; }
-  .rate { grid-template-columns: 22px minmax(0, 1fr) minmax(80px, 1.2fr) 44px; }
-  .rate .cost { display: none; }
+  .rate { grid-template-columns: 22px minmax(0, 1fr) 44px 74px; row-gap: 4px; }
+  .rate .ci { grid-column: 2 / -1; grid-row: 2; }
   .pick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero { padding-top: 28px; }
   .bar-in { gap: 10px; }
   #which .seg { display: flex; width: 100%; }
   #which .seg button { flex: 1 1 0; padding: 5px 6px; }
-  .vs { grid-auto-columns: minmax(78%, 1fr); }
   .tside, .fgrid { grid-template-columns: 1fr; }
   .tplay { margin-left: 0; }
   #race-view { display: flex; width: 100%; }
@@ -344,27 +339,24 @@ footer p { margin: 0 0 4px; }
   .row { grid-template-columns: 64px 1fr; }
 }
 
-/* One screen: the page itself never scrolls, at any window size. Each view fills the window under the bar, and
-   only boxes inside it scroll (the panel under the answers, a table, a list). A window under 480 px tall gets the
-   normal scrolling page. */
-.ask-top { text-align: center; padding: 12px 0 0; }
-.ask-top h1 { font-size: clamp(1.25rem, 1.6vh + 1rem, 2.1rem); line-height: 1.15; letter-spacing: -0.03em; margin: 0 0 10px; }
-.ask-top .ask { margin-top: 0; }
-.ask-top .ask textarea { min-height: 0; height: clamp(42px, 6.5vh, 84px); padding: 9px 14px 4px; }
-.ask-top .ask { padding: 4px 4px 8px; }
-.ask-top .taskline { margin: 6px 0 0; }
-.using { text-align: center; margin: 0 0 8px; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dock { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 16px;
-  box-shadow: var(--shadow); min-width: 0; overflow: hidden; margin-bottom: 4px; }
-.dock-tabs { flex: none; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; padding: 6px 8px;
-  border-bottom: 1px solid var(--line); }
-.dock-tabs::-webkit-scrollbar { display: none; }
-.dock-tabs button { flex: none; background: none; border: 0; border-radius: 999px; color: var(--muted); padding: 5px 13px;
+/* One page when it fits, otherwise the page scrolls the normal way: the bar stays at the top, the footer comes at
+   the end, and nothing is cut, squeezed into a box that scrolls inside, or shrunk to fit. The one exception is a
+   very long checklist (Options: makers, models, versions, hosts), which keeps its own scroll like a dropdown. */
+.ask-top { text-align: center; padding: 14px 0 0; }
+.ask-top h1 { font-size: clamp(1.3rem, 2.2vw + 0.6rem, 2.1rem); line-height: 1.15; letter-spacing: -0.03em; margin: 0 0 10px; }
+.ask-top .ask { margin-top: 0; padding: 4px 4px 8px; }
+.ask-top .ask textarea { min-height: 60px; padding: 10px 14px 4px; }
+.ask-top .taskline { margin: 8px 0 0; }
+.using { text-align: center; margin: 0 0 10px; font-size: 0.8rem; }
+.dock { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+  min-width: 0; margin: 6px 0 8px; }
+.dock-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.dock-tabs button { background: none; border: 0; border-radius: 999px; color: var(--muted); padding: 5px 13px;
   white-space: nowrap; font-size: 0.9rem; }
 .dock-tabs button:hover { color: var(--text); }
 .dock-tabs button[aria-selected="true"] { background: var(--raised); color: var(--text); font-weight: 600; }
 .dock-tabs .dsub { display: none; }
-.dock-body { padding: 10px 14px 12px; min-width: 0; }
+.dock-body { padding: 12px 16px 16px; min-width: 0; }
 .panel > .controls:first-child { margin-top: 0; }
 .vs-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
 .vs-head .seg { margin: 0; flex: none; }
@@ -375,166 +367,45 @@ footer p { margin: 0 0 4px; }
 .dock .vs .big small { display: inline; margin-left: 4px; }
 .dock .vs dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: baseline; margin-top: 8px; }
 .dock .vs dt { margin: 0; }
-.dock .vs dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dock .vs dd { margin: 0; overflow-wrap: anywhere; }
 .dock .vs .meter { display: inline-block; width: 46px; vertical-align: middle; margin: 0 0 0 6px; }
-.dock .vs .note { margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dock .vs .note { margin-top: 8px; }
 .dock .vs input[type="number"] { width: 5.5em; padding: 1px 6px; }
 .how p { margin: 0 0 8px; }
-.sheet-head { display: none; }
-.chart.fill { position: relative; height: 270px; }
-@media (max-width: 760px) { .chart.fill { height: 230px; } }
+.chart.fill { position: relative; height: 360px; }
+#race-chart.chart.fill { height: clamp(320px, 50vh, 520px); }
 .chart.fill > svg { position: absolute; left: 0; top: 0; }
 #detail { position: fixed; z-index: 20; top: 0; right: 0; bottom: 0; width: min(580px, 100vw); overflow-y: auto;
   background: var(--card); border-left: 1px solid var(--line); box-shadow: -8px 0 30px rgb(0 0 0 / 0.15); padding: 14px 18px 24px; }
 #detail:empty { display: none; }
 #detail .close { position: sticky; top: 0; float: right; z-index: 1; border-radius: 999px; padding: 2px 10px; font-size: 1.1rem; }
 #detail h3 { margin-top: 4px; }
-footer { font-size: 0.72rem; }
+footer { font-size: 0.75rem; }
 .card .tag-price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 8px; margin-top: 8px; }
 .card .tag-price .cost { margin: 0; }
-.card .arena { flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
-.card .arena span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.card .why { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 8px; }
-.card .badges { display: flex; gap: 4px; margin-top: 8px; overflow: hidden; }
-.card .badges .badge { margin: 0; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card .badges .badge.effort { flex: none; }
+.card .why { margin-top: 8px; }
+.card .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.card .badges .badge { margin: 0; }
 .card .badges:empty { display: none; }
-@media (min-height: 480px) {
-  html, body { height: 100%; }
-  body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
-  body > * { flex: none; }
-  body > main { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; flex-direction: column; overflow: hidden; padding-bottom: 4px; }
-  main > section:not([hidden]) { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow-y: auto;
-    overscroll-behavior: contain; }
-  main > section > * { flex: none; }
-  footer { margin: 0 auto; padding: 5px 16px 7px; width: 100%; }
-  footer p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  /* Ask: the panel takes what is left */
-  #tab-ask > .dock { flex: 1 1 0; min-height: 190px; }
-  .dock-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; }
-  .panel.fill:not([hidden]) { height: 100%; display: flex; flex-direction: column; }
-  .panel.fill > * { flex: none; }
-  .panel.fill > .fgrid { flex: 1 1 auto; min-height: 160px; }
-  .fgrid > .chart.fill { height: 100%; min-height: 160px; }
-  .fgrid > .fside { display: flex; flex-direction: column; min-height: 0; height: 100%; }
-  .fside .edge-list { flex: 1 1 auto; max-height: none; }
-  /* Trends: the chart takes the height left in its card; the lists scroll in theirs */
-  #tab-race > .tlayout { flex: 1 1 0; min-height: 300px; margin-top: 8px; }
-  #tab-race .page-head { padding: 12px 0 0; }
-  #tab-race .page-head h1 { font-size: 1.35rem; margin: 0 0 2px; }
-  #tab-race .page-head p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: none; }
-  .tlayout > .tcard { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-  .tlayout > .tcard > * { flex: none; }
-  .tlayout > .tcard > .chart.fill { flex: 1 1 auto; height: auto; min-height: 140px; }
-  .tside { height: 100%; min-height: 0; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
-  .tside > .tcard { display: flex; flex-direction: column; min-height: 0; }
-  .tside > .tcard > * { flex: none; }
-  .tside .feed.arrivals, .tside .feed.changes { flex: 1 1 auto; min-height: 0; max-height: none; }
-  /* Models: the results scroll inside; a model's details open in a side drawer */
-  #tab-models .page-head { padding: 12px 0 0; }
-  #tab-models .page-head h1 { font-size: 1.35rem; margin: 0 0 2px; }
-  #tab-models .page-head p { margin: 0 0 4px; }
-  #tab-models > #results { flex: 1 1 auto; min-height: 120px; overflow: auto; overscroll-behavior: contain; }
-  #tab-models > #compare:not(:empty) { max-height: 34%; overflow: auto; margin-top: 4px; padding-top: 0; }
-  #tab-models > #notice:empty { min-height: 0; margin: 0; }
-  #tab-models > details.sub { margin: 6px 0 0; }
-  /* Price history: the panel in view scrolls inside */
-  #tab-about .page-head { padding: 12px 0 0; }
-  #tab-about .page-head h1 { font-size: 1.35rem; margin: 0 0 2px; }
-  #tab-trends .page-head { padding: 12px 0 0; }
-  #tab-trends .page-head h1 { font-size: 1.35rem; margin: 0 0 2px; }
-  #tab-trends .tiles { margin: 10px 0 4px; }
-  #tab-trends > [id^="panel-"]:not([hidden]) { flex: 1 1 auto; min-height: 120px; overflow: auto; overscroll-behavior: contain; }
-  #tab-trends > [id^="panel-"] h2:first-child { margin-top: 8px; }
-}
-@media (max-height: 700px) {
-  .using { display: none; }
-}
-@media (max-height: 600px) {
-  .ask-top h1 { display: none; }
-  #tab-models .page-head p, #tab-trends .page-head p { display: none; }
-}
-@media (min-height: 480px) and (max-height: 760px) {
-  .ask-top { padding-top: 8px; }
-  .ask-top h1 { margin-bottom: 6px; }
-  .cards { margin: 8px 0 4px; gap: 10px; }
-  .card { padding: 11px 15px; }
-  .card .name { margin-top: 3px; }
-  .card .cost { font-size: 1.45rem; margin-top: 6px; }
-  .card .why { margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .card .arena { margin-top: 4px; }
-  .badge { margin-top: 6px; }
-  .tsum { min-height: 0; }
-}
-/* Phones and windows up to 800 px tall: the panel's tabs sit at the bottom of Ask like an app bar, and a tab opens its
-   panel as a sheet over the page (close with x, Esc or a click outside). Taller windows show the panel in place. */
-@media (max-width: 760px), (max-height: 800px) {
-  #tab-ask > .dock { flex: none !important; min-height: 0 !important; margin-top: auto; overflow: visible; }
-  .dock-tabs { border-bottom: 0; justify-content: safe center; padding: 6px; }
-  .dock-tabs button { display: flex; flex-direction: column; align-items: center; line-height: 1.3; padding: 6px 14px; border-radius: 12px; }
-  .dock-tabs button:hover { background: var(--raised); }
-  .dock:not(.open) .dock-tabs button[aria-selected="true"] { background: none; font-weight: 600; color: var(--text); }
-  .dock-tabs .dsub { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 400; }
-  .dock-body { display: none; }
-  .dock.open .dock-body { display: block; position: fixed; z-index: 15; overflow: auto; overscroll-behavior: contain;
-    left: max(0px, calc((100vw - 1040px) / 2)); right: max(0px, calc((100vw - 1040px) / 2)); top: max(40px, 8vh); bottom: 0;
-    background: var(--card); border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px rgb(0 0 0 / 0.25); padding: 0 16px 18px; }
-  .dock.open::before { content: ""; position: fixed; inset: 0; background: rgb(0 0 0 / 0.3); z-index: 14; }
-  .dock.open .sheet-head { display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 2;
-    background: var(--card); padding: 12px 0 8px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
-  .sheet-close { border-radius: 999px; padding: 2px 12px; font-size: 1.1rem; }
-  .dock.open .panel.fill:not([hidden]) { height: calc(100% - 58px); }
-}
+#tab-race .page-head, #tab-models .page-head, #tab-trends .page-head, #tab-about .page-head { padding: 22px 0 4px; }
 @media (max-width: 760px) {
-  .cards { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 84%; overflow-x: auto;
-    scroll-snap-type: x mandatory; scrollbar-width: none; padding: 2px; }
-  .cards::-webkit-scrollbar { display: none; }
-  .cards > .card { scroll-snap-align: start; }
-  .card .why { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .using { display: none; }
-  footer .long { display: none; }
-  .ask-top h1 { font-size: 1.2rem; margin-bottom: 6px; }
-  .dock-tabs .dsub { display: none; }
-  .dock-tabs button { padding: 6px 12px; }
-  .dock.open .panel.fill:not([hidden]) { height: auto; display: block; }
-  .dock.open .fgrid > .chart.fill { height: 260px; }
-  #len-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
-  #len-chips::-webkit-scrollbar { display: none; }
-  #len-chips .chip, #len-chips .label { flex: none; }
-  .ask-top .taskline { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card { padding: 11px 14px; }
-  .card .cost { font-size: 1.45rem; }
-
+  .bar-in { flex-wrap: wrap; row-gap: 2px; padding: 8px 12px 6px; }
+  .brand { flex: 1 0 100%; }
+  .tabs { flex-wrap: wrap; width: 100%; justify-content: space-between; }
+  .tabs button { padding: 5px 8px; font-size: 0.88rem; }
+  .ask-top { padding-top: 14px; }
+  .ask-top h1 { font-size: 1.25rem; margin-bottom: 8px; }
   .ask-top .taskline { font-size: 0.85rem; }
+  .card { padding: 13px 15px; }
+  .card .cost { font-size: 1.45rem; }
+  .dock-tabs button { padding: 5px 10px; font-size: 0.86rem; }
+  .dock-body { padding: 10px 12px 14px; }
   .vs-head .vs-sum { font-size: 0.86rem; }
-  .fgrid { grid-template-columns: 1fr; }
-  .fgrid > .fside { display: none; }
-  .tlayout { grid-template-columns: 1fr; }
-  #tab-race > .tlayout { display: flex; flex-direction: column; align-items: stretch; min-height: 0; gap: 10px; }
-  #tab-race .tlayout > .tcard { height: auto; flex: 1 0 auto; }
-  #tab-race .tlayout > .tcard > .chart.fill { min-height: 120px; }
-  #race-sum { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 0.86rem; }
-  .thead .when, #tab-race .tcard > details.sub { display: none; }
-  .tside { display: grid; grid-template-columns: none; grid-template-rows: none; grid-auto-flow: column; grid-auto-columns: 86%;
-    overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; height: clamp(130px, 22vh, 220px); flex: none; }
-  .tside::-webkit-scrollbar { display: none; }
-  .tside > .tcard { scroll-snap-align: start; height: 100%; }
-  #tab-race .page-head p { display: none; }
-  #tab-race .tcard .note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #race-legend { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+  .chart.fill { height: 280px; }
+  #race-chart.chart.fill { height: 300px; }
+  .fgrid, .tlayout, .tside { grid-template-columns: 1fr; }
 }
-/* short phones (and a copy of the page under a site bar): Trends gives up a little chart height instead of scrolling */
-@media (max-width: 760px) and (max-height: 700px) {
-  #tab-race .page-head { padding-top: 8px; }
-  #tab-race .page-head h1 { font-size: 1.15rem; }
-  #tab-race .tlayout > .tcard > .chart.fill { min-height: 92px; }
-  .tside { height: clamp(112px, 19vh, 220px); }
-}
-@media (max-width: 760px) and (max-height: 600px) {
-  #tab-race .page-head { display: none; }
-  #tab-race .tlayout > .tcard > .chart.fill { min-height: 72px; }
-}
-#tab-ask.tight .card .why { display: none; }
+@media (max-width: 380px) { #which .seg button { font-size: 0.82rem; padding: 5px 4px; } }
 </style>
 </head>
 <body>
@@ -574,7 +445,6 @@ footer { font-size: 0.72rem; }
   <button type="button" role="tab" data-dock="how">How it works<span class="dsub">in five lines</span></button>
 </nav>
 <div class="dock-body">
-<div class="sheet-head"><b id="dock-title"></b><button type="button" class="sheet-close" aria-label="Close">×</button></div>
 
 <div class="panel" id="which" role="tabpanel">
   <div class="vs-head">

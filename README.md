@@ -14,12 +14,13 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.9. The data and the page refresh every day.
+**Status:** version 1.10. The data and the page refresh every day.
 
 Paste a prompt on the live page to see the best value model for it, the top rated one and the
 cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
 Everything else (compare, cost vs quality, every model, quality ratings, price history, method) is
-one click away, and every view fits the window without scrolling, on a phone too. The Trends view
+one click away. A view fits one screen when it can; when it has more, the page scrolls the normal
+way and nothing is cut. The Trends view
 replays two years of Arena's leaderboards and what top quality has cost.
 
 > **Not financial or procurement advice.** The numbers describe edits to a public
@@ -90,12 +91,12 @@ replays two years of Arena's leaderboards and what top quality has cost.
 15. **Shows cost against quality.** For your prompt, every rated model's cost
     against its Arena score, with the edge marked: the models no other model
     beats on both.
-16. **Fits one screen.** At any window size the page itself never scrolls: the
-    answers stay in view, the extras are tabs in one panel under them (a sheet
-    on phones and short windows), and a model's details open in a drawer.
-    About shows each part as a row that opens on a click. When a window is too
-    short for the three answers, they drop their line of reasons instead of
-    scrolling.
+16. **One page when it fits, otherwise it scrolls.** The answers come first,
+    the extras are tabs in one panel under them, shown at their full height,
+    and a model's details open in a drawer. When a view has more than the
+    window holds, the page scrolls the normal way: nothing is cut, squeezed
+    into a box that scrolls inside, or shrunk to fit. About shows each part
+    as a row that opens on a click.
 
 ## First results
 

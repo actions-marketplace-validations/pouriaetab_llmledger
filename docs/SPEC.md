@@ -332,23 +332,26 @@ a clean up, or four or more listings added, removed or priced for the
 first time on one day, folded into one line, and a link to every change in
 the last 7 days. Verified by: automated tests of both lists.
 
-**REQ-S36 One screen.** At any window size at least 480 pixels tall, the
-page itself shall not scroll up, down or sideways: each view shall fill the
-window under the bar, and only boxes inside it (a panel, a table, a list,
-a drawer) may scroll. On Ask, the three answers shall stay as they are,
-and the extras (Compare, Cost vs quality, Quality ratings, Every model,
-Options, How it works) shall be tabs in one panel under them: shown in
-place in windows taller than 800 pixels, and opened as a sheet over the
-page on phones and shorter windows. A model's details shall open in a
-drawer over any view. The Trends chart shall take the height left in its
-card. About shall show each of its parts as a row that opens on a click,
-including a part that a copy of the page adds (such as a scope note), and a
-link to that part shall open it. When a window is too short for the three
-answers, each answer shall drop its line of reasons rather than scroll.
-Verified by: an automated test of the page's layout and panel, and
-the page and the site copy in a browser at eleven window sizes from 375 x 560
-to 1920 x 1080, light and dark, with no page scroll in any view and no
-scroll inside About.
+**REQ-S36 One page when it fits, otherwise natural scrolling.** A view
+shall fit one screen when its content fits at a normal size; when it does
+not, the page shall scroll the normal way, with the bar at the top and the
+footer at the end, and the first screen shall show that more follows. No
+content shall be cut, put in a box that scrolls inside, shortened with an
+ellipsis or a line limit, or shrunk to fit. Allowed exceptions: the model
+drawer, wide tables that scroll sideways on narrow screens, the prompt box
+past 40% of the window, and the long checklists under Options (makers,
+models, versions, hosts), which scroll like a dropdown. The page shall
+never scroll sideways. On Ask, the three answers shall come first and the
+extras (Compare, Cost vs quality, Quality ratings, Every model, Options,
+How it works) shall be tabs in one panel under them, the open tab shown in
+place at its full height. A model's details shall open in a drawer over
+any view. About shall show each of its parts as a row that opens on a
+click, including a part that a copy of the page adds (such as a scope
+note), and a link to that part shall open it. Verified by: automated tests
+of the page's layout rules, and the page and the site copy in a browser
+at ten window sizes from 375 x 560 to 1920 x 1080 (his laptop's 1269 x 746
+among them), light and dark: no sideways scroll and nothing cut in any
+view or panel.
 
 ## 5. Known limitations
 
@@ -474,7 +477,7 @@ scroll inside About.
 | REQ-S33 | `test_req_s33_renamed_arena_models_keep_one_line`, `test_req_s33_a_price_is_rolled_back_to_the_day`, `test_req_s33_lines_makers_and_the_price_race`, `test_req_s33_no_history_means_no_trends`, `test_req_s33_yesterdays_trends_are_kept_when_arena_is_down`, `test_req_s33_a_rating_gap_in_plain_odds`, `test_req_s33_a_line_is_drawn_between_its_points_and_ends_after_a_month`, `test_req_s33_labels_never_overlap_and_stay_inside`, `test_req_s33_round_ticks`, `test_req_s33_trends_view_replays_the_leaderboards`, `test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_charts`; the page in a browser at 1366 and 390 pixels wide, light and dark | test, demonstration |
 | REQ-S34 | `test_req_s34_the_edge_keeps_only_models_nobody_beats_on_both`, `test_req_s34_cost_vs_quality_sits_on_ask`; the page in a browser | test, demonstration |
 | REQ-S35 | `test_req_s35_new_arrivals_are_new_groups_with_a_text_price`, `test_req_s35_latest_changes_fold_batches_and_join_price_fields` | test |
-| REQ-S36 | `test_req_s36_every_view_fits_one_screen`, `test_req_s36_about_rows_and_short_windows`; every view in a browser at 1920 x 1080, 1536 x 864, 1440 x 900, 1366 x 768, 1280 x 650, 1024 x 700, 768 x 1024, 412 x 915, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
+| REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
 | REQ-S25 | `test_req_s25_arena_names_are_tried_longest_first`, `test_req_s25_matching_prefers_the_arena_maker`, `test_req_s25_best_variant_kept_and_unmatched_left_out`, `test_req_s25_arena_down_means_no_ratings`, `test_req_s25_best_value_is_the_cheapest_tied_with_the_top`; the Best value tab | test, demonstration |
