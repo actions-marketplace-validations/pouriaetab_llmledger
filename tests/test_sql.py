@@ -68,6 +68,12 @@ ROWS = [
     price(35, "undone", "2e-06", "1e-06"),
     row(0, "bulk", "added"),
     *[row(15, name, "removed") for name in ["bulk"] + [f"x{i}" for i in range(49)]],
+    row(0, "ten", "added"),
+    price(20, "ten", "1e-06", "1e-05"),
+    row(0, "nine", "added"),
+    price(20, "nine", "1e-06", "9e-06"),
+    row(0, "zero", "added"),
+    price(20, "zero", "0", "1e-06"),
     row(30, "late", "added"),
     row(40, "end", "added"),
 ]
@@ -79,7 +85,7 @@ def test_req_s22_sql_and_python_agree(definition):
     sql.check(rows)
     ours = sql.sql_table(sql.load(rows), definition)
     assert ours == sql.python_table(rows, definition)
-    assert "day-one" not in ours and len(ours) == 20
+    assert "day-one" not in ours and len(ours) == 23
 
 
 def test_req_s22_sql_known_answer():
@@ -104,6 +110,15 @@ def test_req_s22_sql_known_answer():
     assert real["late-undo"] == (2.0, "price")
     assert main["moved"] == (40.0, "censored")
     assert main["late"] == (10.0, "censored")
+    likely = sql.sql_table(sql.load(rows), "likely_real")
+    assert main["a"] == (4.0, "price") and likely["a"] == (40.0, "censored")      # first week
+    assert likely["week"] == (8.0, "price")
+    assert likely["jump"] == (10.0, "price")                                       # the next change counts
+    assert main["ten"] == main["zero"] == (20.0, "price")
+    assert likely["ten"] == likely["zero"] == (40.0, "censored")                   # 10 times, and from 0
+    assert likely["nine"] == (20.0, "price")
+    assert likely["unit"] == likely["undone"] == (40.0, "censored")                # tags left out as in real_only
+    assert likely["bulk"] == (15.0, "censored")
 
 
 def test_req_s22_a_disagreement_stops_the_check(monkeypatch):

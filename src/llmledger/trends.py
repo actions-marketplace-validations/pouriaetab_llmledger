@@ -95,8 +95,8 @@ def price_at(record, events, day):
 
     record is a catalog.model_records row; events its catalogue history
     ([day, kind, field, old, new, flag], oldest first). The price today is rolled back
-    through every later change of the two token prices. Unit fixes are not rolled back:
-    the price before a fix was a typo, not a price anyone paid.
+    through every later change of the two token prices. Unit fixes and likely corrections
+    (D14) are not rolled back: the price before a fix was a mistake, not a price anyone paid.
     """
     added, removed = record[6], record[7]
     if (added and day < added) or (removed and day >= removed):
@@ -105,7 +105,7 @@ def price_at(record, events, day):
     for when, kind, field, old, new, flag in reversed(events):
         if when <= day:
             break
-        if kind == "price" and field in now and flag != "unit":
+        if kind == "price" and field in now and flag not in ("unit", "likely"):
             old = _number(old)
             now[field] = None if old is None else old * 1_000_000
     read, written = now[PRICES[0]], now[PRICES[1]]

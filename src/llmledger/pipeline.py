@@ -5,14 +5,14 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from llmledger import arena, catalog, events, history, licences, page, route_eval, sql, survival, trends
+from llmledger import arena, catalog, corrections, events, guard, history, licences, page, route_eval, sql, survival, trends
 
 SOURCE = "https://github.com/BerriAI/litellm.git"
 UPSTREAM = Path("data/upstream")
 EVENTS = "data/events.csv"
 SURVIVAL = "data/survival.csv"
 SITE = "site"
-LIVE = "https://pouriaetab.github.io/llmledger/"   # the published page, read back only if Arena is down
+LIVE = "https://pouriaetab.github.io/llmledger/"   # the published page: compared before publishing, and read back if Arena is down
 
 
 def check_python(pin_file=".python-version"):
@@ -65,6 +65,8 @@ def main():
     data["licences"] = report
     if route_eval.RESULT.exists():
         data["route_eval"] = json.loads(route_eval.RESULT.read_text())
+    if corrections.OUT.exists():
+        data["corrections"] = corrections.summary(json.loads(corrections.OUT.read_text()))
     if data["arena"]:
         print(f"Arena ratings: {data['arena']['matched']} of "
               f"{data['arena']['total']} models matched to the catalogue")
@@ -78,6 +80,8 @@ def main():
         "built": datetime.now(timezone.utc),
         "python": platform.python_version(),
     }
+    data["built"] = info["built"].isoformat(timespec="seconds")
+    guard.check(data, LIVE + "data.js")
     print("page written:", page.main(SURVIVAL, SITE, info, data))
 
 

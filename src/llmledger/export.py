@@ -7,6 +7,8 @@ to those models, and the Arena ratings by task. Same sources and licences as the
 import json
 import math
 
+from llmledger import flags
+
 SCHEMA = 1
 FIELDS = ("key", "maker", "name", "host", "mode", "status", "added", "removed", "retire",
           "input", "output", "repriced", "last", "exit", "age", "skills", "size", "media",
@@ -59,7 +61,9 @@ def machine(data, info):
         "credits": CREDITS,
         "units": {"prices": "dollars per 1M tokens", "events": ["day", "kind", "field", "old", "new", "flag"],
                   "ratings": ["model", "arena name", "rating", "low", "high", "votes", "arena rank"],
-                  "outlook": "estimate, low and high of a 95% interval, by outcome"},
+                  "outlook": "estimate, low and high of a 95% interval, by outcome",
+                  "flags": flags.TEXT},
+        "corrections": data.get("corrections"),
         "models": models,
         "events": events,
         "ratings": None if not arena else {

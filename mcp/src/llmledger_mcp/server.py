@@ -6,6 +6,7 @@ since 2023 with how likely a price is to change next. Runs on the user's own com
 stdio; reads the day's data.json, cached for a day.
 """
 import time
+from datetime import datetime, timezone
 from typing import Annotated, Literal
 
 from fastmcp import FastMCP
@@ -22,6 +23,15 @@ PLANS = {"claude": ("anthropic", "anthropic", "Claude"), "chatgpt": ("openai", "
 READ_ONLY = ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=False)
 PLAN_NOTE = ("Plan use is an estimate: plans do not publish per-model limits, so it assumes a plan runs down "
              "in step with each model's API price on the maker's own host.")
+STALE_DAYS = 3
+# What each tag on a change means, when the data is older than the one that explains them (data.json units.flags)
+FLAGS = {
+    "bulk": "bulk clean up: one of 50 or more models removed on the same day",
+    "unit": "unit fix: a price made 100 times larger or smaller",
+    "reverted": "a price change undone within 30 days, or the change that undid it",
+    "likely": ("likely correction: a price change in the model's first 7 days, from 0, or of 10 times or more "
+               "either way; 9 in 10 such first price changes were corrections in a labelled sample"),
+}
 EFFORT_NOTE = ("The effort level is a rule of thumb from the task and the prompt. Higher effort writes more hidden "
                "answer tokens, and no open source measures how many yet.")
 
@@ -46,11 +56,35 @@ def shelf():
     return _SHELF
 
 
+def age_days(built, now=None):
+    """How many whole days old the data is, or None when its build time is unknown."""
+    try:
+        return int(((now or datetime.now(timezone.utc)) - datetime.fromisoformat(built)).total_seconds() // 86400)
+    except (TypeError, ValueError):                      # missing, not a date, or without a time zone
+        return None
+
+
 def footer(s):
     d = s.data
-    return {"data": {"built": d.get("built"), "litellm_changed": (d.get("litellm") or {}).get("changed"),
-                     "ratings_published": s.rating_date, "copy": s.where},
-            "credits": d.get("credits")}
+    out = {"data": {"built": d.get("built"), "litellm_changed": (d.get("litellm") or {}).get("changed"),
+                    "ratings_published": s.rating_date, "copy": s.where},
+           "credits": d.get("credits")}
+    days = age_days(d.get("built"))
+    if days is not None and days >= STALE_DAYS:
+        out["data"]["warning"] = (f"This data is {days} days old: the daily rebuild has not run since, so prices, "
+                                  "ratings and changes may be out of date.")
+    return out
+
+
+def correction_note(s):
+    """How many first price changes were corrections, from the labelled sample the data carries."""
+    c = s.data.get("corrections") or {}
+    if not (c.get("first_week") and c.get("later")):
+        return None
+    return (f"A price change counts corrections too: in a labelled sample, {round(100 * c['first_week']['share'])}% "
+            f"of first price changes in a model's first week and {round(100 * c['later']['share'])}% of later ones "
+            "fixed a wrong catalogue entry rather than changed the price, so a real price change is less likely "
+            "than the outlook says. Changes flagged likely are probably such corrections.")
 
 
 def listing(s, group, plan=None, input_tokens=0, output_tokens=0, needs=(), min_context=None):
@@ -233,11 +267,16 @@ def price_history(
         out.append({"listing": key, "host": m["host"], "added": m.get("added") or "before Sept 2023",
                     "retirement_date": m.get("retire") or None, "price_per_1m": prices(m),
                     "price_changes": m.get("price_changes"), "changes": events, "outlook": m.get("outlook")})
+    used = sorted({e["flag"] for x in out for e in x["changes"] if e["flag"]})
+    meaning = {**FLAGS, **((s.data.get("units") or {}).get("flags") or {})}
+    notes = ["Prices per 1M tokens. price_changes counts changes from one price to another, without the flagged ones.",
+             "The outlook covers listings that have not changed since they were added: Aalen-Johansen estimates "
+             "with 95% intervals, among listings of the same age. What usually happens in the catalogue, not a "
+             "forecast for one model."]
+    if correction_note(s):
+        notes.append(correction_note(s))
     return {"model": group, "listings": out, "listings_in_total": len(s.groups[group]),
-            "notes": ["Prices per 1M tokens. A flag marks a bulk clean up, a unit fix or a change that was undone.",
-                      "The outlook covers listings that have not changed since they were added: Aalen-Johansen estimates "
-                      "with 95% intervals, among listings of the same age. What usually happens in the catalogue, not a "
-                      "forecast for one model."], **footer(s)}
+            "flags": {f: meaning.get(f, f) for f in used}, "notes": notes, **footer(s)}
 
 
 @mcp.tool(annotations=READ_ONLY)

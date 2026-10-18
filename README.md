@@ -14,7 +14,7 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.11. The data and the page refresh every day.
+**Status:** version 1.12. The data and the page refresh every day.
 
 Paste a prompt on the live page to see the best value model for it, the top rated one and the
 cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
@@ -47,8 +47,10 @@ replays two years of Arena's leaderboards and what top quality has cost.
    last 7 days and the most repriced models. Every table sorts, keeps its
    header in view and lets you move columns, and remembers all of it.
 6. **Flags corrections.** Tags bulk clean ups (50 or more models removed on the
-   same day), unit fixes (a price made 100 times larger or smaller) and changes
-   undone within 30 days, and shows the results with and without them.
+   same day), unit fixes (a price made 100 times larger or smaller), changes
+   undone within 30 days and likely corrections (a price change in a model's
+   first 7 days, from 0, or of 10 times or more), and shows the results with
+   and without them.
 7. **Checks itself in SQL.** Every run builds the table of models a second time
    in SQL (`survival.sql`, run with SQLite) and stops before publishing if SQL
    and Python disagree on any model.
@@ -102,6 +104,11 @@ replays two years of Arena's leaderboards and what top quality has cost.
     catalogue fixes its own entry instead of recording a real price change,
     and how well simple rules and a small model tell the two apart. See
     [How many first price changes are corrections?](#how-many-first-price-changes-are-corrections)
+18. **Checks every build before it goes live.** A build that knows fewer
+    models than the live page, lists a quarter fewer, or has older data is
+    not published. When the data is 3 or more days old, the page and the
+    plug-in say so, and a failed daily refresh opens an issue in this
+    repository until a refresh passes again.
 
 ## First results
 
@@ -123,7 +130,10 @@ overstate all three.
 Counting only input and output token prices, the one year price change estimate
 is 12.5%. Ignoring price changes in a model's first week, it is 12.0%. Many of
 the changes counted are corrections of the catalogue, not real price changes:
-see the next section.
+see the next section. On the data of 18 October 2026, leaving out likely
+corrections as well as unit fixes and undone changes, it is 10.0% (9.1 to
+11.1), against 14.6% (13.5 to 15.7) counting every change; that still counts
+some corrections.
 
 Corrections and clean ups matter more for removals. The one year removal
 estimate above includes a clean up that removed about 500 OpenRouter rows on
@@ -162,6 +172,12 @@ reprice the model, and corrections are common after the first week too. The
 tags miss most of them. Counting the unclear rows as repricings instead, the
 share is 46%; counting them as corrections, 70%.
 
+Since version 1.12 the page tags the fourth rule as a **likely correction**
+and gives every estimate without those changes too. It does not find them
+all: of the first price changes it does not tag, about 40% (24 to 61) are
+still corrections, so even that estimate overstates how often a host really
+changes a price.
+
 ## How it works
 
 The full method is in [docs/SPEC.md](docs/SPEC.md): definitions, numbered
@@ -195,11 +211,16 @@ PYTHONPATH=src python -m llmledger.pipeline    # writes data/ and site/index.htm
 PYTHONPATH=src python -m llmledger.simulate    # simulation check, about 2 minutes
 ```
 
-Tests (130 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+Before it writes the page, the pipeline compares its data with the live page
+and stops if the new build is a step back (fewer models, a quarter fewer
+listed, or older data). Set `LLMLEDGER_SKIP_LIVE_CHECK=1` to publish anyway,
+for example after LiteLLM rewrites its history.
+
+Tests (154 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
 Arena matching, task guess, model comparison, plug-in parity, trends, licences,
-page and version checks; the prompt cost, task guess, comparison, trends drawing
-and parity tests need Node.js and are skipped without it; the plug-in has 8 more
-in `mcp/tests`),
+the check against the live page, page and version checks; the prompt cost, task
+guess, comparison, trends drawing and parity tests need Node.js and are skipped
+without it; the plug-in has 10 more in `mcp/tests`),
 with the exact versions pinned in `requirements.txt`:
 
 ```bash
@@ -258,13 +279,15 @@ src/llmledger/       history.py, events.py, flags.py (corrections),
                      pick.js (compare side by side), export.py (data.json),
                      trends.py and trends.js (the Trends view, cost vs quality),
                      corrections.py (how many price changes are corrections),
+                     guard.py (no step back from the live page),
                      table_protocol.js (results page), pipeline.py
 tests/               known answer, simulation, naming, page and version tests
 mcp/                 the plug-in (llmledger-mcp): FastMCP server, tests, server.json
 docs/SPEC.md         definitions, requirements, limitations, traceability
 docs/corrections/    labelling guide and the labelled sample (issue #7)
 .github/workflows/   tests on every pull request; refresh rebuilds and
-                     publishes the results page every day
+                     publishes the results page every day, and opens an
+                     issue when it fails
 ```
 
 Built with an AI pair programmer (Claude); the specification, the statistical

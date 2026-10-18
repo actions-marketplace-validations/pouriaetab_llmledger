@@ -96,3 +96,27 @@ def test_req_s37_report_rebuilds_from_the_sample():
     for rule in main["rules"].values():
         low, high = rule["precision_95"]
         assert low <= rule["precision"] <= high
+
+
+def test_req_s37_the_likely_correction_tag_is_the_rule_measured():
+    # the page's tag (D14) and the study's first-week-or-tenfold rule are one function
+    for days, old, new in [(3, 1e-6, 2e-6), (30, 1e-6, 1e-5), (30, 0, 1e-6), (30, 1e-6, 9e-6), (8, 1e-6, 0)]:
+        assert K.rules(case(days, old, new))["first_week_or_tenfold"] == K.flags.likely(old, new, days)
+    saved = json.loads(K.OUT.read_text())
+    tag = saved["main"]["rules"]["first_week_or_tenfold"]
+    low, high = tag["corrections_left_95"]
+    assert low <= tag["corrections_left"] <= high
+    short = K.summary(saved)
+    assert short["labelled"] == 200 and short["first_week_days"] == 7
+    assert short["first_week"]["share"] == saved["main"]["corrections"]["first_week"]["share"]
+    assert short["likely_tag"]["corrections_left"] == tag["corrections_left"]
+
+
+def test_req_s37_the_page_quotes_the_numbers_measured():
+    tag = json.loads(K.OUT.read_text())["main"]["rules"]["first_week_or_tenfold"]
+    page = (K.HERE / "page.html").read_text()
+    in_ten = {round(10 * tag["precision"]), round(10 * tag["corrections_left"])}
+    assert in_ten == {9, 4}
+    assert "9 in 10 such first\nprice changes were corrections" in page
+    assert "about 4 in 10 of those the second one keeps were\nstill corrections" in page
+

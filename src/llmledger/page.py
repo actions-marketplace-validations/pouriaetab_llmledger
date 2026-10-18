@@ -21,11 +21,13 @@ DEFINITION_LABELS = {
     "main": "Any price field (main result)",
     "headline": "Input and output token prices only",
     "no_first_week": "Ignoring changes in the first week",
-    "real_only": "Leaving out corrections",
+    "real_only": "Leaving out unit fixes and undone changes",
+    "likely_real": "Leaving out likely corrections as well",
 }
 COMPARED = {
     "main": "Every change (main result)",
-    "real_only": "Real changes only",
+    "real_only": "Leaving out unit fixes and undone changes",
+    "likely_real": "Leaving out likely corrections as well",
 }
 REPO = "https://github.com/pouriaetab/llmledger"
 LITELLM = "https://github.com/BerriAI/litellm"
@@ -138,6 +140,8 @@ def render(results, info, assets=None):
     assets = assets or {key: "dev" for key in ASSETS}
     days = sorted({day for d, day, _ in results if d == "main"})
     year = {o: percent(results[("main", 365, o)][0]) for o in OUTCOMES}
+    likely = (f"Leaving out likely corrections, {interval(results, ('likely_real', 365, 'price'))} "
+              "changed price within a year." if ("likely_real", 365, "price") in results else "")
     template = Template(Path(__file__).with_name("page.html").read_text())
     return template.substitute(
         models=f"{info['models']:,}",
@@ -145,6 +149,7 @@ def render(results, info, assets=None):
         price=year["price"],
         retirement=year["retirement"],
         removed=year["removed"],
+        likely_line=likely,
         bars=bars(results, days),
         table=table(results, days),
         sensitivity=sensitivity(results),

@@ -273,6 +273,8 @@ input[type="number"] { width: 6.5em; }
 select.pill { border-radius: 999px; padding: 4px 12px; background: var(--card); width: auto; max-width: 240px; }
 .suggest { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 18px 0; }
 #notice { color: var(--retirement); min-height: 1.2em; }
+.stale { margin: 12px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--raised);
+  border: 1px solid var(--retirement); font-size: 0.9rem; }
 
 /* section heads for Models, Trends and About */
 .page-head { padding: 34px 0 6px; }
@@ -421,6 +423,7 @@ footer { font-size: 0.75rem; }
 </div></header>
 
 <main>
+<p id="stale" class="stale" role="status" hidden></p>
 <!-- ============ Ask: one box, three answers ============ -->
 <section id="tab-ask">
 <div class="ask-top">
@@ -626,6 +629,8 @@ claude-3.5-sonnet). The <b>host</b> is LiteLLM's own provider field.</p>
   <div class="tile"><b>$retirement</b><span>got a retirement date</span></div>
   <div class="tile"><b>$removed</b><span>were removed</span></div>
 </div>
+<p class="muted">Many price changes fix a wrong entry in the catalogue rather than change what a host charges.
+$likely_line</p>
 <div class="seg" role="tablist" aria-label="Price history views">
   <button type="button" data-panel="overview" aria-pressed="true">Over time</button>
   <button type="button" data-panel="week">Last 7 days</button>
@@ -651,10 +656,13 @@ to 100% because the exits compete: once a model is removed, its price can no lon
 <details class="sub"><summary>Does the definition matter?</summary>
 <div class="scroll">$sensitivity</div>
 </details>
-<details class="sub"><summary>Every change, or real changes only?</summary>
-<p class="muted">Real changes only leaves out unit fixes (a price made 100 times larger or smaller) and price
-changes undone within 30 days, and treats a model removed in a bulk clean up (50 or more removed on the same
-day) as still followed until that day.</p>
+<details class="sub"><summary>Every change, or leaving out corrections?</summary>
+<p class="muted">Leaving out unit fixes and undone changes ignores a price made 100 times larger or smaller and
+a price change undone within 30 days, and treats a model removed in a bulk clean up (50 or more removed on the
+same day) as still followed until that day. Leaving out likely corrections as well also ignores a price change
+in a model's first 7 days, one from a price of 0, and one of 10 times or more either way. Neither finds every
+correction: in a labelled sample of 200 first price changes, about 4 in 10 of those the second one keeps were
+still corrections, so both overstate how often a host really changes a price.</p>
 <div class="scroll">$corrections</div>
 </details>
 </div>
@@ -662,7 +670,9 @@ day) as still followed until that day.</p>
 <div id="panel-week" hidden>
 <h2>Changed in the last 7 days</h2>
 <p class="muted">Tags mark <b>bulk clean ups</b> (50 or more models removed on the same day), <b>unit fixes</b>
-(a price made 100 times larger or smaller) and <b>reverted</b> changes (undone within 30 days).</p>
+(a price made 100 times larger or smaller), <b>reverted</b> changes (undone within 30 days) and <b>likely
+corrections</b> (a price change in a model's first 7 days, from 0, or of 10 times or more: 9 in 10 such first
+price changes were corrections in a labelled sample).</p>
 <div class="controls" id="week-filters"></div>
 <div id="week-table"></div>
 </div>
@@ -677,8 +687,8 @@ day) as still followed until that day.</p>
   </span>
 </div>
 <h2>Most repriced</h2>
-<p class="muted">Changes from one price to another; first prices, unit fixes and changes undone within 30 days
-are not counted.</p>
+<p class="muted">Changes from one price to another; first prices, unit fixes, changes undone within 30 days and
+likely corrections are not counted.</p>
 <div id="top-repriced"></div>
 <h2>Hosts most likely to change a price within a year</h2>
 <p class="muted">Only hosts with at least 100 models still followed at one year.</p>
@@ -709,7 +719,8 @@ type the tokens you see in your own use to compare. On a Claude or ChatGPT plan 
 table assumes a plan is used up in proportion to each model's API price, because plans do not publish per-model limits.</p>
 <p class="muted">Many price changes in the catalogue fix a wrong entry rather than change what a host charges: in a labelled
 sample of 200, about 6 in 10 first price changes were such corrections (86% of those in a model's first week). The chances
-of a price change on this page count them as price changes.</p>
+of a price change on this page count them as price changes. Price history also shows the chance leaving out likely
+corrections, and tags them; the tags miss some corrections, so that chance is still too high.</p>
 </details>
 <details class="sub"><summary>Data, licences and method</summary>
 <p class="muted">Data: LiteLLM <code>main</code> at <a href="$litellm/commit/$sha">$short</a>, last price file

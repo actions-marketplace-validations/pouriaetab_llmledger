@@ -63,3 +63,27 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+  # A failed refresh publishes nothing, so the live page keeps the last good data (and says so after
+  # 3 days). Open one issue about it, and close it when a refresh is published again.
+  report:
+    needs: [build, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open or close the failed refresh issue
+        run: |
+          open=$(gh issue list --state open --search "Daily refresh failed in:title" --json number --jq '.[].number')
+          if [ "$BUILD" = "success" ] && [ "$DEPLOY" = "success" ]; then
+            for n in $open; do
+              gh issue close "$n" --comment "Fixed: this refresh passed and was published. $RUN"
+            done
+          elif [ -z "$open" ]; then
+            gh issue create --title "Daily refresh failed" \
+              --body "The refresh of $(date -u +%F) did not publish (build: $BUILD, deploy: $DEPLOY), so the page keeps the last good data. Run log: $RUN"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BUILD: ${{ needs.build.result }}
+          DEPLOY: ${{ needs.deploy.result }}

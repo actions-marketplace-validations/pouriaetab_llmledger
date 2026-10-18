@@ -41,9 +41,14 @@
     return esc(typeof v === "object" ? JSON.stringify(v) : v);
   }
 
-  const FLAGS = { bulk: "bulk clean up", unit: "unit fix", reverted: "reverted" };
-  const tag = flag => flag ? ' <span class="tag" title="Left out of the real changes only estimates">' +
-    FLAGS[flag] + "</span>" : "";
+  const FLAGS = { bulk: "bulk clean up", unit: "unit fix", reverted: "reverted", likely: "likely correction" };
+  const WHY = {
+    bulk: "50 or more models removed on the same day",
+    unit: "a price made 100 times larger or smaller",
+    reverted: "a price change undone within 30 days",
+    likely: "in the model's first 7 days, from 0, or 10 times or more: 9 in 10 such first price changes were corrections in a labelled sample",
+  };
+  const tag = flag => FLAGS[flag] ? ' <span class="tag" title="' + esc(WHY[flag]) + '">' + FLAGS[flag] + "</span>" : "";
 
   function change(kind, field, oldV, newV) {
     if (kind === "added") return "Added";
@@ -65,6 +70,18 @@
     return '<div class="scroll"><table data-key="' + key + '"><thead><tr>' + th +
       "</tr></thead><tbody>" + body + "</tbody></table></div>";
   }
+
+  /* ---------- old data (REQ-S39) ---------- */
+  // The page is rebuilt every day. If that stops, say so instead of showing old prices as today's.
+  const STALE_DAYS = 3;
+  (function staleNotice() {
+    const built = Date.parse(D.built || D.end);
+    const days = Math.floor((Date.now() - built) / 86400000);
+    if (!(days >= STALE_DAYS) || !$("stale")) return;
+    $("stale").textContent = "This data is " + days + " days old (built " + String(D.built || D.end).slice(0, 10) +
+      "): the daily rebuild has not run since, so prices, ratings and changes may be out of date.";
+    $("stale").hidden = false;
+  })();
 
   /* ---------- remembered settings (this browser only) ---------- */
   const STORE = "llmledger:page";
@@ -213,6 +230,15 @@
     $("results").innerHTML = html;
   }
 
+  // How many first price changes were corrections, from the labelled sample (corrections_eval.json).
+  function correctionNote() {
+    const c = D.corrections;
+    if (!c || !c.first_week || !c.later) return "";
+    return "A price change here counts corrections too: in a labelled sample, " + Math.round(100 * c.first_week.share) +
+      "% of first price changes in a model's first week and " + Math.round(100 * c.later.share) +
+      "% of later ones fixed a wrong entry rather than changed the price, so a real price change is less likely than this.";
+  }
+
   function outlookFor(m) {
     if (m.status !== "listed") return "<p>No longer listed, so there is no outlook.</p>";
     if (!m.added) return "<p>Listed before the history starts (September 2023), so its age is unknown and there is no outlook.</p>";
@@ -234,7 +260,8 @@
     return "<p>This model is " + Math.round(m.age) + " days old and has not changed since it was added. " +
       "Among " + who + " that reached this age without a change:</p><ul>" + parts.join("") +
       '</ul><p class="muted">Aalen-Johansen estimates conditional on reaching this age, with 95% bootstrap intervals. ' +
-      "They describe what usually happens to entries in LiteLLM's catalogue, not a forecast for this model alone.</p>";
+      "They describe what usually happens to entries in LiteLLM's catalogue, not a forecast for this model alone. " +
+      correctionNote() + "</p>";
   }
 
   // A model's details open in a drawer over the page, so the page itself never has to scroll to them.
@@ -941,7 +968,7 @@
       '<button type="button" data-kind="' + k + '"' + (weekKind === k ? ' aria-pressed="true"' : "") + ">" +
       label + " (" + (counts[k] || 0) + ")</button>")).join(" ") +
       ' <label class="check"><input type="checkbox" id="week-real"' + (weekReal ? " checked" : "") +
-      "> Hide corrections and bulk clean ups</label>";
+      "> Hide tagged changes</label>";
     const rows = pool.filter(r => !weekKind || r[2] === weekKind).slice().reverse();
     const shown = weekAll ? rows : rows.slice(0, SHOWN);
     $("week-table").innerHTML = table(["Date", "Model", "Host", "Change", "Before", "After"], shown.map(r => {

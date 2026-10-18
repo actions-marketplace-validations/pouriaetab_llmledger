@@ -1,2 +1,2 @@
 """llmledger-mcp: which AI model, and what it costs, inside Claude and other AI apps."""
-__version__ = "0.1.1"
+__version__ = "0.1.2"

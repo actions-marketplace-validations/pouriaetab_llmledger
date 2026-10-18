@@ -78,3 +78,13 @@ def test_req_s33_yesterdays_trends_are_kept_when_arena_is_down(monkeypatch):
     assert trends.previous("https://example.org/data.js")["date"] == "2026-10-15"
     monkeypatch.setattr(trends.arena, "_get_text", lambda url: (_ for _ in ()).throw(OSError("down")))
     assert trends.previous("https://example.org/data.js") is None
+
+
+def test_req_s33_a_likely_correction_is_not_rolled_back():
+    record = ["x/m", "x", "m", "x", "chat", "listed", "2025-01-01", "", "", 1.0, 4.0]
+    events = [["2025-01-01", "added", "", None, None, ""],
+              ["2025-01-03", "price", "input_cost_per_token", 1e-5, 1e-6, "likely"],   # a typo fixed in week one
+              ["2025-06-01", "price", "output_cost_per_token", 2e-6, 4e-6, ""]]       # a real increase
+    assert trends.price_at(record, events, "2025-01-02") == trends.blend(1.0, 2.0)
+    assert trends.price_at(record, events, "2025-07-01") == trends.blend(1.0, 4.0)
+
