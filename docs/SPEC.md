@@ -353,13 +353,30 @@ at ten window sizes from 375 x 560 to 1920 x 1080 (his laptop's 1269 x 746
 among them), light and dark: no sideways scroll and nothing cut in any
 view or panel.
 
+**REQ-S37 Corrections measured.** A stratified random sample of first price
+changes (D5) of models added after time zero, 100 from a model's first 7 days
+and 100 from later (seed 7), shall be labelled correction, repricing or
+unclear from the evidence for each row, following
+`docs/corrections/labelling-guide.md`, and kept with the reason for each
+label in `docs/corrections/sample.csv`. The share of corrections, and the
+precision and recall of the page's tags (D11, D12), of a first-week rule, of
+both, of a first-week-or-tenfold rule and of a cross-validated logistic
+model, shall be reported weighted to the population, with 95% intervals from
+a bootstrap of whole LiteLLM commits within strata, in
+`src/llmledger/corrections_eval.json` and the README, also with the unclear
+rows counted as repricings and as corrections. Verified by: automated tests
+of the population, the sample, the rules, the scores and the model, and a
+test that the report is rebuilt exactly from the labelled sample.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
   when a provider changed a price. The lag is unknown.
-- **L2** Some price changes in the first week correct a wrong
-  first entry rather than reprice the model (issue #7). D11 and D12
-  catch the clear cases; smaller corrections still count.
+- **L2** Many price changes correct the catalogue rather than reprice the
+  model: in the labelled sample of REQ-S37, about 59% of first price changes
+  (95% interval 41 to 75%), 86% in a model's first week and 51% later. D11
+  and D12 tag about a third of them, which the real-changes-only estimate
+  (REQ-S21) leaves out; the main estimate counts them all.
 - **L3** A renamed model appears as one removal and one
   addition.
 - **L4** A retirement announcement counts even if the date
@@ -477,6 +494,7 @@ view or panel.
 | REQ-S33 | `test_req_s33_renamed_arena_models_keep_one_line`, `test_req_s33_a_price_is_rolled_back_to_the_day`, `test_req_s33_lines_makers_and_the_price_race`, `test_req_s33_no_history_means_no_trends`, `test_req_s33_yesterdays_trends_are_kept_when_arena_is_down`, `test_req_s33_a_rating_gap_in_plain_odds`, `test_req_s33_a_line_is_drawn_between_its_points_and_ends_after_a_month`, `test_req_s33_labels_never_overlap_and_stay_inside`, `test_req_s33_round_ticks`, `test_req_s33_trends_view_replays_the_leaderboards`, `test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_charts`; the page in a browser at 1366 and 390 pixels wide, light and dark | test, demonstration |
 | REQ-S34 | `test_req_s34_the_edge_keeps_only_models_nobody_beats_on_both`, `test_req_s34_cost_vs_quality_sits_on_ask`; the page in a browser | test, demonstration |
 | REQ-S35 | `test_req_s35_new_arrivals_are_new_groups_with_a_text_price`, `test_req_s35_latest_changes_fold_batches_and_join_price_fields` | test |
+| REQ-S37 | `test_req_s37_first_price_changes_and_strata`, `test_req_s37_the_sample_is_the_same_every_time`, `test_req_s37_rules_known_answers`, `test_req_s37_weighted_scores_known_answer`, `test_req_s37_model_learns_a_clear_pattern`, `test_req_s37_labelled_sample_is_complete`, `test_req_s37_report_rebuilds_from_the_sample`; `corrections_eval.json` | test, analysis |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
