@@ -14,12 +14,15 @@ from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from llmledger_mcp import __version__, data, logic, tools
+from llmledger_mcp import __version__, data, logic, speed, tools
 
 Task = Literal[tuple(logic.TASKS)]
 Pay = Literal[tools.PAYS]
 Need = Literal[tools.NEEDS]
+Way = Literal[speed.WAYS]
 READ_ONLY = ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=False)
+WRITES_LOCAL = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False,
+                               open_world_hint=False)
 
 mcp = FastMCP(
     "llmledger",
@@ -27,8 +30,9 @@ mcp = FastMCP(
         "Which AI model to use, and what it costs. Prices come from LiteLLM's public catalogue, quality from "
         "Arena's votes, and each price's full history from llmledger. Use suggest_for_project for 'which model "
         "for this', compare_models to put 2 to 6 models side by side, estimate_cost for a budget, find_models to "
-        "browse, price_history for one model (or its price on a date), and not_yet_priced for new models without a "
-        "price. Costs and ratings are estimates; pass on the credits line."),
+        "browse, price_history for one model (or its price on a date), not_yet_priced for new models without a "
+        "price, and estimate_time for how long a job takes (it learns from runs given to log_run). Costs and "
+        "ratings are estimates; pass on the credits line."),
     version=__version__,
 )
 
@@ -41,6 +45,14 @@ def shelf():
     if _SHELF is None or time.time() - _SHELF.loaded > data.MAX_AGE:
         _SHELF = data.Shelf(*data.load())
     return _SHELF
+
+
+def shelf_if_any():
+    """The data when it can be loaded; timing a local model needs no prices."""
+    try:
+        return shelf()
+    except Exception:
+        return None
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -134,6 +146,46 @@ def not_yet_priced(
     usually prices a model after Arena first shows it, by maker."""
     try:
         return tools.not_yet_priced(shelf(), maker=maker)
+    except tools.NotFound as error:
+        raise ToolError(str(error)) from None
+
+
+@mcp.tool(annotations=READ_ONLY)
+def estimate_time(
+    model: Annotated[str, Field(description="A model name, as the catalogue or Ollama names it")],
+    input_tokens: Annotated[int, Field(description="Prompt tokens per call", ge=0)],
+    output_tokens: Annotated[int, Field(description="Answer tokens per call, including hidden thinking", ge=0)],
+    calls: Annotated[int, Field(description="How many calls the job makes", ge=1)] = 1,
+    way: Annotated[Way, Field(description="How the model is called")] = "api",
+    thinking: Annotated[bool, Field(description="Thinking turned on")] = False,
+    concurrency: Annotated[int, Field(description="Calls running at once", ge=1)] = 1,
+) -> dict:
+    """How long one call and the whole job take, as a usual time and a slow day, learned from your own timed runs
+    of that model called that way (log_run). Says so when there are no runs yet."""
+    try:
+        return tools.estimate_time(shelf_if_any(), model=model, input_tokens=input_tokens, output_tokens=output_tokens,
+                                   calls=calls, way=way, thinking=thinking, concurrency=concurrency)
+    except tools.NotFound as error:
+        raise ToolError(str(error)) from None
+
+
+@mcp.tool(annotations=WRITES_LOCAL)
+def log_run(
+    model: Annotated[str | None, Field(description="The model that ran")] = None,
+    input_tokens: Annotated[int | None, Field(description="Prompt tokens of the call", ge=0)] = None,
+    output_tokens: Annotated[int | None, Field(description="Answer tokens of the call, hidden thinking included", ge=0)] = None,
+    seconds: Annotated[float | None, Field(description="How long the call took", gt=0)] = None,
+    way: Annotated[Way, Field(description="How the model was called")] = "api",
+    thinking: Annotated[bool, Field(description="Thinking was on")] = False,
+    task: Annotated[str | None, Field(description="The kind of work, if known")] = None,
+    promptfoo_results: Annotated[str | None, Field(description="Path of a promptfoo results file (promptfoo eval -o results.json): every result becomes a run")] = None,
+) -> dict:
+    """Keep a timed run, or every result of a promptfoo results file, in a file on this computer so estimate_time
+    learns from it. Nothing is sent anywhere."""
+    try:
+        return tools.log_run(shelf_if_any(), model=model, input_tokens=input_tokens, output_tokens=output_tokens,
+                             seconds=seconds, way=way, thinking=thinking, task=task,
+                             promptfoo_results=promptfoo_results)
     except tools.NotFound as error:
         raise ToolError(str(error)) from None
 

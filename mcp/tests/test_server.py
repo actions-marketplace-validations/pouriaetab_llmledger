@@ -21,7 +21,7 @@ def call(tool, **args):
     return asyncio.run(go())
 
 
-def test_the_six_tools_a_resource_and_a_prompt_are_listed():
+def test_the_tools_a_resource_and_a_prompt_are_listed():
     async def go():
         async with Client(mcp) as client:
             tools = {t.name: t for t in await client.list_tools()}
@@ -30,9 +30,11 @@ def test_the_six_tools_a_resource_and_a_prompt_are_listed():
             snap = json.loads((await client.read_resource("llmledger://snapshot"))[0].text)
             return tools, resources, prompts, snap
     tools, resources, prompts, snap = asyncio.run(go())
-    assert sorted(tools) == ["compare_models", "estimate_cost", "find_models", "not_yet_priced", "price_history",
-                             "suggest_for_project"]
-    assert all(t.annotations.read_only_hint for t in tools.values())
+    assert sorted(tools) == ["compare_models", "estimate_cost", "estimate_time", "find_models", "log_run",
+                             "not_yet_priced", "price_history", "suggest_for_project"]
+    # every tool only reads, except log_run, which adds a line to a file on this computer
+    assert [n for n, t in tools.items() if not t.annotations.read_only_hint] == ["log_run"]
+    assert tools["log_run"].annotations.destructive_hint is False
     assert resources == ["llmledger://snapshot"] and prompts == ["pick_a_model"]
     assert snap["models_listed"] == 6 and snap["rated_tasks"] == {"overall": 4, "coding": 3}
     assert "MIT" in snap["credits"]["prices"]

@@ -31,13 +31,13 @@ def frontmatter():
 
 
 def test_req_s41_the_skill_carries_an_exact_copy_of_the_plugin_code():
-    for name in ("__init__.py", "data.py", "logic.py", "tools.py"):
+    for name in ("__init__.py", "data.py", "logic.py", "tools.py", "speed.py"):
         assert (SKILL / "scripts" / "llmledger_mcp" / name).read_bytes() == (PLUGIN / name).read_bytes(), name
     # the shared code needs nothing outside the standard library
-    for name in ("data.py", "logic.py", "tools.py"):
+    for name in ("data.py", "logic.py", "tools.py", "speed.py"):
         imports = re.findall(r"^(?:from|import) (\w+)", (PLUGIN / name).read_text(), re.M)
         assert set(imports) <= {"gzip", "json", "os", "re", "tempfile", "time", "urllib", "importlib", "pathlib",
-                                "math", "datetime", "llmledger_mcp"}, (name, imports)
+                                "math", "datetime", "statistics", "llmledger_mcp"}, (name, imports)
 
 
 def test_req_s41_skill_md_follows_the_agent_skills_format():
@@ -49,7 +49,7 @@ def test_req_s41_skill_md_follows_the_agent_skills_format():
     assert f'version: "{VERSION}"' in head
     assert body.count("\n") < 500 and len(body) / 4 < 5000          # well under the format's limits
     assert "—" not in (SKILL / "SKILL.md").read_text()
-    for command in ("suggest", "compare", "cost", "find", "history", "tasks"):
+    for command in ("suggest", "compare", "cost", "find", "history", "unpriced", "time", "log", "tasks"):
         assert f"`{command}" in body
 
 
@@ -89,6 +89,21 @@ def test_req_s41_the_script_gives_the_plugins_answers():
     assert code == 0 and out["models"][0]["without_cache"]["per_call"] == (10000 * 4 + 1000 * 20) / 1e6
     code, out = run("unpriced")
     assert code == 1 and "no list of models not yet priced" in out["error"]   # the test data has none
+
+
+def test_req_s45_the_script_times_a_job_from_logged_runs(tmp_path, monkeypatch):
+    monkeypatch.setenv("LLMLEDGER_RUNS", str(tmp_path / "runs.jsonl"))
+    code, out = run("time", "claude-opus-5.5", "--input", "1000", "--output", "500")
+    assert code == 0 and out["estimate"] is None
+    for n in (100, 300, 500, 700, 900):
+        code, out = run("log", "claude-opus-5.5", "--input", "1000", "--output", str(n), "--seconds", str(1 + n / 100))
+        assert code == 0 and out["logged"] == 1
+    code, out = run("time", "claude-opus-5.5", "--input", "1000", "--output", "500", "--calls", "10", "--at-once", "2")
+    assert out["per_call_seconds"]["usual"] == 6.0 and out["job"]["usual_seconds"] == 30.0
+    # no data at all: timing a local model still works
+    code, out = run("time", "llama3.1:8b", "--input", "10", "--output", "10", "--way", "ollama",
+                    data="http://127.0.0.1:9/data.json", cache=tmp_path / "empty")
+    assert code == 0 and out["runs_used"] == 0
 
 
 def test_req_s41_the_script_says_what_went_wrong(tmp_path):

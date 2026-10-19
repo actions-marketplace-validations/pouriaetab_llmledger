@@ -30,3 +30,6 @@ dist/
 # ── macOS ─────────────────────────────────────────────────────────────
 .DS_Store
 site/
+
+# ── made fresh from the day's data before each promptfoo check ────────
+mcp/promptfoo/tests.json

@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from llmledger_mcp import data, logic, tools  # noqa: E402
+from llmledger_mcp import data, logic, speed, tools  # noqa: E402
 
 
 def _names(text):
@@ -57,11 +57,37 @@ def parser():
     u = sub.add_parser("unpriced", help="new models on Arena that have no price yet, and how soon prices usually come")
     u.add_argument("--maker", help="for example meta or ibm")
 
+    t = sub.add_parser("time", help="how long a call and a whole job take, learned from your own timed runs")
+    t.add_argument("model")
+    t.add_argument("--input", type=int, required=True, help="prompt tokens per call")
+    t.add_argument("--output", type=int, required=True, help="answer tokens per call, hidden thinking included")
+    t.add_argument("--calls", type=int, default=1)
+    t.add_argument("--at-once", type=int, default=1, help="calls running at the same time")
+    t.add_argument("--way", choices=speed.WAYS, default="api", help="how the model is called")
+    t.add_argument("--thinking", action="store_true")
+
+    g = sub.add_parser("log", help="keep a timed run (or a promptfoo results file) so time estimates learn from it")
+    g.add_argument("model", nargs="?")
+    g.add_argument("--input", type=int)
+    g.add_argument("--output", type=int)
+    g.add_argument("--seconds", type=float)
+    g.add_argument("--way", choices=speed.WAYS, default="api")
+    g.add_argument("--thinking", action="store_true")
+    g.add_argument("--task")
+    g.add_argument("--promptfoo", help="a promptfoo results file: promptfoo eval -o results.json")
+
     sub.add_parser("tasks", help="the kinds of work Arena rates, and what the data holds today")
     return p
 
 
 def run(args, shelf):
+    if args.command == "time":
+        return tools.estimate_time(shelf, args.model, args.input, args.output, calls=args.calls, way=args.way,
+                                   thinking=args.thinking, concurrency=args.at_once)
+    if args.command == "log":
+        return tools.log_run(shelf, model=args.model, input_tokens=args.input, output_tokens=args.output,
+                             seconds=args.seconds, way=args.way, thinking=args.thinking, task=args.task,
+                             promptfoo_results=args.promptfoo)
     if args.command == "suggest":
         return tools.suggest_for_project(shelf, args.prompt, pay=args.pay, answer=args.answer)
     if args.command == "compare":
@@ -84,7 +110,13 @@ def run(args, shelf):
 def main(argv=None):
     args = parser().parse_args(argv)
     try:
-        out = run(args, data.Shelf(*data.load()))
+        try:
+            shelf = data.Shelf(*data.load())
+        except RuntimeError:
+            if args.command not in ("time", "log"):
+                raise
+            shelf = None                                # timing a local model needs no prices
+        out = run(args, shelf)
     except (tools.NotFound, RuntimeError) as error:
         print(json.dumps({"error": str(error)}))
         return 1
