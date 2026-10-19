@@ -1,0 +1,14 @@
+{
+  "name": "llmledger",
+  "description": "llmledger as an Agent Skill: which AI model, and what it costs, from LiteLLM's prices, Arena's ratings and every price change since 2023.",
+  "owner": {
+    "name": "pouriaetab"
+  },
+  "plugins": [
+    {
+      "name": "llmledger",
+      "source": "./",
+      "description": "Pick an AI model and price AI work: cheapest listing per model, Arena ratings by task, price history and the chance of a change. A skill, so it costs almost no context until it is used."
+    }
+  ]
+}

@@ -54,7 +54,11 @@ def load(now=None):
             return json.loads(dest.read_text()), "downloaded" if fresh else "the last download (could not refresh it)"
         except ValueError:
             pass
-    return _bundled(), "the copy bundled with this version"
+    try:
+        return _bundled(), "the copy bundled with this version"
+    except (FileNotFoundError, ModuleNotFoundError):    # the Agent Skill carries no copy
+        raise RuntimeError(f"No data yet: {url} could not be downloaded and no copy is saved. "
+                           "Check the internet connection and try again.") from None
 
 
 class Shelf:

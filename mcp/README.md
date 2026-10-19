@@ -31,6 +31,10 @@ Claude Desktop (Settings, Developer, Edit config) or Cursor (`.cursor/mcp.json`)
 A LiteLLM proxy can offer it to a whole team through its MCP gateway, as a stdio server with the same
 command.
 
+The same answers also come as an Agent Skill, which takes far less of an agent's context until it is used
+and needs only Python: [skills/llmledger](https://github.com/pouriaetab/llmledger/tree/main/skills/llmledger).
+In Claude Code: `/plugin marketplace add pouriaetab/llmledger`, then `/plugin install llmledger@llmledger`.
+
 ## What you can ask
 
 | Tool | For example |

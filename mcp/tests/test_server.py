@@ -97,11 +97,11 @@ def test_suggest_for_project_reads_the_prompt():
 
 
 def test_a_free_listing_is_never_the_price():
-    from llmledger_mcp import data, server
+    from llmledger_mcp import data, tools
     raw = json.loads(Path(__file__).with_name("fixture.json").read_text())
     raw["models"].append(dict(raw["models"][0], key="freehost/claude-opus-5-5", host="freehost",
                               input=0.0, output=0.0, cache_read=None))
-    m, cost = server.listing(data.Shelf(raw, "test"), "anthropic / claude-opus-5.5", input_tokens=100, output_tokens=100)
+    m, cost = tools.listing(data.Shelf(raw, "test"), "anthropic / claude-opus-5.5", input_tokens=100, output_tokens=100)
     assert m["host"] == "anthropic" and cost > 0
 
 
@@ -124,14 +124,35 @@ def test_price_history_explains_its_flags_and_says_corrections_are_counted(monke
 def test_old_data_says_how_old_it_is():
     from datetime import datetime, timezone
 
-    from llmledger_mcp import data, server
+    from llmledger_mcp import data, tools
     now = datetime(2026, 10, 20, 12, tzinfo=timezone.utc)
-    assert server.age_days("2026-10-16T12:00:00+00:00", now) == 4
-    assert server.age_days("2026-10-18T13:00:00+00:00", now) == 1
-    assert server.age_days(None, now) is None and server.age_days("not a date", now) is None
-    assert server.age_days("2026-10-16T12:00:00", now) is None          # no time zone: unknown, not a crash
+    assert tools.age_days("2026-10-16T12:00:00+00:00", now) == 4
+    assert tools.age_days("2026-10-18T13:00:00+00:00", now) == 1
+    assert tools.age_days(None, now) is None and tools.age_days("not a date", now) is None
+    assert tools.age_days("2026-10-16T12:00:00", now) is None          # no time zone: unknown, not a crash
     raw = json.loads(Path(__file__).with_name("fixture.json").read_text())
-    fresh = server.footer(data.Shelf(dict(raw, built=datetime.now(timezone.utc).isoformat()), "test"))
+    fresh = tools.footer(data.Shelf(dict(raw, built=datetime.now(timezone.utc).isoformat()), "test"))
     assert "warning" not in fresh["data"]
-    old = server.footer(data.Shelf(dict(raw, built="2026-01-01T00:00:00+00:00"), "test"))
+    old = tools.footer(data.Shelf(dict(raw, built="2026-01-01T00:00:00+00:00"), "test"))
     assert old["data"]["warning"].startswith("This data is ") and "days old" in old["data"]["warning"]
+
+
+def test_a_model_is_priced_at_its_cheapest_listing_whatever_the_order(monkeypatch):
+    # Oct 18: compare_models showed claude-haiku-4.5 at a dearer listing that came first by name ($1.10/$5.50,
+    # not $1/$5), because it chose the listing before it knew the tokens. Now the order of listings never decides.
+    from llmledger_mcp import data, server, tools
+    raw = json.loads(Path(__file__).with_name("fixture.json").read_text())
+    raw["models"].insert(0, dict(raw["models"][0], key="aaa/claude-opus-5-5", host="aaa", input=4.4, output=22.0))
+    monkeypatch.setattr(server, "_SHELF", data.Shelf(raw, "test"))
+    out = call("compare_models", models=["claude-opus-5.5", "claude-sonnet-5.5"])
+    assert out["models"][0]["listing"] == "claude-opus-5-5" and out["models"][0]["price_per_1m"]["input"] == 4.0
+    found = call("find_models", task="overall", limit=10)
+    assert next(m for m in found["models"] if m["model"] == "anthropic / claude-opus-5.5")["listing"] == "claude-opus-5-5"
+    # with no tokens at all, the lower list price decides, then the name
+    s = data.Shelf(raw, "test")
+    assert tools.listing(s, "anthropic / claude-opus-5.5")[0]["key"] == "claude-opus-5-5"
+    raw["models"].insert(0, dict(raw["models"][1], key="aab/claude-opus-5-5", host="aab"))   # a tie: the maker's own host
+    assert tools.listing(data.Shelf(raw, "test"), "anthropic / claude-opus-5.5")[0]["key"] == "claude-opus-5-5"
+    raw["models"].insert(0, dict(raw["models"][0], key="aaa/claude-opus-5-5", host="aaa", input=4.0, output=20.0))
+    raw["models"] = [m for m in raw["models"] if m["key"] != "claude-opus-5-5"]                # then the name
+    assert tools.listing(data.Shelf(raw, "test"), "anthropic / claude-opus-5.5")[0]["key"] == "aaa/claude-opus-5-5"
