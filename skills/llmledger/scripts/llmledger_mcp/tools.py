@@ -6,7 +6,7 @@ small command line script, with a copy of this file. Same data, same answers.
 import re
 from datetime import datetime, timezone
 
-from llmledger_mcp import logic, speed
+from llmledger_mcp import forecast, logic, speed
 
 PLANS = {"claude": ("anthropic", "anthropic", "Claude"), "chatgpt": ("openai", "openai", "ChatGPT")}
 PAYS = ("api", "claude", "chatgpt")
@@ -105,13 +105,17 @@ def correction_note(s):
             "than the outlook says. Changes flagged likely are probably such corrections.")
 
 
-def listing(s, group, plan=None, input_tokens=0, output_tokens=0, needs=(), min_context=None):
-    """The listing a grouped model is priced at: its cheapest priced text listing for these tokens, or on a plan
-    the plan's own host. When the tokens do not decide (none given, or a tie), the lower list price wins, then
-    the maker's own host, then the name, so the answer never depends on the order of the listings."""
+def listing(s, group, plan=None, input_tokens=0, output_tokens=0, needs=(), min_context=None, cached_tokens=0,
+            written_tokens=0, hosts=None):
+    """The listing a grouped model is priced at: its cheapest priced text listing for these tokens (on these
+    hosts, when given), or on a plan the plan's own host. When the tokens do not decide (none given, or a tie),
+    the lower list price wins, then the maker's own host, then the name, so the answer never depends on the
+    order of the listings."""
     best = None
     for m in s.groups.get(group, []):
         if not logic.is_text_model(m) or (plan and m["host"] != PLANS[plan][1]):
+            continue
+        if hosts and not m["host"].startswith(tuple(hosts)):
             continue
         if any(n not in (m.get("skills") or []) for n in needs):
             continue
@@ -120,7 +124,7 @@ def listing(s, group, plan=None, input_tokens=0, output_tokens=0, needs=(), min_
         # a free listing (both token prices 0) is left out, as on the page: it is usually a trial tier, not a price
         if not ((m.get("input") or 0) > 0 or (m.get("output") or 0) > 0):
             continue
-        cost = logic.cost_of(m, input_tokens, output_tokens)
+        cost = logic.cost_of(m, input_tokens, output_tokens, cached_tokens, written_tokens)
         if cost is None:
             continue
         rank = (cost, (m.get("input") or 0) + (m.get("output") or 0), m["host"] != m.get("maker"), m["key"])
@@ -401,10 +405,11 @@ def estimate_time(s, model, input_tokens, output_tokens, calls=1, way="api", thi
         raise NotFound(str(error)) from None
 
 
-def log_run(s, model=None, input_tokens=None, output_tokens=None, seconds=None, way="api", thinking=False, task=None,
+def log_run(s, model=None, input_tokens=None, output_tokens=None, seconds=None, way=None, thinking=False, task=None,
             promptfoo_results=None):
     """Keep one timed run (or every result of a promptfoo results file) in a file on this computer, so time
-    estimates learn from it. Nothing is sent anywhere."""
+    estimates learn from it. Nothing is sent anywhere. For a promptfoo file the way of each run comes from its
+    provider unless given; a single run without a way counts as an API call."""
     try:
         if promptfoo_results:
             added, skipped = speed.from_promptfoo(promptfoo_results, way, thinking, resolve=_resolver(s))
@@ -412,8 +417,199 @@ def log_run(s, model=None, input_tokens=None, output_tokens=None, seconds=None, 
             return {"logged": len(added), "models": models, "skipped": skipped, "file": str(speed.runs_file())}
         if model is None or input_tokens is None or output_tokens is None or seconds is None:
             raise NotFound("Give model, input_tokens, output_tokens and seconds, or a promptfoo results file.")
-        run = speed.log(model, input_tokens, output_tokens, seconds, way, thinking, task, resolve=_resolver(s))
+        run = speed.log(model, input_tokens, output_tokens, seconds, way or "api", thinking, task,
+                        resolve=_resolver(s))
         return {"logged": 1, "run": run, "file": str(speed.runs_file())}
     except speed.SpeedError as error:
         raise NotFound(str(error)) from None
 
+
+
+FORECAST_NOTES = [
+    "A sample shows the job only as well as its tests stand for the rest: draw them at random "
+    "(promptfoo eval --filter-sample 20 --filter-sample-seed 7 -o sample.json).",
+    "Times are a usual time and a slow day, from the sample's own timed calls and your logged runs of the same "
+    "model called the same way (estimate_time). Many calls at once can meet rate limits a small sample does not.",
+    "Right is the share of checked results that passed, with a Wilson 95% range; calls that failed to run are "
+    "counted apart, as errors.",
+    "The break-even is what a wrong answer must cost you to catch and fix before the dearer model that is right "
+    "more often pays for itself: the cost difference an item over the difference in how often each was right.",
+    "The 90-day chance of a price change is for the cheapest listing, among listings of the same age that have not "
+    "changed since they were added (price_history). What usually happens in the catalogue, not a forecast for one "
+    "model.",
+]
+
+
+def _job_time(row, runs, from_logged, calls, at_once, tok):
+    if not runs or tok is None:
+        return None, ("No timed calls of this model in the sample (all cached or failed) and no logged runs: run "
+                      "the sample again with --no-cache.")
+    usual, slow = speed.estimate(runs, tok["output"])
+    rounds = -(-calls // at_once)
+    sampled = len(runs) - from_logged
+    time = {"usual": speed.short(usual * rounds), "slow_day": speed.short(slow * rounds),
+            "usual_seconds": round(usual * rounds, 1), "slow_day_seconds": round(slow * rounds, 1),
+            "per_call_seconds": {"usual": round(usual, 2), "slow_day": round(slow, 2)},
+            "based_on": f"{sampled} timed call{'s' if sampled != 1 else ''} in this sample"
+                        + (f" and {from_logged} of your logged runs" if from_logged else "")}
+    if len(runs) < speed.FEW:
+        time["rough"] = f"Fewer than {speed.FEW} timed calls: the slow day is set to at least twice the usual time."
+    if row["way"] == "ollama":
+        time["note"] = ("A local model may answer one call at a time, so these times hold for the same number of calls "
+                        "at once as the sample ran.")
+    return time, None
+
+
+def _job_cost(s, row, tok, calls, per_test):
+    """(cost of the whole job at the cheapest listing and at the sample's host, the cheapest listing, a note)."""
+    if s is None:
+        return None, None, "Prices could not be loaded (no data yet, and no internet)."
+    if row["model"] not in s.groups:
+        if row["way"] == "ollama":
+            return None, None, "A local model: no token price (it costs your computer's time and power)."
+        return None, None, (f"{row['model']!r} is not in the price catalogue: give the provider a label with the "
+                            "catalogue's name, for example label: claude-opus-5.5.")
+    if tok is None:
+        return None, None, "No token counts in the sample (all cached or failed): run it again with --no-cache."
+    args = dict(input_tokens=tok["input"], output_tokens=tok["output"], cached_tokens=tok["cache_read"],
+                written_tokens=tok["cache_write"])
+    hit = listing(s, row["model"], **args)
+    if not hit:
+        return None, None, "No text price listed for this model."
+    m, call = hit
+    cost = {"cheapest": {"listing": m["key"], "host": m["host"], "price_per_1m": prices(m),
+                         "per_item": money(call * per_test), "whole_job": money(call * calls)}}
+    hosts = forecast.hosts_of(row["provider"])
+    mine = None
+    if hosts:
+        there = listing(s, row["model"], hosts=hosts, **args)
+        if there:
+            mine = sum(logic.cost_of(there[0], c["input"], c["output"], c["cache_read"], c["cache_write"])
+                       for c in row["calls"])
+            cost["as_sampled"] = {"listing": there[0]["key"], "host": there[0]["host"],
+                                  "price_per_1m": prices(there[0]), "per_item": money(there[1] * per_test),
+                                  "whole_job": money(there[1] * calls), "sample_cost": money(mine)}
+        else:
+            cost["as_sampled"] = {"note": "No listing of this model on " + "/".join(hosts) + " in the catalogue."}
+    if row["way"] == "claude-code":
+        cost.setdefault("as_sampled", {})["note"] = ("Run through Claude Code: on a Claude plan the job uses the plan, "
+                                                     "not dollars; these are API prices for the same tokens.")
+    said = row["promptfoo_cost"]
+    if said is not None and row["costed"]:
+        job = said / row["costed"] * calls
+        cost["by_promptfoo"] = {"sample": money(said), "whole_job": money(job)}
+        if mine and said > 0 and abs(said - mine) > 0.1 * max(said, mine):
+            cost["by_promptfoo"]["note"] = (
+                f"promptfoo put the sample at {forecast.dollars(said)} and these prices at {forecast.dollars(mine)}: "
+                "the provider may bill tokens the results do not list (cache writes, or calls Claude Code makes on "
+                "its own), or promptfoo's own price table differs. At promptfoo's rate the job is "
+                f"{forecast.dollars(job)}.")
+    return cost, m, None
+
+
+def _outlook(m):
+    seen = (m.get("outlook") or {}).get("90")
+    if not seen:
+        return {"listing": m["key"], "note": "No 90-day outlook for this listing: it has changed since it was added, "
+                                             "or too few listings of its age are followed."}
+    share, low, high = seen["price"]
+    return {"listing": m["key"], "share": share, "low": low, "high": high}
+
+
+def forecast_job(s, promptfoo_results, items, concurrency=None, way=None, thinking=False, wrong_answer_cost=None):
+    """The whole job, quoted from a promptfoo run of a sample of it. For each model in the sample: the time as a
+    usual time and a slow day, the cost at its cheapest listing next to the listing the sample used, the chance
+    of a price change within 90 days, how often it was right (Wilson 95% range) and the break-even against the
+    pick. Reads the file only; nothing is called or sent. s may be None when the day's data cannot be loaded."""
+    if not isinstance(items, int) or items < 1:
+        raise NotFound("Give items as 1 or more: the number of tests in the whole job.")
+    if concurrency is not None and concurrency < 1:
+        raise NotFound("concurrency must be 1 or more.")
+    if wrong_answer_cost is not None and wrong_answer_cost < 0:
+        raise NotFound("wrong_answer_cost cannot be negative.")
+    if way is not None and way not in speed.WAYS:
+        raise NotFound(f"Unknown way {way!r}; use one of: " + ", ".join(speed.WAYS))
+    try:
+        sample = forecast.read(promptfoo_results, way, thinking, resolve=_resolver(s))
+    except forecast.ForecastError as error:
+        raise NotFound(str(error)) from None
+    at_once = concurrency or sample["at_once"]
+    logged = speed.load()
+    rows = []
+    for row in sample["rows"]:
+        per_test = row["results"] / max(len(row["tests"]), 1)
+        calls = max(1, round(items * per_test))
+        tok = forecast.tokens(row)
+        runs, from_logged = forecast.runs_for(row, logged)
+        time, time_note = _job_time(row, runs, from_logged, calls, at_once, tok)
+        cost, m, cost_note = _job_cost(s, row, tok, calls, per_test)
+        name = row["model"].split(" / ", 1)[-1]
+        if row["prompt"] is not None:
+            name += f" ({row['prompt'][:40]})"
+        out = {"model": row["model"], "provider": row["provider"], "prompt": row["prompt"], "way": row["way"],
+               "thinking": row["thinking"], "calls": calls, "right": forecast.right(row),
+               "errors": {"failed": row["errors"], "of": row["results"]} if row["errors"] else None,
+               "tokens_per_call": tok, "time": time, "cost": cost,
+               "price_change_90_days": _outlook(m) if m else None,
+               "notes": [n for n in (time_note, cost_note) if n] or None}
+        if row["cached"]:
+            out["cached_results"] = row["cached"]
+        rows.append({**out, "name": name, "per_item": (cost or {}).get("cheapest", {}).get("per_item")})
+    pick = forecast.best(rows, wrong_answer_cost)
+    for r in rows:
+        r["versus_pick"] = forecast.versus(r, pick)
+    rows.sort(key=lambda r: (r["per_item"] is None, r["per_item"] or 0, r["name"]))
+    timed = [r for r in rows if r["time"]]
+    together = None
+    if timed and len(timed) == len(rows):
+        usual = sum(r["calls"] * r["time"]["per_call_seconds"]["usual"] for r in rows) / at_once
+        slow = sum(r["calls"] * r["time"]["per_call_seconds"]["slow_day"] for r in rows) / at_once
+        together = {"usual": speed.short(usual), "slow_day": speed.short(slow)}
+    notes = list(FORECAST_NOTES)
+    if wrong_answer_cost is not None:
+        notes.insert(0, f"The pick counts each wrong answer at {forecast.dollars(wrong_answer_cost)}.")
+    if all(r["right"] is None for r in rows):
+        notes.insert(0, "The sample has no checks (asserts), so how often each model was right is unknown: add them "
+                        "to know which to pick.")
+    headline = _forecast_headline(rows, pick, items, at_once, wrong_answer_cost, priced=s is not None)
+    return {"pick": pick["model"] if pick else None, "headline": headline,
+            "sample": {"file": str(promptfoo_results), "eval": sample["eval"], "tests": sample["items"],
+                       "results": sample["results"], "at_once": sample["at_once"],
+                       "took": speed.short(sample["seconds"]) if sample["seconds"] else None},
+            "job": {"tests": items, "at_once": at_once, "every_model_in_the_sample": together},
+            "models": [{k: v for k, v in r.items() if k not in ("name", "per_item")} for r in rows],
+            "notes": notes, **(footer(s) if s else {})}
+
+
+def _share(r):
+    x = r["right"]
+    return f"{x['right']} of {x['of']}, {round(100 * x['low'])}% to {round(100 * x['high'])}%"
+
+
+def _forecast_headline(rows, pick, items, at_once, wrong_answer_cost, priced=True):
+    if pick is None:
+        if not priced:
+            return ("Prices could not be loaded (no data yet, and no internet), so the job cannot be priced; the times "
+                    "are below.")
+        return "None of these models has a price in the catalogue, so the job cannot be priced; the times are below."
+    graded = [r for r in rows if r["right"] is not None and r["per_item"] is not None]
+    cheapest = min((r for r in rows if r["per_item"] is not None), key=lambda r: r["per_item"])
+    if pick["right"] is None:
+        why = "the cheapest here; the sample has no checks to say how often each was right"
+    elif wrong_answer_cost is not None:
+        why = (f"the lowest cost an item when a wrong answer costs {forecast.dollars(wrong_answer_cost)} "
+               f"({_share(pick)})")
+    else:
+        top = max(graded, key=lambda r: (r["right"]["share"], r["right"]["of"]))
+        if top is pick or top["right"]["share"] == pick["right"]["share"]:
+            why = f"right most often in the sample ({_share(pick)})" + (", and the cheapest" if pick is cheapest
+                                                                         else "")
+        else:
+            why = (f"right {_share(pick)}; the sample cannot tell it apart from {top['name']} ({_share(top)}), and "
+                   "it costs less")
+    job = pick["cost"]["cheapest"]
+    line = (f"{pick['name']} is the pick: {why}. The whole job ({items:,} tests, {at_once} at once) costs about "
+            f"{forecast.dollars(job['whole_job'])} on {job['host']}")
+    if pick["time"]:
+        line += f" and takes {pick['time']['usual']} usually, {pick['time']['slow_day']} on a slow day"
+    return line + "."
