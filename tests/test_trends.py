@@ -88,3 +88,10 @@ def test_req_s33_a_likely_correction_is_not_rolled_back():
     assert trends.price_at(record, events, "2025-01-02") == trends.blend(1.0, 2.0)
     assert trends.price_at(record, events, "2025-07-01") == trends.blend(1.0, 4.0)
 
+
+def test_req_s33_a_change_with_its_source_rolls_back_the_same():
+    record = ["x/m", "x", "m", "x", "chat", "listed", "2025-01-01", "", "", 1.0, 4.0]
+    events = [["2025-01-01", "added", "", None, None, "", 0],
+              ["2025-06-01", "price", "output_cost_per_token", 2e-6, 4e-6, "", 1]]
+    assert trends.price_at(record, events, "2025-03-01") == trends.blend(1.0, 2.0)
+

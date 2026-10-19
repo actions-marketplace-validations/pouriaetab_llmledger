@@ -11,6 +11,7 @@
   --surface: #fcfcfb;
   --raised: #f4f3f0;
   --card: #ffffff;
+  --panel: var(--card);   /* table_protocol.js paints sticky table headers with it */
   --text: #0b0b0b;
   --muted: #52514e;
   --line: #e2e1dc;
@@ -635,6 +636,7 @@ $likely_line</p>
   <button type="button" data-panel="overview" aria-pressed="true">Over time</button>
   <button type="button" data-panel="week">Last 7 days</button>
   <button type="button" data-panel="top">Top lists</button>
+  <button type="button" data-panel="unpriced">Not yet priced</button>
 </div>
 
 <div id="panel-overview">
@@ -693,6 +695,13 @@ likely corrections are not counted.</p>
 <h2>Hosts most likely to change a price within a year</h2>
 <p class="muted">Only hosts with at least 100 models still followed at one year.</p>
 <div id="top-hosts"></div>
+</div>
+
+<div id="panel-unpriced" hidden>
+<h2>Seen on Arena, not yet priced</h2>
+<div id="unpriced-list"></div>
+<h2>How soon a new model gets a price</h2>
+<div id="unpriced-timing"></div>
 </div>
 </section>
 

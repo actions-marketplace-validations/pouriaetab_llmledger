@@ -173,3 +173,25 @@ def test_req_s40_a_failed_refresh_opens_one_issue_and_a_good_one_closes_it():
     assert 'gh issue create --title "Daily refresh failed"' in job and '[ -z "$open" ]' in job
     assert 'gh issue close "$n"' in job and '[ "$BUILD" = "success" ] && [ "$DEPLOY" = "success" ]' in job
 
+
+def test_req_s42_price_history_has_a_not_yet_priced_panel(tmp_path):
+    page = page_for(tmp_path)
+    view = page[page.index('id="tab-trends"'):page.index('id="tab-about"')]
+    assert 'data-panel="unpriced"' in view and 'id="panel-unpriced"' in view
+    assert 'id="unpriced-list"' in view and 'id="unpriced-timing"' in view
+    app = (Path(page_module.__file__).parent / "app.js").read_text()
+    assert "function renderUnpriced()" in app and "Arena could not be read for this build." in app
+    assert '"cacheWrite"]' in app
+    # each change in a model's timeline links the LiteLLM change behind it
+    assert '"https://github.com/BerriAI/litellm/commit/" + esc(D.sources[e[6]])' in app.replace("'", '"')
+    assert 'table(["Date", "Change", "Before", "After", "Source"], events, "timeline")' in app
+
+
+def test_req_s36_table_headers_follow_the_theme(tmp_path):
+    # table_protocol.js paints the sticky headers with var(--panel, #fff): without --panel, dark mode had white
+    # headers with light grey text
+    style = page_for(tmp_path).split("</style>")[0]
+    assert "--panel: var(--card);" in style
+    proto = (Path(page_module.__file__).parent / "table_protocol.js").read_text()
+    assert "background:var(--panel" in proto
+

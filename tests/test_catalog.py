@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from llmledger.catalog import model_records, recent
+from llmledger.catalog import model_records, recent, sources
 from llmledger.flags import mark
 
 
@@ -79,3 +79,16 @@ def test_req_s29_records_carry_cache_price_and_effort_levels():
     assert c[19] is None and c[20] == ""
     records, _ = model_records(ROWS, LAST, END)
     assert records[0][19] is None and records[1][19] is None   # does not think, or not said
+
+
+def test_req_s43_each_change_keeps_the_litellm_commit_and_cache_write_price():
+    rows = [dict(r, sha=f"{n:040x}") for n, r in enumerate(ROWS)]
+    last = {"a": {"cache_creation_input_token_cost": 3.75e-06}, "b": {}}
+    records, events = model_records(rows, last, END)
+    assert records[0][21] == 3.75 and records[1][21] is None              # cache write per 1M tokens
+    assert events["a"][1][6] == f"{4:040x}"[:12]                          # the commit that made the change
+    commits = sources(events)
+    assert events["a"][1][6] == commits.index(f"{4:040x}"[:12])           # written once, then a place in the list
+    assert len(commits) == len({r["sha"][:12] for r in rows})
+    assert sources(events) == []                                          # already numbers: nothing left to do
+

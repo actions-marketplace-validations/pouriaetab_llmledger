@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""llmledger from the command line: the plug-in's five answers, for the Agent Skill. Standard library only.
+"""llmledger from the command line: the plug-in's answers, for the Agent Skill. Standard library only.
 
 Prints one JSON object. The data (LiteLLM's prices, Arena's ratings, every price change since 2023) is
 downloaded once a day from the llmledger page and kept in ~/.cache/llmledger-mcp/, the same copy the
@@ -39,6 +39,7 @@ def parser():
     e.add_argument("--input", type=int, required=True, help="prompt tokens per call")
     e.add_argument("--output", type=int, required=True, help="answer tokens per call, hidden thinking included")
     e.add_argument("--cached", type=int, default=0, help="prompt tokens read from the cache")
+    e.add_argument("--cache-write", type=int, default=0, help="prompt tokens written to the cache")
     e.add_argument("--calls-per-day", type=float, default=1)
 
     f = sub.add_parser("find", help="the highest rated models for a kind of work, within limits")
@@ -51,6 +52,10 @@ def parser():
 
     h = sub.add_parser("history", help="every change to a model's prices and the chance of the next one")
     h.add_argument("model")
+    h.add_argument("--date", help="YYYY-MM-DD: each listing's prices that day and the change that set them")
+
+    u = sub.add_parser("unpriced", help="new models on Arena that have no price yet, and how soon prices usually come")
+    u.add_argument("--maker", help="for example meta or ibm")
 
     sub.add_parser("tasks", help="the kinds of work Arena rates, and what the data holds today")
     return p
@@ -64,13 +69,15 @@ def run(args, shelf):
                                     output_tokens=args.output, pay=args.pay)
     if args.command == "cost":
         return tools.estimate_cost(shelf, args.models, args.input, args.output, cached_tokens=args.cached,
-                                   calls_per_day=args.calls_per_day)
+                                   calls_per_day=args.calls_per_day, cache_write_tokens=args.cache_write)
     if args.command == "find":
         return tools.find_models(shelf, task=args.task, max_output_price=args.max_output_price,
                                  min_context=args.min_context, needs=args.needs, maker=args.maker,
                                  limit=max(1, min(args.limit, 20)))
     if args.command == "history":
-        return tools.price_history(shelf, args.model)
+        return tools.price_history(shelf, args.model, date=args.date)
+    if args.command == "unpriced":
+        return tools.not_yet_priced(shelf, maker=args.maker)
     return tools.snapshot(shelf)
 
 

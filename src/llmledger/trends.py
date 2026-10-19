@@ -94,7 +94,7 @@ def price_at(record, events, day):
     """A listing's blended price per 1M tokens on a day (YYYY-MM-DD), or None.
 
     record is a catalog.model_records row; events its catalogue history
-    ([day, kind, field, old, new, flag], oldest first). The price today is rolled back
+    ([day, kind, field, old, new, flag, source], oldest first). The price today is rolled back
     through every later change of the two token prices. Unit fixes and likely corrections
     (D14) are not rolled back: the price before a fix was a mistake, not a price anyone paid.
     """
@@ -102,7 +102,7 @@ def price_at(record, events, day):
     if (added and day < added) or (removed and day >= removed):
         return None
     now = {PRICES[0]: record[9], PRICES[1]: record[10]}
-    for when, kind, field, old, new, flag in reversed(events):
+    for when, kind, field, old, new, flag, *_ in reversed(events):
         if when <= day:
             break
         if kind == "price" and field in now and flag not in ("unit", "likely"):

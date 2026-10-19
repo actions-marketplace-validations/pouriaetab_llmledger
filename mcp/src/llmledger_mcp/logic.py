@@ -146,16 +146,18 @@ def is_text_model(model):
     return model.get("mode") in TEXT_MODES and not NOT_TEXT.search(str(model.get("key", "")).lower())
 
 
-def cost_of(model, input_tokens, output_tokens, cached_tokens=0):
-    """Dollars for one call: prompt tokens at the input price (the cached part at the cache
-    read price when the model lists one), answer tokens at the output price. None if unpriced."""
+def cost_of(model, input_tokens, output_tokens, cached_tokens=0, written_tokens=0):
+    """Dollars for one call: prompt tokens at the input price, the part read from the cache at the cache
+    read price and the part written to it at the cache write price when the model lists them (otherwise
+    at the input price), answer tokens at the output price. None if unpriced."""
     if model.get("input") is None or model.get("output") is None:
         return None
     cached = min(max(cached_tokens, 0), input_tokens)
-    cache_price = model.get("cache_read")
-    if cache_price is None:
-        cache_price, cached = model["input"], cached
-    return ((input_tokens - cached) * model["input"] + cached * cache_price + output_tokens * model["output"]) / 1e6
+    written = min(max(written_tokens, 0), input_tokens - cached)
+    read_price = model["input"] if model.get("cache_read") is None else model["cache_read"]
+    write_price = model["input"] if model.get("cache_write") is None else model["cache_write"]
+    return ((input_tokens - cached - written) * model["input"] + cached * read_price + written * write_price
+            + output_tokens * model["output"]) / 1e6
 
 
 # ---------- compare side by side (pick.js) ----------
