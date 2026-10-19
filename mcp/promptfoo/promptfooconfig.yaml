@@ -1,0 +1,16 @@
+# Checks the plug-in's answers against data.json with promptfoo's MCP provider (no AI model is called).
+# Run from this folder: python make_tests.py, then npx promptfoo@latest eval
+# The server below is the plug-in built from this repository (mcp/); for the published one, use
+# command: uvx and args: ['llmledger-mcp'].
+description: llmledger plug-in, each answer checked against data.json
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: uvx
+        args: ['--from', '..', 'llmledger-mcp']
+        name: llmledger
+prompts:
+  - '{{prompt}}'
+tests: file://tests.json

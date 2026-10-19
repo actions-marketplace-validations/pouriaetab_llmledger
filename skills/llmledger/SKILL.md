@@ -1,10 +1,10 @@
 ---
 name: llmledger
-description: Pick an AI model and price AI work from public data. Today's price of every model in LiteLLM's catalogue at its cheapest host, Arena quality ratings by kind of work, and each price's history since 2023 with the chance it changes soon. Use when someone asks which LLM to use, what a prompt, job or monthly workload will cost on different models, how models compare on price and quality, or whether a model's price has changed.
+description: Pick an AI model and price AI work from public data. Today's price of every model in LiteLLM's catalogue at its cheapest host, Arena quality ratings by kind of work, and each price's history since 2023 with the chance it changes soon. Use when someone asks which LLM to use, what a prompt, job or monthly workload will cost on different models, how models compare on price and quality, whether a model's price has changed, or how long a job will take (learned from the user's own timed runs).
 license: MIT
 compatibility: Python 3.10 or newer, standard library only. Downloads the day's data from pouriaetab.github.io once a day and keeps it in ~/.cache/llmledger-mcp/. No keys.
 metadata:
-  version: "0.1.4"
+  version: "0.1.5"
   source: https://github.com/pouriaetab/llmledger
 ---
 
@@ -23,6 +23,8 @@ The same answers as the llmledger plug-in (llmledger-mcp), from the same daily d
 | `find [--task T] [--needs vision,tools,...] [--max-output-price X] [--min-context N] [--maker M] [--limit N]` | The highest rated models for a kind of work within limits |
 | `history MODEL [--date YYYY-MM-DD]` | Every price change of a model's listings with a link to the LiteLLM change behind it, and the chance of a price change, a retirement date or removal in the next 90 days and year; with a date, the prices that day |
 | `unpriced [--maker M]` | New models on Arena that no price list has yet, and how soon prices usually appear, by maker |
+| `time MODEL --input N --output N [--calls N] [--at-once N] [--way api\|claude-code\|claude-code-session\|ollama\|other] [--thinking]` | How long a call and the whole job take, as a usual time and a slow day, learned from the user's own timed runs |
+| `log MODEL --input N --output N --seconds S [--way ...] [--thinking]` or `log --promptfoo results.json` | Keep a timed run (or every result of a promptfoo results file) on this computer so `time` learns from it |
 | `tasks` | The kinds of work (`--task` values) and the data's dates |
 
 Model names can be written loosely (`claude-opus-5.5`, `gpt 6.1`) or as one listing (`bedrock/anthropic.claude-opus-5-5`).
@@ -39,5 +41,8 @@ An unknown name returns `{"error": ...}` with close names to try. Tokens: about 
    price change; the `flags` and `notes` fields say what each means. The outlook is what usually happens to
    similar listings, not a forecast for one model.
 5. If `data.warning` or `data.offline` is present, tell the user the data is old or offline, with `data.prices_as_of`.
-6. End with the credits: prices from LiteLLM (MIT), ratings from Arena (CC BY 4.0), via llmledger. Costs are
+6. Time estimates come only from the user's own runs. With none, `time` says so: suggest timing one call and
+   logging it, or logging a promptfoo results file. Never present a time as certain; give the usual time and
+   the slow day.
+7. End with the credits: prices from LiteLLM (MIT), ratings from Arena (CC BY 4.0), via llmledger. Costs are
    estimates, not financial or procurement advice.

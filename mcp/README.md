@@ -45,6 +45,8 @@ In Claude Code: `/plugin marketplace add pouriaetab/llmledger`, then `/plugin in
 | `find_models` | "The best rated coding models under $10 per 1M answer tokens that read images" |
 | `price_history` | "Has Claude Opus 5.5's price changed, and how likely is it to change soon?"; with `date`, "What did it cost on 1 March?" Each change links the LiteLLM change behind it |
 | `not_yet_priced` | "Which new models on Arena have no price yet, and how long does a price usually take?" |
+| `estimate_time` | "How long will 5,000 calls of 2K tokens in and 600 out take on Opus 5.5 through the API, 4 at a time?" Learned from your own runs |
+| `log_run` | "I timed this call: 2,100 in, 640 out, 9.2 seconds", or a promptfoo results file; kept on your computer only |
 
 Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, `pick_a_model`.
 

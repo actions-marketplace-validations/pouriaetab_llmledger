@@ -1,7 +1,7 @@
 {
   "name": "llmledger",
   "description": "Pick an AI model and price AI work: cheapest listing per model, Arena ratings by task, price history and the chance of a change. A skill, so it costs almost no context until it is used.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "author": {
     "name": "pouriaetab"
   },

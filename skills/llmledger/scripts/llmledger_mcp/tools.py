@@ -6,7 +6,7 @@ small command line script, with a copy of this file. Same data, same answers.
 import re
 from datetime import datetime, timezone
 
-from llmledger_mcp import logic
+from llmledger_mcp import logic, speed
 
 PLANS = {"claude": ("anthropic", "anthropic", "Claude"), "chatgpt": ("openai", "openai", "ChatGPT")}
 PAYS = ("api", "claude", "chatgpt")
@@ -383,3 +383,37 @@ def not_yet_priced(s, maker=None):
                       "from release. Kaplan-Meier with 95% bootstrap ranges; a model not priced yet counts until "
                       "today. maybe_listed_as names a catalogue model the naming rules could not confirm."],
             **footer(s)}
+
+
+def _resolver(s):
+    if s is None:
+        return None
+    return lambda text: s.resolve(text)[0]
+
+
+def estimate_time(s, model, input_tokens, output_tokens, calls=1, way="api", thinking=False, concurrency=1):
+    """How long one call and the whole job take, as a usual time and a slow day, learned from the user's own runs
+    of that model called that way (see log_run). s may be None when the day's data cannot be loaded."""
+    try:
+        return speed.estimate_time(model, input_tokens, output_tokens, calls, way, thinking, concurrency,
+                                   resolve=_resolver(s))
+    except speed.SpeedError as error:
+        raise NotFound(str(error)) from None
+
+
+def log_run(s, model=None, input_tokens=None, output_tokens=None, seconds=None, way="api", thinking=False, task=None,
+            promptfoo_results=None):
+    """Keep one timed run (or every result of a promptfoo results file) in a file on this computer, so time
+    estimates learn from it. Nothing is sent anywhere."""
+    try:
+        if promptfoo_results:
+            added, skipped = speed.from_promptfoo(promptfoo_results, way, thinking, resolve=_resolver(s))
+            models = sorted({r["model"] for r in added})
+            return {"logged": len(added), "models": models, "skipped": skipped, "file": str(speed.runs_file())}
+        if model is None or input_tokens is None or output_tokens is None or seconds is None:
+            raise NotFound("Give model, input_tokens, output_tokens and seconds, or a promptfoo results file.")
+        run = speed.log(model, input_tokens, output_tokens, seconds, way, thinking, task, resolve=_resolver(s))
+        return {"logged": 1, "run": run, "file": str(speed.runs_file())}
+    except speed.SpeedError as error:
+        raise NotFound(str(error)) from None
+

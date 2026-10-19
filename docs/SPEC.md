@@ -301,8 +301,10 @@ Arena ratings by task, the sources and their licences. Verified by:
 `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook`.
 
 **REQ-S32 Plug-in.** The folder `mcp/` shall hold an MCP server
-(llmledger-mcp) with six read-only tools (find_models, compare_models,
-estimate_cost, price_history, suggest_for_project, not_yet_priced), a snapshot resource
+(llmledger-mcp) with eight tools (find_models, compare_models,
+estimate_cost, price_history, suggest_for_project, not_yet_priced,
+estimate_time, all read-only, and log_run, which only adds to a file on the
+user's computer), a snapshot resource
 and a prompt, reading `data.json` once a day with a bundled copy for the
 first run. Its task guess and comparison shall give the same answers as
 the page's route.js and pick.js. A model shall be priced at its cheapest
@@ -412,8 +414,8 @@ automated test of the workflow file, and demonstration.
 Skill (agentskills.io format: `SKILL.md` with a name matching the folder, a
 description of what it does and when to use it, under 500 lines) and a
 script that gives the plug-in's answers as JSON with the standard
-library only, from an exact copy of the plug-in's `tools.py`, `logic.py`
-and `data.py`, so both give the same answers from the same data. The
+library only, from an exact copy of the plug-in's `tools.py`, `logic.py`,
+`data.py` and `speed.py`, so both give the same answers from the same data. The
 repository shall be a Claude Code marketplace whose one plugin is that
 skill. With no data saved and none to download, the script shall say so
 instead of failing. Verified by: automated tests that the copy is exact,
@@ -452,6 +454,29 @@ saying so, when one is not listed) and give the cost without the cache and
 the saving. Every plug-in answer shall give the day its prices are from,
 and say so when it comes from the bundled copy or an old download because
 today's data could not be downloaded. Verified by: automated tests.
+
+**REQ-S45 Time learned from the user's runs.** The plug-in and the skill
+shall keep timed runs (model, way of calling it, thinking on or off, prompt
+and answer tokens, seconds) in a file on the user's computer, from a single
+run or a promptfoo results file (each result once; cached, failed and
+tokenless results skipped), and shall estimate the time of one call and of
+a whole job (calls over the number running at once) as a usual time and a
+slow day, from the newest 50 runs of that model and way only: a Theil-Sen
+fit of seconds on answer tokens, times the median and the 90th percentile
+of the ratios of real to fitted time; with fewer than 5 runs, the slow day
+at least twice the usual time and the answer marked rough. With no runs it
+shall say so and name the ways that have runs. No speed table without an
+open licence shall be used. Verified by: automated tests of the fit on
+exact and noisy runs, of the tools, of a promptfoo file read twice and of
+the skill.
+
+**REQ-S46 promptfoo checks.** `mcp/promptfoo` shall call the plug-in's
+tools through promptfoo's MCP provider, with answer keys worked out from
+`data.json` alone: `estimate_cost` at a model's cheapest listing,
+`compare_models` at the same cost, `price_history` with every listing.
+Verified by: automated tests of the answer keys, a run on the day's data
+(30 of 30 pass with plug-in 0.1.5; 28 of 30 with 0.1.2, which had the
+listing slip).
 
 ## 5. Known limitations
 
@@ -598,6 +623,8 @@ today's data could not be downloaded. Verified by: automated tests.
 | REQ-S42 | `test_req_s42_close_names_for_names_the_rules_cannot_match`, `test_req_s42_recent_models_without_a_price`, `test_req_s42_how_soon_a_price_comes`, `test_req_s42_estimates_on_enough_models`, `test_req_s42_no_arena_means_no_list`, `test_req_s42_price_history_has_a_not_yet_priced_panel`; `test_not_yet_priced_lists_new_models_and_the_wait` in `mcp/tests` | test |
 | REQ-S43 | `test_req_s43_each_change_keeps_the_litellm_commit_and_cache_write_price`, `test_req_s43_data_json_links_each_change_to_its_commit`, `test_req_s33_a_change_with_its_source_rolls_back_the_same`; `test_a_price_on_a_date_with_the_change_that_set_it` in `mcp/tests` | test |
 | REQ-S44 | `test_cache_reads_and_writes_and_the_saving`, `test_offline_answers_say_so_with_the_date` in `mcp/tests` | test |
+| REQ-S45 | `test_a_straight_line_is_found_exactly`, `test_one_slow_run_barely_moves_the_usual_time`, `test_few_runs_give_a_rough_range`, `test_logging_and_estimating_through_the_tools`, `test_a_promptfoo_results_file_counts_as_runs_once`, `test_bad_input_says_what_to_fix` in `mcp/tests/test_speed.py`; `test_req_s45_the_script_times_a_job_from_logged_runs` | test |
+| REQ-S46 | `test_req_s46_answer_keys_come_from_the_data`, `test_req_s46_the_keys_agree_with_the_plugin_on_its_test_data`, `test_req_s46_the_config_runs_the_repository_plugin_through_the_mcp_provider`; a promptfoo run on the day's data | test, demonstration |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
