@@ -12,7 +12,7 @@ from llmledger import flags
 SCHEMA = 1
 FIELDS = ("key", "maker", "name", "host", "mode", "status", "added", "removed", "retire",
           "input", "output", "repriced", "last", "exit", "age", "skills", "size", "media",
-          "cache", "effort", "effort_default")
+          "cache", "effort", "effort_default", "cache_write")
 OUTCOMES = ("price", "retirement", "removed", "none")
 CREDITS = {
     "prices": "LiteLLM's model_prices_and_context_window.json (MIT), https://github.com/BerriAI/litellm",
@@ -47,7 +47,8 @@ def machine(data, info):
             continue
         models.append({
             "key": m["key"], "maker": m["maker"], "name": m["name"], "host": m["host"], "mode": m["mode"],
-            "input": m["input"], "output": m["output"], "cache_read": m["cache"], "context": m["size"],
+            "input": m["input"], "output": m["output"], "cache_read": m["cache"], "cache_write": m.get("cache_write"),
+            "context": m["size"],
             "skills": m["skills"], "effort": m["effort"], "effort_default": m["effort_default"],
             "added": m["added"], "retire": m["retire"], "price_changes": m["repriced"], "last_change": m["last"],
             "outlook": outlook(m, data["curves"]),
@@ -59,13 +60,17 @@ def machine(data, info):
         "built": info["built"].isoformat(),
         "litellm": {"commit": info["sha"], "changed": info["when"].isoformat()},
         "credits": CREDITS,
-        "units": {"prices": "dollars per 1M tokens", "events": ["day", "kind", "field", "old", "new", "flag"],
+        "units": {"prices": "dollars per 1M tokens",
+                  "events": ["day", "kind", "field", "old", "new", "flag", "source (a place in sources)"],
+                  "sources": "the LiteLLM commit of each change: https://github.com/BerriAI/litellm/commit/<source>",
                   "ratings": ["model", "arena name", "rating", "low", "high", "votes", "arena rank"],
                   "outlook": "estimate, low and high of a 95% interval, by outcome",
                   "flags": flags.TEXT},
         "corrections": data.get("corrections"),
+        "unpriced": data.get("unpriced"),
         "models": models,
         "events": events,
+        "sources": data.get("sources"),
         "ratings": None if not arena else {
             "date": arena["date"], "source": arena["source"], "labels": arena["labels"], "tasks": arena["tasks"]},
     }

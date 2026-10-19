@@ -82,6 +82,13 @@ def test_req_s41_the_script_gives_the_plugins_answers():
     assert "anthropic / claude-sonnet-5.5" not in found
     code, out = run("tasks")
     assert out["models_listed"] == 6 and "coding" in out["tasks"]
+    code, out = run("history", "bedrock/claude-opus-5-5", "--date", "2026-08-15")
+    assert code == 0 and out["listings"][0]["on_date"]["price_per_1m"]["input"] == 5.0
+    code, out = run("cost", "claude-opus-5.5", "--input", "10000", "--output", "1000", "--cached", "8000",
+                    "--cache-write", "1000")
+    assert code == 0 and out["models"][0]["without_cache"]["per_call"] == (10000 * 4 + 1000 * 20) / 1e6
+    code, out = run("unpriced")
+    assert code == 1 and "no list of models not yet priced" in out["error"]   # the test data has none
 
 
 def test_req_s41_the_script_says_what_went_wrong(tmp_path):

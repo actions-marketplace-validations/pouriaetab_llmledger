@@ -1,8 +1,9 @@
-"""The five answers, as plain functions of the day's data (standard library only).
+"""The plug-in's answers, as plain functions of the day's data (standard library only).
 
 The plug-in (server.py) offers them as MCP tools; the Agent Skill (skills/llmledger) runs them from a
 small command line script, with a copy of this file. Same data, same answers.
 """
+import re
 from datetime import datetime, timezone
 
 from llmledger_mcp import logic
@@ -21,6 +22,11 @@ FLAGS = {
     "likely": ("likely correction: a price change in the model's first 7 days, from 0, or of 10 times or more "
                "either way; 9 in 10 such first price changes were corrections in a labelled sample"),
 }
+COMMIT = "https://github.com/BerriAI/litellm/commit/"
+# A listing's token prices by their names in the answers and in LiteLLM's price file
+PRICE_FIELDS = {"input": "input_cost_per_token", "output": "output_cost_per_token",
+                "cache_read": "cache_read_input_token_cost", "cache_write": "cache_creation_input_token_cost"}
+OFFLINE = ("could not refresh", "bundled")
 EFFORT_NOTE = ("The effort level is a rule of thumb from the task and the prompt. Higher effort writes more hidden "
                "answer tokens, and no open source measures how many yet.")
 
@@ -39,14 +45,53 @@ def age_days(built, now=None):
 
 def footer(s):
     d = s.data
-    out = {"data": {"built": d.get("built"), "litellm_changed": (d.get("litellm") or {}).get("changed"),
+    as_of = (d.get("built") or "")[:10] or None
+    out = {"data": {"built": d.get("built"), "prices_as_of": as_of,
+                    "litellm_changed": (d.get("litellm") or {}).get("changed"),
                     "ratings_published": s.rating_date, "copy": s.where},
            "credits": d.get("credits")}
+    if any(word in (s.where or "") for word in OFFLINE):
+        out["data"]["offline"] = f"Today's data could not be downloaded: answering from {s.where}, prices as of {as_of}."
     days = age_days(d.get("built"))
     if days is not None and days >= STALE_DAYS:
         out["data"]["warning"] = (f"This data is {days} days old: the daily rebuild has not run since, so prices, "
                                   "ratings and changes may be out of date.")
     return out
+
+
+def source(s, event):
+    """The LiteLLM commit that made a change, as a link, when the data carries it."""
+    commits = s.data.get("sources") or []
+    if len(event) > 6 and isinstance(event[6], int) and 0 <= event[6] < len(commits):
+        return COMMIT + commits[event[6]]
+    return None
+
+
+def price_on(s, m, day):
+    """A listing's prices per 1M tokens at the end of a day, and the change that set each one: today's prices
+    rolled back through every later change, as the catalogue had them that day (corrections included)."""
+    added = m.get("added") or ""
+    if added and day < added:
+        return {"day": day, "listed": False, "note": f"Not listed yet: added {added}."}
+    now = {name: m.get(name) for name in PRICE_FIELDS}
+    set_by = {}
+    events = s.data["events"].get(m["key"], [])
+    for event in reversed(events):
+        when, kind, field = event[0], event[1], event[2]
+        name = next((n for n, f in PRICE_FIELDS.items() if f == field), None)
+        if kind != "price" or name is None:
+            continue
+        if when > day:
+            old = event[3]
+            now[name] = money(old * 1e6) if isinstance(old, (int, float)) and not isinstance(old, bool) else None
+        elif name not in set_by:
+            set_by[name] = {"day": when, "flag": event[5] or None, "source": source(s, event)}
+    first = next((e for e in events if e[1] in ("added", "start")), None)
+    for name in PRICE_FIELDS:
+        if name not in set_by and now[name] is not None and first:
+            set_by[name] = {"day": first[0] if first[1] == "added" else "before Sept 2023", "flag": None,
+                            "source": source(s, first)}
+    return {"day": day, "listed": True, "price_per_1m": {**now, "unit": "dollars per 1M tokens"}, "set_by": set_by}
 
 
 def correction_note(s):
@@ -85,7 +130,8 @@ def listing(s, group, plan=None, input_tokens=0, output_tokens=0, needs=(), min_
 
 
 def prices(m):
-    return {"input": m["input"], "output": m["output"], "cache_read": m.get("cache_read"), "unit": "dollars per 1M tokens"}
+    return {"input": m["input"], "output": m["output"], "cache_read": m.get("cache_read"),
+            "cache_write": m.get("cache_write"), "unit": "dollars per 1M tokens"}
 
 
 def money(x):
@@ -189,10 +235,12 @@ def compare_models(s, models, task="overall", input_tokens=1000, output_tokens=8
             "notes": [PLAN_NOTE] if plan else [], **footer(s)}
 
 
-def estimate_cost(s, models, input_tokens, output_tokens, cached_tokens=0, calls_per_day=1):
-    """What a workload costs on each model at its cheapest listing: per call, per day and per 30 days."""
+def estimate_cost(s, models, input_tokens, output_tokens, cached_tokens=0, calls_per_day=1, cache_write_tokens=0):
+    """What a workload costs on each model at its cheapest listing: per call, per day and per 30 days. With
+    cached or cache write tokens, also the cost without the cache and the saving."""
     if not 1 <= len(models) <= 10:
         raise NotFound("Give 1 to 10 models to price.")
+    cache = cached_tokens > 0 or cache_write_tokens > 0
     rows = []
     for group in resolve_all(s, models):
         hit = listing(s, group, input_tokens=input_tokens, output_tokens=output_tokens)
@@ -200,11 +248,20 @@ def estimate_cost(s, models, input_tokens, output_tokens, cached_tokens=0, calls
             rows.append({"model": group, "note": "no text price listed"})
             continue
         m = hit[0]
-        call = logic.cost_of(m, input_tokens, output_tokens, cached_tokens)
-        rows.append({"model": group, "listing": m["key"], "host": m["host"], "price_per_1m": prices(m),
-                     "per_call": money(call), "per_day": money(call * calls_per_day),
-                     "per_30_days": money(call * calls_per_day * 30),
-                     "cache_priced": cached_tokens > 0 and m.get("cache_read") is not None})
+        call = logic.cost_of(m, input_tokens, output_tokens, cached_tokens, cache_write_tokens)
+        row = {"model": group, "listing": m["key"], "host": m["host"], "price_per_1m": prices(m),
+               "per_call": money(call), "per_day": money(call * calls_per_day),
+               "per_30_days": money(call * calls_per_day * 30),
+               "cache_priced": cached_tokens > 0 and m.get("cache_read") is not None}
+        if cache:
+            plain = logic.cost_of(m, input_tokens, output_tokens)
+            row["without_cache"] = {"per_call": money(plain), "per_30_days": money(plain * calls_per_day * 30)}
+            row["saving_per_30_days"] = money((plain - call) * calls_per_day * 30)
+            missing = [n for n, used in (("cache read", cached_tokens), ("cache write", cache_write_tokens))
+                       if used and m.get(n.replace(" ", "_")) is None]
+            if missing:
+                row["note"] = "No " + " or ".join(missing) + " price listed: those tokens are counted at the input price."
+        rows.append(row)
     rows.sort(key=lambda r: r.get("per_call") if r.get("per_call") is not None else float("inf"))
     return {"models": rows, **footer(s)}
 
@@ -215,9 +272,12 @@ def _value(field, v):
     return v
 
 
-def price_history(s, model):
-    """Every change to a model's listings since 2023 (prices, retirement dates), and for listings that have not
-    changed yet, the chance of a price change, a retirement date or removal in the next 90 days and year."""
+def price_history(s, model, date=None):
+    """Every change to a model's listings since 2023 (prices, retirement dates) with the LiteLLM change behind
+    each, and for listings that have not changed yet, the chance of a price change, a retirement date or removal
+    in the next 90 days and year. With a date (YYYY-MM-DD), each listing's prices that day and what set them."""
+    if date is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(date)):
+        raise NotFound(f"Give the date as YYYY-MM-DD, not {date!r}.")
     if model in s.by_key:
         keys = [model]
         group = s.by_key[model]["maker"] + " / " + s.by_key[model]["name"]
@@ -228,13 +288,18 @@ def price_history(s, model):
     for key in keys:
         m = s.by_key[key]
         events = [{"day": e[0], "change": e[1], "field": e[2] or None, "before": _value(e[2], e[3]),
-                   "after": _value(e[2], e[4]), "flag": e[5] or None} for e in s.data["events"].get(key, [])]
-        out.append({"listing": key, "host": m["host"], "added": m.get("added") or "before Sept 2023",
-                    "retirement_date": m.get("retire") or None, "price_per_1m": prices(m),
-                    "price_changes": m.get("price_changes"), "changes": events, "outlook": m.get("outlook")})
+                   "after": _value(e[2], e[4]), "flag": e[5] or None, "source": source(s, e)}
+                  for e in s.data["events"].get(key, [])]
+        item = {"listing": key, "host": m["host"], "added": m.get("added") or "before Sept 2023",
+                "retirement_date": m.get("retire") or None, "price_per_1m": prices(m),
+                "price_changes": m.get("price_changes"), "changes": events, "outlook": m.get("outlook")}
+        if date is not None:
+            item["on_date"] = price_on(s, m, date)
+        out.append(item)
     used = sorted({e["flag"] for x in out for e in x["changes"] if e["flag"]})
     meaning = {**FLAGS, **((s.data.get("units") or {}).get("flags") or {})}
-    notes = ["Prices per 1M tokens. price_changes counts changes from one price to another, without the flagged ones.",
+    notes = ["Prices per 1M tokens. price_changes counts changes from one price to another, without the flagged ones. "
+             "source links the LiteLLM change behind each change.",
              "The outlook covers listings that have not changed since they were added: Aalen-Johansen estimates "
              "with 95% intervals, among listings of the same age. What usually happens in the catalogue, not a "
              "forecast for one model."]
@@ -295,3 +360,26 @@ def snapshot(s):
     """What the data holds today: dates, how many models and rated tasks, and the sources."""
     return {"models_listed": len(s.models), "grouped_models": len(s.groups),
             "rated_tasks": {k: len(v) for k, v in s.ratings.items()}, "tasks": logic.LABELS, **footer(s)}
+
+
+def not_yet_priced(s, maker=None):
+    """Models Arena rated recently that LiteLLM's catalogue does not price yet (with names it may be priced
+    under), and how soon the catalogue usually prices a model after Arena first shows it, by maker."""
+    u = s.data.get("unpriced")
+    if not u:
+        raise NotFound("This data has no list of models not yet priced (Arena could not be read when it was built).")
+    want = (maker or "").strip().lower()
+    rows = [{"model": r[0], "maker": r[1] or None, "first_on_arena": r[2], "days_since": r[3], "votes": r[4],
+             "rating": r[5], "maybe_listed_as": r[6] or None}
+            for r in u["models"] if not want or (r[1] or "").lower() == want]
+    makers = [{"maker": r[0], "models": r[1], "priced_before_arena": r[2], "median_wait_days_when_later": r[3],
+               "not_priced_yet": r[4]} for r in u["by_maker"] if not want or r[0].lower() == want]
+    timing = u["timing"]
+    return {"leaderboard": u["date"], "recent_days": u["recent_days"], "models": rows,
+            "priced_within": {d: {"share": v[0], "low": v[1], "high": v[2]} for d, v in timing["within"].items()},
+            "timed_models": timing["models"], "by_maker": makers,
+            "notes": ["Days run from the first Arena leaderboard that lists a model (Arena's history starts "
+                      f"{u['history_from']}) to the first catalogue version with a price for it; not the time "
+                      "from release. Kaplan-Meier with 95% bootstrap ranges; a model not priced yet counts until "
+                      "today. maybe_listed_as names a catalogue model the naming rules could not confirm."],
+            **footer(s)}

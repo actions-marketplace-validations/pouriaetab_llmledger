@@ -301,8 +301,8 @@ Arena ratings by task, the sources and their licences. Verified by:
 `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook`.
 
 **REQ-S32 Plug-in.** The folder `mcp/` shall hold an MCP server
-(llmledger-mcp) with five read-only tools (find_models, compare_models,
-estimate_cost, price_history, suggest_for_project), a snapshot resource
+(llmledger-mcp) with six read-only tools (find_models, compare_models,
+estimate_cost, price_history, suggest_for_project, not_yet_priced), a snapshot resource
 and a prompt, reading `data.json` once a day with a bundled copy for the
 first run. Its task guess and comparison shall give the same answers as
 the page's route.js and pick.js. A model shall be priced at its cheapest
@@ -411,7 +411,7 @@ automated test of the workflow file, and demonstration.
 **REQ-S41 Agent Skill.** The folder `skills/llmledger` shall hold an Agent
 Skill (agentskills.io format: `SKILL.md` with a name matching the folder, a
 description of what it does and when to use it, under 500 lines) and a
-script that gives the plug-in's five answers as JSON with the standard
+script that gives the plug-in's answers as JSON with the standard
 library only, from an exact copy of the plug-in's `tools.py`, `logic.py`
 and `data.py`, so both give the same answers from the same data. The
 repository shall be a Claude Code marketplace whose one plugin is that
@@ -420,6 +420,38 @@ instead of failing. Verified by: automated tests that the copy is exact,
 that `SKILL.md` and the marketplace files follow their formats, of the
 script's answers on the plug-in's test data and of its errors; Claude
 Code's own `plugin validate` and an install in a fresh profile.
+
+**REQ-S42 Seen, not yet priced.** From Arena's latest overall leaderboard
+and its full history, the analysis shall list the models Arena first showed
+in the last 180 days that the catalogue does not list, with the day Arena
+first showed them, their votes, and for a name the naming rules cannot
+match, up to 3 catalogue names it may be priced under. It shall estimate,
+with Kaplan-Meier and 95% bootstrap intervals (1,000 resamples), the chance
+that a model is priced on or before the day Arena first shows it and within
+7, 30 and 90 days, counting a model not priced yet as followed until the
+day of the run, leaving out models on Arena's first leaderboard (their
+first day is unknown) and unmatched names with a close catalogue name, and
+reporting only while at least 20 models are followed; and, for makers with
+at least 5 models, the share priced before Arena showed them and the median
+wait of the rest. The page shall show both under Price history, and the
+plug-in and the skill shall answer them. Verified by: automated tests on
+small examples, the fallback to the live page, and the page.
+
+**REQ-S43 Where each change came from.** Each change shall keep the LiteLLM
+commit that made it (its first 12 characters, written once in a list the
+changes point to), the page shall link it from a model's timeline, and the
+plug-in shall give it with each change and, for a day asked about, each
+listing's prices at the end of that day as the catalogue had them, with
+the change that set each one. Verified by: automated tests of the list,
+of a price on a day before, on and after a change, and of the page.
+
+**REQ-S44 Cache costs and offline answers.** Records shall carry the cache
+write price as well as the cache read price; an estimate with cached or
+cache write tokens shall price them at those prices (at the input price,
+saying so, when one is not listed) and give the cost without the cache and
+the saving. Every plug-in answer shall give the day its prices are from,
+and say so when it comes from the bundled copy or an old download because
+today's data could not be downloaded. Verified by: automated tests.
 
 ## 5. Known limitations
 
@@ -553,8 +585,8 @@ Code's own `plugin validate` and an install in a fresh profile.
 | REQ-S28 | `test_req_s28_page_opens_on_the_prompt_box`; the page at 1366 and 390 pixels wide | test, demonstration |
 | D13, REQ-S29 | `test_req_s29_records_carry_cache_price_and_effort_levels`, `test_req_s29_effort_is_clamped_to_the_levels_a_model_takes`, `test_req_s29_effort_suggestion_known_answers`, `test_req_s29_effort_suggestion_says_why_and_respects_the_model`, `test_req_s29_plan_use_is_relative_to_the_least`, `test_req_s29_verdict_known_answer`, `test_req_s29_verdict_on_a_plan_and_without_ratings`, `test_req_s29_the_pick_is_the_cheapest_the_votes_cannot_tell_from_the_top`, `test_req_s29_headline_and_notes_say_why`, `test_req_s29_page_compares_models_side_by_side`; the page in a browser | test, demonstration |
 | REQ-S30 | `test_req_s30_arena_is_explained_on_the_page`; the page in a browser | test, demonstration |
-| REQ-S31 | `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook`, `test_req_s31_data_json_explains_the_tags_and_carries_the_corrections_measured` | test |
-| REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (11 tests) | test |
+| REQ-S31 | `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook`, `test_req_s31_data_json_explains_the_tags_and_carries_the_corrections_measured`, `test_req_s43_data_json_links_each_change_to_its_commit` | test |
+| REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (15 tests) | test |
 | REQ-S33 | `test_req_s33_renamed_arena_models_keep_one_line`, `test_req_s33_a_price_is_rolled_back_to_the_day`, `test_req_s33_a_likely_correction_is_not_rolled_back`, `test_req_s33_lines_makers_and_the_price_race`, `test_req_s33_no_history_means_no_trends`, `test_req_s33_yesterdays_trends_are_kept_when_arena_is_down`, `test_req_s33_a_rating_gap_in_plain_odds`, `test_req_s33_a_line_is_drawn_between_its_points_and_ends_after_a_month`, `test_req_s33_labels_never_overlap_and_stay_inside`, `test_req_s33_round_ticks`, `test_req_s33_trends_view_replays_the_leaderboards`, `test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_charts`; the page in a browser at 1366 and 390 pixels wide, light and dark | test, demonstration |
 | REQ-S34 | `test_req_s34_the_edge_keeps_only_models_nobody_beats_on_both`, `test_req_s34_cost_vs_quality_sits_on_ask`; the page in a browser | test, demonstration |
 | REQ-S35 | `test_req_s35_new_arrivals_are_new_groups_with_a_text_price`, `test_req_s35_latest_changes_fold_batches_and_join_price_fields` | test |
@@ -563,6 +595,9 @@ Code's own `plugin validate` and an install in a fresh profile.
 | REQ-S39 | `test_req_s39_old_data_is_named_on_the_page`; `test_old_data_says_how_old_it_is` in `mcp/tests` | test |
 | REQ-S40 | `test_req_s40_a_failed_refresh_opens_one_issue_and_a_good_one_closes_it`; the `report` job of the `refresh` workflow | test, demonstration |
 | REQ-S41 | `test_req_s41_the_skill_carries_an_exact_copy_of_the_plugin_code`, `test_req_s41_skill_md_follows_the_agent_skills_format`, `test_req_s41_the_repository_is_a_claude_code_marketplace_for_the_skill`, `test_req_s41_the_script_gives_the_plugins_answers`, `test_req_s41_the_script_says_what_went_wrong`; `claude plugin validate .` and an install in a fresh profile | test, demonstration |
+| REQ-S42 | `test_req_s42_close_names_for_names_the_rules_cannot_match`, `test_req_s42_recent_models_without_a_price`, `test_req_s42_how_soon_a_price_comes`, `test_req_s42_estimates_on_enough_models`, `test_req_s42_no_arena_means_no_list`, `test_req_s42_price_history_has_a_not_yet_priced_panel`; `test_not_yet_priced_lists_new_models_and_the_wait` in `mcp/tests` | test |
+| REQ-S43 | `test_req_s43_each_change_keeps_the_litellm_commit_and_cache_write_price`, `test_req_s43_data_json_links_each_change_to_its_commit`, `test_req_s33_a_change_with_its_source_rolls_back_the_same`; `test_a_price_on_a_date_with_the_change_that_set_it` in `mcp/tests` | test |
+| REQ-S44 | `test_cache_reads_and_writes_and_the_saving`, `test_offline_answers_say_so_with_the_date` in `mcp/tests` | test |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |

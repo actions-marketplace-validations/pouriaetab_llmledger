@@ -43,3 +43,12 @@ def test_req_s31_data_json_explains_the_tags_and_carries_the_corrections_measure
     assert out["corrections"] == {"first_week": {"share": 0.856}}
     assert export.machine(DATA, INFO)["corrections"] is None
 
+
+def test_req_s43_data_json_links_each_change_to_its_commit():
+    data = {**DATA, "events": {"a": [["2026-01-01", "added", "", None, None, "", 0]], "b": [], "c": []},
+            "sources": ["abcdef012345"], "unpriced": {"date": "2026-10-15"}}
+    out = export.machine(data, INFO)
+    assert out["sources"] == ["abcdef012345"] and out["events"]["a"][0][6] == 0
+    assert "github.com/BerriAI/litellm/commit/" in out["units"]["sources"]
+    assert out["unpriced"] == {"date": "2026-10-15"} and out["models"][0]["cache_write"] is None
+

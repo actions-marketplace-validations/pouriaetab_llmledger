@@ -7,7 +7,7 @@
   if (!D) return;
   const FIELDS = ["key", "maker", "name", "host", "mode", "status", "added",
     "removed", "retire", "input", "output", "repriced", "last", "exit", "age", "skills", "size", "media",
-    "cache", "effort", "effortDefault"];
+    "cache", "effort", "effortDefault", "cacheWrite"];
   const models = D.models.map(r => Object.fromEntries(FIELDS.map((f, i) => [f, r[i]])));
   const byKey = new Map(models.map(m => [m.key, m]));
   const groups = new Map();
@@ -49,6 +49,11 @@
     likely: "in the model's first 7 days, from 0, or 10 times or more: 9 in 10 such first price changes were corrections in a labelled sample",
   };
   const tag = flag => FLAGS[flag] ? ' <span class="tag" title="' + esc(WHY[flag]) + '">' + FLAGS[flag] + "</span>" : "";
+
+  // The LiteLLM version that made a change, so anyone can check it
+  const source = e => (D.sources && e[6] != null && D.sources[e[6]])
+    ? '<a href="https://github.com/BerriAI/litellm/commit/' + esc(D.sources[e[6]]) +
+      '" target="_blank" rel="noopener" title="The change in LiteLLM\'s price file">LiteLLM change</a>' : "–";
 
   function change(kind, field, oldV, newV) {
     if (kind === "added") return "Added";
@@ -112,7 +117,8 @@
 
   /* ---------- tabs ---------- */
   const TABS = ["ask", "race", "models", "trends", "about"];
-  const OLD = { lookup: "models", cost: "ask", value: "ask", week: "trends", top: "trends", overview: "trends" };
+  const OLD = { lookup: "models", cost: "ask", value: "ask", week: "trends", top: "trends", overview: "trends",
+    unpriced: "trends" };
   let currentTab = "ask";
   function showTab(name) {
     name = OLD[name] || name;
@@ -139,12 +145,12 @@
     showPanel(b.dataset.panel);
     try { localStorage.setItem(STORE + ":panel", b.dataset.panel); } catch (e) { /* not remembered */ }
   }));
-  showPanel(({ week: "week", top: "top" })[location.hash.slice(1)] ||
+  showPanel(({ week: "week", top: "top", unpriced: "unpriced" })[location.hash.slice(1)] ||
     (() => { try { return localStorage.getItem(STORE + ":panel"); } catch (e) { return null; } })() || "overview");
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
     showTab(h);
-    if (h === "week" || h === "top" || h === "overview") showPanel(h);
+    if (["week", "top", "overview", "unpriced"].includes(h)) showPanel(h);
   });
   // About fits one screen: a part added to it with a heading of its own (a copy of this page may add its scope
   // note) becomes one more row that opens on a click, like the rows already there; a link marked data-scope opens it.
@@ -273,7 +279,7 @@
     if (!m) return;
     const id = m.maker + " / " + m.name;
     const events = (D.events[key] || []).slice().reverse().map(e => [
-      e[0], change(e[1], e[2], e[3], e[4]) + tag(e[5]), value(e[2], e[3]), value(e[2], e[4])]);
+      e[0], change(e[1], e[2], e[3], e[4]) + tag(e[5]), value(e[2], e[3]), value(e[2], e[4]), source(e)]);
     $("detail").innerHTML = CLOSE +
       "<h3>" + esc(key) + "</h3>" +
       '<p class="muted">Host <b>' + esc(m.host || "unknown") + "</b> · grouped as " + groupLink(id) +
@@ -287,7 +293,7 @@
       "<div><span>Price changes</span>" + m.repriced + "</div></div>" +
       '<p><button type="button" data-add="' + esc(key) + '">Add to compare</button></p>' +
       "<h4>Outlook</h4>" + outlookFor(m) +
-      "<h4>Timeline</h4>" + table(["Date", "Change", "Before", "After"], events, "timeline");
+      "<h4>Timeline</h4>" + table(["Date", "Change", "Before", "After", "Source"], events, "timeline");
     $("detail").scrollTop = 0;
   }
 
@@ -1011,6 +1017,34 @@
       "Price change within 1 year", "Retirement date within 1 year", "Removed within 1 year"], ranked, "top-hosts");
   }
   ["top-n", "top-listed", "top-grouped"].forEach(id => $(id).addEventListener("input", () => { renderTop(); remember(); }));
+
+  /* ---------- seen on Arena, not yet priced ---------- */
+  (function renderUnpriced() {
+    const U = D.unpriced;
+    if (!U) {
+      $("unpriced-list").innerHTML = '<p class="muted">Arena could not be read for this build.</p>';
+      return;
+    }
+    const rows = U.models.map(m => [esc(m[0]), esc(m[1] || "–"), m[2], m[3].toLocaleString(), m[4].toLocaleString(),
+      m[6].length ? m[6].map(esc).join(", ") : "–"]);
+    $("unpriced-list").innerHTML = '<p class="muted">Models that Arena first showed in the last ' + U.recent_days +
+      " days and that LiteLLM's catalogue does not list yet (Arena leaderboard of " + U.date + "). A name under " +
+      "<b>Maybe listed as</b> may be the same model priced under another name.</p>" +
+      (rows.length ? table(["Model on Arena", "Maker", "First on Arena", "Days since", "Votes", "Maybe listed as"], rows, "unpriced")
+        : "<p>None: every model Arena showed in that time has a price.</p>");
+    const T = U.timing, w = T.within, cell = d => w[d] ? pct(w[d][0]) + " <small>(" + range(w[d][1], w[d][2]) + ")</small>" : "–";
+    // the 15 makers with the most models, so the table shows in full
+    const makers = U.by_maker.slice(0, 15).map(r => [esc(r[0]), r[1], pct(r[2]), r[3] == null ? "–" : r[3] + (r[3] === 1 ? " day" : " days"), r[4]]);
+    $("unpriced-timing").innerHTML = "<p>Of " + T.models.toLocaleString() + " models Arena first showed since " + U.history_from +
+      ", <b>" + cell("0") + "</b> already had a price that day; " + cell("7") + " within 7 days, " + cell("30") +
+      " within 30 and " + cell("90") + " within 90.</p>" +
+      table(["Maker", "Models", "Priced before Arena showed them", "Wait when later (median)", "Not priced yet"], makers, "unpriced-makers") +
+      '<p class="muted">Days from the first Arena leaderboard that lists a model to the first catalogue version with a ' +
+      "price for it. Arena often shows a model before or after its release, so this is not the time from release. " +
+      "Kaplan-Meier estimates with 95% bootstrap ranges; a model not priced yet counts until today. " +
+      T.left_out_close_names + " names the naming rules could not match but that look like a priced model are left out. " +
+      "The 15 makers with the most models (at least 5 each). Arena's leaderboards are CC BY 4.0.</p>";
+  })();
   if (["10", "20", "all"].includes(saved.topN)) $("top-n").value = saved.topN;
   if (saved.topGrouped) $("top-grouped").checked = true;
   renderTop();

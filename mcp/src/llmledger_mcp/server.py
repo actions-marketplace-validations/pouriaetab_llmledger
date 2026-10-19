@@ -27,7 +27,8 @@ mcp = FastMCP(
         "Which AI model to use, and what it costs. Prices come from LiteLLM's public catalogue, quality from "
         "Arena's votes, and each price's full history from llmledger. Use suggest_for_project for 'which model "
         "for this', compare_models to put 2 to 6 models side by side, estimate_cost for a budget, find_models to "
-        "browse, and price_history for one model. Costs and ratings are estimates; pass on the credits line."),
+        "browse, price_history for one model (or its price on a date), and not_yet_priced for new models without a "
+        "price. Costs and ratings are estimates; pass on the credits line."),
     version=__version__,
 )
 
@@ -85,11 +86,14 @@ def estimate_cost(
     output_tokens: Annotated[int, Field(description="Answer tokens per call, including hidden thinking", ge=0)],
     cached_tokens: Annotated[int, Field(description="How many of the prompt tokens are read from the cache", ge=0)] = 0,
     calls_per_day: Annotated[float, Field(description="Calls per day", ge=0)] = 1,
+    cache_write_tokens: Annotated[int, Field(description="How many of the prompt tokens are written to the cache", ge=0)] = 0,
 ) -> dict:
-    """What a workload costs on each model at its cheapest listing: per call, per day and per 30 days."""
+    """What a workload costs on each model at its cheapest listing: per call, per day and per 30 days. With
+    cached or cache write tokens, also the cost without the cache and the saving."""
     try:
         return tools.estimate_cost(shelf(), models=models, input_tokens=input_tokens, output_tokens=output_tokens,
-                                   cached_tokens=cached_tokens, calls_per_day=calls_per_day)
+                                   cached_tokens=cached_tokens, calls_per_day=calls_per_day,
+                                   cache_write_tokens=cache_write_tokens)
     except tools.NotFound as error:
         raise ToolError(str(error)) from None
 
@@ -97,11 +101,13 @@ def estimate_cost(
 @mcp.tool(annotations=READ_ONLY)
 def price_history(
     model: Annotated[str, Field(description="A model name, for example claude-opus-5.5, or one listing such as bedrock/anthropic.claude-opus-5-5")],
+    date: Annotated[str | None, Field(description="A day as YYYY-MM-DD: each listing's prices that day and the change that set them")] = None,
 ) -> dict:
-    """Every change to a model's listings since 2023 (prices, retirement dates), and for listings that have not
-    changed yet, the chance of a price change, a retirement date or removal in the next 90 days and year."""
+    """Every change to a model's listings since 2023 (prices, retirement dates) with the LiteLLM change behind
+    each, and for listings that have not changed yet, the chance of a price change, a retirement date or removal
+    in the next 90 days and year. With a date, each listing's prices that day."""
     try:
-        return tools.price_history(shelf(), model=model)
+        return tools.price_history(shelf(), model=model, date=date)
     except tools.NotFound as error:
         raise ToolError(str(error)) from None
 
@@ -116,6 +122,18 @@ def suggest_for_project(
     cheapest whose rating the votes cannot tell apart from the top), the top rated and the cheapest rated."""
     try:
         return tools.suggest_for_project(shelf(), prompt=prompt, pay=pay, answer=answer)
+    except tools.NotFound as error:
+        raise ToolError(str(error)) from None
+
+
+@mcp.tool(annotations=READ_ONLY)
+def not_yet_priced(
+    maker: Annotated[str | None, Field(description="Only this maker, for example meta or ibm")] = None,
+) -> dict:
+    """Models Arena rated recently that LiteLLM's catalogue does not price yet, and how soon the catalogue
+    usually prices a model after Arena first shows it, by maker."""
+    try:
+        return tools.not_yet_priced(shelf(), maker=maker)
     except tools.NotFound as error:
         raise ToolError(str(error)) from None
 

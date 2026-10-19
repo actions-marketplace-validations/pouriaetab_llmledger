@@ -41,9 +41,10 @@ In Claude Code: `/plugin marketplace add pouriaetab/llmledger`, then `/plugin in
 |---|---|
 | `suggest_for_project` | "Which model and effort for this project?" with the starting prompt; `pay` can be `claude` or `chatgpt` to compare within a plan |
 | `compare_models` | "Opus 5.5 or Fable 5.1 for coding, and when is Fable cheaper?" |
-| `estimate_cost` | "What do 2,000 calls a day of 10K tokens in and 1K out cost on these three?" |
+| `estimate_cost` | "What do 2,000 calls a day of 10K tokens in and 1K out cost on these three?", and with `cached_tokens` and `cache_write_tokens`, how much the cache saves |
 | `find_models` | "The best rated coding models under $10 per 1M answer tokens that read images" |
-| `price_history` | "Has Claude Opus 5.5's price changed, and how likely is it to change soon?" |
+| `price_history` | "Has Claude Opus 5.5's price changed, and how likely is it to change soon?"; with `date`, "What did it cost on 1 March?" Each change links the LiteLLM change behind it |
+| `not_yet_priced` | "Which new models on Arena have no price yet, and how long does a price usually take?" |
 
 Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, `pick_a_model`.
 

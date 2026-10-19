@@ -21,7 +21,7 @@ def call(tool, **args):
     return asyncio.run(go())
 
 
-def test_the_five_tools_a_resource_and_a_prompt_are_listed():
+def test_the_six_tools_a_resource_and_a_prompt_are_listed():
     async def go():
         async with Client(mcp) as client:
             tools = {t.name: t for t in await client.list_tools()}
@@ -30,7 +30,8 @@ def test_the_five_tools_a_resource_and_a_prompt_are_listed():
             snap = json.loads((await client.read_resource("llmledger://snapshot"))[0].text)
             return tools, resources, prompts, snap
     tools, resources, prompts, snap = asyncio.run(go())
-    assert sorted(tools) == ["compare_models", "estimate_cost", "find_models", "price_history", "suggest_for_project"]
+    assert sorted(tools) == ["compare_models", "estimate_cost", "find_models", "not_yet_priced", "price_history",
+                             "suggest_for_project"]
     assert all(t.annotations.read_only_hint for t in tools.values())
     assert resources == ["llmledger://snapshot"] and prompts == ["pick_a_model"]
     assert snap["models_listed"] == 6 and snap["rated_tasks"] == {"overall": 4, "coding": 3}
@@ -82,7 +83,7 @@ def test_price_history_lists_changes_per_1m_and_the_outlook():
     out = call("price_history", model="claude-opus-5.5")
     bedrock = next(x for x in out["listings"] if x["listing"] == "bedrock/claude-opus-5-5")
     assert bedrock["changes"][1] == {"day": "2026-09-01", "change": "price", "field": "input_cost_per_token",
-                                     "before": 5.0, "after": 4.4, "flag": None}
+                                     "before": 5.0, "after": 4.4, "flag": None, "source": None}
     first = next(x for x in out["listings"] if x["listing"] == "claude-opus-5-5")
     assert first["outlook"]["90"]["price"] == [0.05, 0.04, 0.06]
 
@@ -156,3 +157,85 @@ def test_a_model_is_priced_at_its_cheapest_listing_whatever_the_order(monkeypatc
     raw["models"].insert(0, dict(raw["models"][0], key="aaa/claude-opus-5-5", host="aaa", input=4.0, output=20.0))
     raw["models"] = [m for m in raw["models"] if m["key"] != "claude-opus-5-5"]                # then the name
     assert tools.listing(data.Shelf(raw, "test"), "anthropic / claude-opus-5.5")[0]["key"] == "aaa/claude-opus-5-5"
+
+
+def _fixture():
+    return json.loads(Path(__file__).with_name("fixture.json").read_text())
+
+
+def test_a_price_on_a_date_with_the_change_that_set_it(monkeypatch):
+    from llmledger_mcp import data, server
+    raw = _fixture()
+    raw["sources"] = ["aaaaaaaaaaaa", "bbbbbbbbbbbb", "cccccccccccc"]
+    raw["events"]["bedrock/claude-opus-5-5"] = [
+        ["2026-08-02", "added", "", None, None, "", 0],
+        ["2026-09-01", "price", "input_cost_per_token", 5e-06, 4.4e-06, "", 1],
+        ["2026-09-01", "price", "output_cost_per_token", 2.5e-05, 2.2e-05, "likely", 2]]
+    monkeypatch.setattr(server, "_SHELF", data.Shelf(raw, "test"))
+    commit = "https://github.com/BerriAI/litellm/commit/"
+
+    def on(day):
+        out = call("price_history", model="bedrock/claude-opus-5-5", date=day)
+        return out["listings"][0]
+    before = on("2026-08-15")
+    assert before["on_date"]["price_per_1m"]["input"] == 5.0 and before["on_date"]["price_per_1m"]["output"] == 25.0
+    assert before["on_date"]["set_by"]["input"] == {"day": "2026-08-02", "flag": None, "source": commit + "aaaaaaaaaaaa"}
+    after = on("2026-09-01")                                   # a change on the day counts that day
+    assert after["on_date"]["price_per_1m"]["input"] == 4.4 and after["on_date"]["price_per_1m"]["output"] == 22.0
+    assert after["on_date"]["set_by"]["output"] == {"day": "2026-09-01", "flag": "likely", "source": commit + "cccccccccccc"}
+    assert after["changes"][1]["source"] == commit + "bbbbbbbbbbbb"
+    assert on("2026-07-01")["on_date"] == {"day": "2026-07-01", "listed": False, "note": "Not listed yet: added 2026-08-02."}
+    with pytest.raises(ToolError, match="YYYY-MM-DD"):
+        call("price_history", model="bedrock/claude-opus-5-5", date="1 Sept")
+
+
+def test_cache_reads_and_writes_and_the_saving(monkeypatch):
+    from llmledger_mcp import data, server
+    raw = _fixture()
+    raw["models"][0]["cache_write"] = 5.0                     # claude-opus-5-5: write $5, read $0.20, input $4
+    monkeypatch.setattr(server, "_SHELF", data.Shelf(raw, "test"))
+    out = call("estimate_cost", models=["claude-opus-5.5", "gpt-6.1-sol"], input_tokens=10000, output_tokens=1000,
+               cached_tokens=8000, cache_write_tokens=1000, calls_per_day=10)
+    opus = next(m for m in out["models"] if m["model"] == "anthropic / claude-opus-5.5")
+    gpt = next(m for m in out["models"] if m["model"] == "openai / gpt-6.1-sol")
+    with_cache = (1000 * 4 + 8000 * 0.2 + 1000 * 5 + 1000 * 20) / 1e6
+    plain = (10000 * 4 + 1000 * 20) / 1e6
+    assert opus["per_call"] == pytest.approx(with_cache) and opus["without_cache"]["per_call"] == pytest.approx(plain)
+    assert opus["saving_per_30_days"] == pytest.approx((plain - with_cache) * 300) and "note" not in opus
+    assert gpt["note"] == "No cache write price listed: those tokens are counted at the input price."
+    plain_only = call("estimate_cost", models=["claude-opus-5.5"], input_tokens=10000, output_tokens=1000)
+    assert "without_cache" not in plain_only["models"][0]
+
+
+def test_offline_answers_say_so_with_the_date():
+    from llmledger_mcp import data, tools
+    raw = _fixture()
+    offline = tools.footer(data.Shelf(raw, "the copy bundled with this version"))["data"]
+    assert offline["prices_as_of"] == "2026-10-16"
+    assert offline["offline"] == ("Today's data could not be downloaded: answering from the copy bundled with this "
+                                  "version, prices as of 2026-10-16.")
+    assert "offline" not in tools.footer(data.Shelf(raw, "downloaded"))["data"]
+
+
+def test_not_yet_priced_lists_new_models_and_the_wait(monkeypatch):
+    from llmledger_mcp import data, server
+    raw = _fixture()
+    with pytest.raises(ToolError, match="no list of models not yet priced"):
+        monkeypatch.setattr(server, "_SHELF", data.Shelf(raw, "test"))
+        call("not_yet_priced")
+    raw["unpriced"] = {"date": "2026-10-15", "history_from": "2024-08-28", "recent_days": 180,
+                       "models": [["Muse Wonder (Max)", "meta", "2026-10-13", 6, 3247, 1508.9, ["muse-wonder-1.0"]],
+                                  ["granite-4.2-30b", "ibm", "2026-09-01", 48, 3401, 1340.0, []]],
+                       "not_priced": 117,
+                       "timing": {"models": 231, "priced": 195, "within": {"0": [0.359, 0.294, 0.424],
+                                                                          "7": [0.498, 0.433, 0.558]},
+                                  "left_out_close_names": 44},
+                       "by_maker": [["ibm", 9, 0.0, 108.0, 7], ["meta", 9, 0.222, 15.0, 0]]}
+    monkeypatch.setattr(server, "_SHELF", data.Shelf(raw, "test"))
+    out = call("not_yet_priced")
+    assert [m["model"] for m in out["models"]] == ["Muse Wonder (Max)", "granite-4.2-30b"]
+    assert out["models"][0]["maybe_listed_as"] == ["muse-wonder-1.0"] and out["models"][1]["maybe_listed_as"] is None
+    assert out["priced_within"]["7"] == {"share": 0.498, "low": 0.433, "high": 0.558}
+    ibm = call("not_yet_priced", maker="IBM")
+    assert [m["model"] for m in ibm["models"]] == ["granite-4.2-30b"] and ibm["by_maker"][0]["not_priced_yet"] == 7
+

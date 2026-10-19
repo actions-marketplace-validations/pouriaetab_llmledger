@@ -147,19 +147,33 @@ def model_records(rows, last, end):
             len(repriced), _day(history[-1]["when"]), first_exit, age,
             _skills(entry), _size(entry), _media(entry),
             _per_million(entry, "cache_read_input_token_cost"), *_effort(entry),
+            _per_million(entry, "cache_creation_input_token_cost"),
         ])
+        # each change keeps the LiteLLM version that made it (the first 12 characters of the commit)
         events[key] = [
             [_day(row["when"]), row["kind"], row["field"],
              json.loads(row["old"]), json.loads(row["new"]),
-             row.get("flag", "")]
+             row.get("flag", ""), row["sha"][:12]]
             for row in history
         ]
     return records, events
 
 
+def sources(events):
+    """Each change's LiteLLM version as a number into one list, so a commit is written once:
+    events change in place, and the list comes back (https://github.com/BerriAI/litellm/commit/<it>)."""
+    index = {}
+    for history in events.values():
+        for event in history:
+            if len(event) > 6 and isinstance(event[6], str):
+                event[6] = index.setdefault(event[6], len(index))
+    return list(index)
+
+
 def build(rows, last, end, resamples=1000):
     flags.mark(rows)
     records, events = model_records(rows, last, end)
+    commits = sources(events)
     groups = {"all": rows}
     members = defaultdict(set)
     for record in records:
@@ -182,6 +196,7 @@ def build(rows, last, end, resamples=1000):
         "end": end.isoformat(),
         "models": records,
         "events": events,
+        "sources": commits,
         "curves": curves,
         "providers": ranking,
         "groups": sorted(name for name in groups if name != "all"),

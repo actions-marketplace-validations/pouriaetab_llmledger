@@ -5,7 +5,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from llmledger import arena, catalog, corrections, events, guard, history, licences, page, route_eval, sql, survival, trends
+from llmledger import (arena, catalog, corrections, events, guard, history, licences, page, route_eval, sql, survival,
+                       trends, unpriced)
 
 SOURCE = "https://github.com/BerriAI/litellm.git"
 UPSTREAM = Path("data/upstream")
@@ -72,12 +73,21 @@ def main():
               f"{data['arena']['total']} models matched to the catalogue")
     versions = history.commits(UPSTREAM)
     sha, when = versions[-1]
+    built = datetime.now(timezone.utc)
+    if allowed["ratings"] and allowed["trends"]:
+        data["unpriced"] = unpriced.build(tables, rows_over_time, data["models"], versions[0][1].date().isoformat(),
+                                          built.date())
+        if data["unpriced"] is None:
+            data["unpriced"] = unpriced.previous(LIVE + "data.js")
+        if data["unpriced"]:
+            print(f"Not yet priced: {len(data['unpriced']['models'])} recent Arena models, "
+                  f"{data['unpriced']['timing']['models']} timed")
     info = {
         "models": sizes["main"],
         "since": versions[0][1],
         "sha": sha,
         "when": when,
-        "built": datetime.now(timezone.utc),
+        "built": built,
         "python": platform.python_version(),
     }
     data["built"] = info["built"].isoformat(timespec="seconds")
