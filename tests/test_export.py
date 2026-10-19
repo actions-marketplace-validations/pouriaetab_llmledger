@@ -52,3 +52,10 @@ def test_req_s43_data_json_links_each_change_to_its_commit():
     assert "github.com/BerriAI/litellm/commit/" in out["units"]["sources"]
     assert out["unpriced"] == {"date": "2026-10-15"} and out["models"][0]["cache_write"] is None
 
+
+
+def test_req_s48_data_json_carries_the_electricity_prices_and_their_credit():
+    power = {"month": "2026-07", "us": 0.1831, "states": {"Texas": 0.1588}}
+    out = export.machine({**DATA, "electricity": power}, INFO)
+    assert out["electricity"] == power and "public domain" in out["credits"]["electricity"]
+    assert export.machine(DATA, INFO)["electricity"] is None

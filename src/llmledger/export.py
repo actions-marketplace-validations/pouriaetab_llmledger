@@ -17,6 +17,7 @@ OUTCOMES = ("price", "retirement", "removed", "none")
 CREDITS = {
     "prices": "LiteLLM's model_prices_and_context_window.json (MIT), https://github.com/BerriAI/litellm",
     "ratings": "Arena leaderboard (CC BY 4.0), https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+    "electricity": "U.S. Energy Information Administration, Electric Power Monthly (public domain)",
     "note": "Estimates from a public catalogue and public votes. Not financial or procurement advice.",
 }
 
@@ -68,6 +69,7 @@ def machine(data, info):
                   "flags": flags.TEXT},
         "corrections": data.get("corrections"),
         "unpriced": data.get("unpriced"),
+        "electricity": data.get("electricity"),
         "models": models,
         "events": events,
         "sources": data.get("sources"),

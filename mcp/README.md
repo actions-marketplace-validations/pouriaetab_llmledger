@@ -48,6 +48,7 @@ In Claude Code: `/plugin marketplace add pouriaetab/llmledger`, then `/plugin in
 | `estimate_time` | "How long will 5,000 calls of 2K tokens in and 600 out take on Opus 5.5 through the API, 4 at a time?" Learned from your own runs |
 | `log_run` | "I timed this call: 2,100 in, 640 out, 9.2 seconds", or a promptfoo results file; kept on your computer only |
 | `forecast_job` | "Here is a promptfoo run of 20 of my 5,000 tests: what will the whole job cost and take on each model, and which should I pick?" Reads the file only |
+| `local_or_cloud` | "Should I buy a $2,000 computer to run llama3.1:8b at home, or keep paying for GPT-6.1 at 30,000 calls a month?" The local model's speed from your own runs, electricity from EIA or your price |
 
 Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, `pick_a_model`.
 
@@ -70,6 +71,7 @@ Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, 
 ## Data and licences
 
 Prices: LiteLLM's `model_prices_and_context_window.json` (MIT). Ratings: the Arena leaderboard
-(CC BY 4.0). Price history and outlook: [llmledger](https://github.com/pouriaetab/llmledger) (MIT).
+(CC BY 4.0). Electricity: the U.S. Energy Information Administration's Electric Power Monthly
+(public domain). Price history and outlook: [llmledger](https://github.com/pouriaetab/llmledger) (MIT).
 Built with [FastMCP](https://github.com/PrefectHQ/fastmcp) (Apache-2.0). Independent; not affiliated
 with BerriAI, LiteLLM or Arena.

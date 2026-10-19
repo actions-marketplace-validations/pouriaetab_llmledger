@@ -84,11 +84,30 @@ def parser():
     q.add_argument("--thinking", action="store_true")
     q.add_argument("--wrong-cost", type=float, help="dollars a wrong answer costs to catch and fix")
 
+    lc = sub.add_parser("local", help="buy a computer for an open model, or pay a cloud model: when buying pays off")
+    lc.add_argument("local_model", help="the open model as Ollama names it, for example llama3.1:8b")
+    lc.add_argument("cloud_models", nargs="+", help="1 to 5 cloud models to compare with")
+    lc.add_argument("--input", type=int, required=True, help="prompt tokens per call")
+    lc.add_argument("--output", type=int, required=True, help="answer tokens per call, hidden thinking included")
+    lc.add_argument("--calls-per-month", type=float, required=True)
+    lc.add_argument("--hardware-price", type=float, required=True, help="what the computer costs, in dollars")
+    lc.add_argument("--watts", type=float, help="power the computer draws while it answers")
+    lc.add_argument("--kwh-price", type=float, help="your electricity price, dollars per kWh")
+    lc.add_argument("--state", help="a US state, for EIA's average price there")
+    lc.add_argument("--months", type=int, default=36)
+    lc.add_argument("--cached", type=int, default=0, help="prompt tokens read from the cloud model's cache")
+    lc.add_argument("--way", choices=speed.WAYS, default="ollama", help="how the local model is called")
+
     sub.add_parser("tasks", help="the kinds of work Arena rates, and what the data holds today")
     return p
 
 
 def run(args, shelf):
+    if args.command == "local":
+        return tools.local_or_cloud(shelf, args.local_model, args.cloud_models, args.input, args.output,
+                                    args.calls_per_month, args.hardware_price, watts=args.watts,
+                                    electricity_price=args.kwh_price, state=args.state, months=args.months,
+                                    cached_tokens=args.cached, local_way=args.way)
     if args.command == "forecast":
         return tools.forecast_job(shelf, args.promptfoo, args.items, concurrency=args.at_once, way=args.way,
                                   thinking=args.thinking, wrong_answer_cost=args.wrong_cost)

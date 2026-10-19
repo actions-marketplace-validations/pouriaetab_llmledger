@@ -1,10 +1,10 @@
 ---
 name: llmledger
-description: Pick an AI model and price AI work from public data. Today's price of every model in LiteLLM's catalogue at its cheapest host, Arena quality ratings by kind of work, and each price's history since 2023 with the chance it changes soon. Use when someone asks which LLM to use, what a prompt, job or monthly workload will cost on different models, how models compare on price and quality, whether a model's price has changed, how long a job will take (learned from the user's own timed runs), or what a whole job will cost and take, quoted from a promptfoo run of a sample of it.
+description: Pick an AI model and price AI work from public data. Today's price of every model in LiteLLM's catalogue at its cheapest host, Arena quality ratings by kind of work, and each price's history since 2023 with the chance it changes soon. Use when someone asks which LLM to use, what a prompt, job or monthly workload will cost on different models, how models compare on price and quality, whether a model's price has changed, how long a job will take (learned from the user's own timed runs), what a whole job will cost and take, quoted from a promptfoo run of a sample of it, or whether running an open model at home pays off.
 license: MIT
 compatibility: Python 3.10 or newer, standard library only. Downloads the day's data from pouriaetab.github.io once a day and keeps it in ~/.cache/llmledger-mcp/. No keys.
 metadata:
-  version: "0.1.6"
+  version: "0.1.7"
   source: https://github.com/pouriaetab/llmledger
 ---
 
@@ -26,6 +26,7 @@ The same answers as the llmledger plug-in (llmledger-mcp), from the same daily d
 | `time MODEL --input N --output N [--calls N] [--at-once N] [--way api\|claude-code\|claude-code-session\|ollama\|other] [--thinking]` | How long a call and the whole job take, as a usual time and a slow day, learned from the user's own timed runs |
 | `log MODEL --input N --output N --seconds S [--way ...] [--thinking]` or `log --promptfoo results.json` | Keep a timed run (or every result of a promptfoo results file) on this computer so `time` learns from it |
 | `forecast sample.json --items N [--at-once N] [--wrong-cost D]` | A whole job quoted from a promptfoo run of a sample of it: for each model, time (usual and slow day), cost at the cheapest listing and at the one sampled, the 90-day chance of a price change, how often it was right (95% range), and the break-even against the pick |
+| `local LOCAL_MODEL CLOUD_MODEL [...] --input N --output N --calls-per-month N --hardware-price D [--watts W] [--state S \| --kwh-price P]` | Buy a computer for an open model or pay a cloud model per call: cost a month each way, the month buying pays off, and whether the computer keeps up |
 | `tasks` | The kinds of work (`--task` values) and the data's dates |
 
 Model names can be written loosely (`claude-opus-5.5`, `gpt 6.1`) or as one listing (`bedrock/anthropic.claude-opus-5-5`).
@@ -48,5 +49,8 @@ An unknown name returns `{"error": ...}` with close names to try. Tokens: about 
 7. For "what will the whole job cost and take", suggest a random sample first (`promptfoo eval --filter-sample 20
    --filter-sample-seed 7 -o sample.json`), then `forecast` it. Start with the `headline`; give how often each was
    right with its range, and say when the sample cannot tell two models apart.
-8. End with the credits: prices from LiteLLM (MIT), ratings from Arena (CC BY 4.0), via llmledger. Costs are
+8. For "should I run it locally", use `local` with the price the user would pay for the computer and its watts;
+   its speed comes only from their timed runs (`log ... --way ollama`). Say what is not counted, and suggest
+   comparing the two models' answers with `forecast` before buying.
+9. End with the credits: prices from LiteLLM (MIT), ratings from Arena (CC BY 4.0), via llmledger. Costs are
    estimates, not financial or procurement advice.

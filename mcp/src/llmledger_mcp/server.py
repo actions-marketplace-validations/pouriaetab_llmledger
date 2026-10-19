@@ -1,9 +1,9 @@
 """llmledger as a plug-in (an MCP server) for Claude and other AI apps.
 
-Nine tools answer "which model, what will it cost, and how long will it take?" from the same
-data as the llmledger page: LiteLLM's price catalogue (MIT), Arena's ratings (CC BY 4.0), and
-every price change since 2023 with how likely a price is to change next; times come from the
-user's own timed runs. Runs on the user's own computer over stdio; reads the day's data.json,
+Ten tools answer "which model, what will it cost, and how long will it take?" from the same
+data as the llmledger page: LiteLLM's price catalogue (MIT), Arena's ratings (CC BY 4.0), every
+price change since 2023 with how likely a price is to change next, and EIA's electricity prices
+(public domain); times come from the user's own timed runs. Runs on the user's own computer over stdio; reads the day's data.json,
 cached for a day. The answers themselves are in tools.py, which the Agent Skill
 (skills/llmledger) runs too.
 """
@@ -32,9 +32,9 @@ mcp = FastMCP(
         "Arena's votes, and each price's full history from llmledger. Use suggest_for_project for 'which model "
         "for this', compare_models to put 2 to 6 models side by side, estimate_cost for a budget, find_models to "
         "browse, price_history for one model (or its price on a date), not_yet_priced for new models without a "
-        "price, estimate_time for how long a job takes (it learns from runs given to log_run), and forecast_job to "
-        "quote a whole job from a promptfoo run of a sample of it. Costs and ratings are estimates; pass on the "
-        "credits line."),
+        "price, estimate_time for how long a job takes (it learns from runs given to log_run), forecast_job to "
+        "quote a whole job from a promptfoo run of a sample of it, and local_or_cloud for whether buying a computer "
+        "to run an open model pays off. Costs and ratings are estimates; pass on the credits line."),
     version=__version__,
 )
 
@@ -208,6 +208,35 @@ def forecast_job(
         return tools.forecast_job(shelf_if_any(), promptfoo_results=promptfoo_results, items=items,
                                   concurrency=concurrency, way=way, thinking=thinking,
                                   wrong_answer_cost=wrong_answer_cost)
+    except tools.NotFound as error:
+        raise ToolError(str(error)) from None
+
+
+@mcp.tool(annotations=READ_ONLY)
+def local_or_cloud(
+    local_model: Annotated[str, Field(description="The open model you would run at home, as Ollama names it, for example llama3.1:8b")],
+    cloud_models: Annotated[list[str], Field(description="1 to 5 cloud models to compare with", min_length=1, max_length=5)],
+    input_tokens: Annotated[int, Field(description="Prompt tokens per call", ge=0)],
+    output_tokens: Annotated[int, Field(description="Answer tokens per call, including hidden thinking", ge=0)],
+    calls_per_month: Annotated[float, Field(description="Calls a month", gt=0)],
+    hardware_price: Annotated[float, Field(description="What the computer costs you, in dollars", ge=0)],
+    watts: Annotated[float | None, Field(description="Power the computer draws while it answers, in watts", gt=0)] = None,
+    electricity_price: Annotated[float | None, Field(description="Your electricity price, dollars per kWh (default: EIA's average for homes)", ge=0)] = None,
+    state: Annotated[str | None, Field(description="A US state, for EIA's average there, for example Texas")] = None,
+    months: Annotated[int, Field(description="How many months to compare over", ge=1)] = 36,
+    cached_tokens: Annotated[int, Field(description="Prompt tokens read from the cloud model's cache", ge=0)] = 0,
+    local_way: Annotated[Way, Field(description="How the local model is called")] = "ollama",
+    thinking: Annotated[bool, Field(description="Thinking turned on for the local model")] = False,
+) -> dict:
+    """Pay a cloud model per call, or buy a computer and run an open model at home: the cost a month each way,
+    the month buying pays off, and whether the computer keeps up. The local model's speed comes from your own
+    timed runs (log_run); electricity from EIA or your price; the computer's price is yours."""
+    try:
+        return tools.local_or_cloud(shelf(), local_model=local_model, cloud_models=cloud_models,
+                                    input_tokens=input_tokens, output_tokens=output_tokens,
+                                    calls_per_month=calls_per_month, hardware_price=hardware_price, watts=watts,
+                                    electricity_price=electricity_price, state=state, months=months,
+                                    cached_tokens=cached_tokens, local_way=local_way, thinking=thinking)
     except tools.NotFound as error:
         raise ToolError(str(error)) from None
 

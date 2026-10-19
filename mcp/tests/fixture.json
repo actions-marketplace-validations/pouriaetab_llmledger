@@ -1,6 +1,10 @@
 {"schema": 1, "built": "2026-10-16T12:00:00+00:00",
  "litellm": {"commit": "abc", "changed": "2026-10-15T00:00:00+00:00"},
- "credits": {"prices": "LiteLLM (MIT)", "ratings": "Arena (CC BY 4.0)", "note": "Not financial or procurement advice."},
+ "credits": {"prices": "LiteLLM (MIT)", "ratings": "Arena (CC BY 4.0)", "electricity": "EIA (public domain)",
+             "note": "Not financial or procurement advice."},
+ "electricity": {"month": "2026-07", "label": "July 2026", "us": 0.1831, "states": {"California": 0.3361, "Texas": 0.1588},
+                 "unit": "dollars per kWh, residential, average",
+                 "credit": "Source: U.S. Energy Information Administration, Electric Power Monthly, Table 5.6.A (July 2026)"},
  "models": [
   {"key": "claude-opus-5-5", "maker": "anthropic", "name": "claude-opus-5.5", "host": "anthropic", "mode": "chat",
    "input": 4.0, "output": 20.0, "cache_read": 0.2, "context": 1000000, "skills": ["vision", "tools", "reasoning"],

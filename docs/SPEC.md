@@ -238,13 +238,14 @@ Verified by: automated tests of name matching, of the best value rule,
 and of a failed download.
 
 **REQ-S26 Licences.** Every run shall read the current licence of each
-outside source (LiteLLM's licence file, the Arena dataset card, and the
-packages pinned in `requirements.txt` and `mcp/pyproject.toml` on PyPI) and
-accept only licences open for business use (MIT, Apache-2.0, BSD, ISC,
-CC BY 4.0, CC0). If LiteLLM's is not, the run shall stop before publishing.
-If Arena's is not, or cannot be read, the page shall be built without
-ratings or trends. If pyarrow's is not, the page shall be built without
-the trend charts. Every problem shall be written to
+outside source (LiteLLM's licence file, the Arena dataset card, EIA's
+reuse page, and the packages pinned in `requirements.txt` and
+`mcp/pyproject.toml` on PyPI) and accept only licences open for business use
+(MIT, Apache-2.0, BSD, ISC, CC BY 4.0, CC0, public domain). If LiteLLM's is
+not, the run shall stop before publishing. If Arena's is not, or cannot be
+read, the page shall be built without ratings or trends. If pyarrow's is
+not, the page shall be built without the trend charts. If EIA's data is no
+longer in the public domain, the electricity prices shall be left out. Every problem shall be written to
 `data/licence-problems.txt`, from which the daily refresh opens a GitHub
 issue, and the licences found shall be shown on the page.
 Verified by: automated tests with each source open, closed and
@@ -504,6 +505,27 @@ failed call and a local model, the cost of a wrong answer, logged runs,
 prompts, repeats, another host and Claude Code, a sample without checks, bad
 input, and the skill.
 
+**REQ-S48 Local or cloud.** The daily build shall read the average
+residential electricity price for the latest month in EIA's Electric Power
+Monthly, Table 5.6.A, for the country and each state (no table, a changed
+table or fewer than 40 states gives none), while EIA's reuse page says its
+data is in the public domain; when EIA cannot be read, it shall keep the live
+page's prices, and data.json shall carry them with their month and EIA's
+credit line. The plug-in and the skill shall compare, for a number of calls a
+month, each of 1 to 5 cloud models at its cheapest listing with running an
+open model on a computer the user would buy: the local model's time from the
+user's own timed runs (REQ-S45), its hours of work a month (one call at a
+time) and whether they fit in a month on a slow day, its electricity from the
+watts the user gives and the user's price, the state's or the country's,
+the months until the computer's price is paid back by the monthly saving
+(none when home power costs more), and the saving over a number of months.
+With no runs or no watts it shall say what is missing and give the months
+before electricity. No computer prices and no speed table shall be used.
+Verified by: automated tests of the table, a changed table, the live
+page's prices, the licence check, data.json, the tool before and after runs,
+a state, a computer that cannot keep up, power that costs more, bad input
+and the skill.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
@@ -594,6 +616,11 @@ input, and the skill.
   the results list; a provider that bills more (cache writes it does not
   report, or extra calls Claude Code makes) costs more, which promptfoo's own
   figure may show.
+- **L20** Local or cloud (REQ-S48) counts the computer's price and its
+  electricity only: not what it is worth later, its other uses, upkeep or the
+  user's time. It assumes one call at a time and the speed of the runs timed
+  so far, takes the watts as given, and uses a month's average price for homes,
+  not the user's tariff. It does not compare the two models' answers.
 
 ## 6. Known-answer example
 
@@ -659,6 +686,7 @@ input, and the skill.
 | REQ-S45 | `test_a_straight_line_is_found_exactly`, `test_one_slow_run_barely_moves_the_usual_time`, `test_few_runs_give_a_rough_range`, `test_logging_and_estimating_through_the_tools`, `test_a_promptfoo_results_file_counts_as_runs_once`, `test_bad_input_says_what_to_fix` in `mcp/tests/test_speed.py`; `test_req_s45_the_script_times_a_job_from_logged_runs` | test |
 | REQ-S46 | `test_req_s46_answer_keys_come_from_the_data`, `test_req_s46_the_keys_agree_with_the_plugin_on_its_test_data`, `test_req_s46_the_config_runs_the_repository_plugin_through_the_mcp_provider`; a promptfoo run on the day's data | test, demonstration |
 | REQ-S47 | `test_req_s47_wilson_ranges`, `test_req_s47_promptfoo_names_ways_and_hosts`, `test_req_s47_a_sample_becomes_a_quote_for_the_whole_job`, `test_req_s47_the_cost_of_a_wrong_answer_can_decide_the_pick`, `test_req_s47_logged_runs_add_to_the_sample_which_counts_once`, `test_req_s47_prompts_repeats_hosts_and_plans`, `test_req_s47_no_checks_and_bad_input`, `test_req_s47_the_script_quotes_a_job_from_a_promptfoo_sample` | test |
+| REQ-S48 | `test_req_s48_residential_prices_by_state_from_eia`, `test_req_s48_a_changed_table_gives_nothing_rather_than_wrong_prices`, `test_req_s48_the_live_pages_prices_are_kept_when_eia_cannot_be_read`, `test_req_s48_the_reuse_page_must_still_say_public_domain`, `test_req_s48_electricity_prices_are_used_only_while_eia_says_public_domain`, `test_req_s48_data_json_carries_the_electricity_prices_and_their_credit`, `test_req_s48_before_any_local_run_it_says_what_is_missing`, `test_req_s48_with_runs_watts_and_a_state_it_counts_electricity`, `test_req_s48_when_home_power_costs_more_buying_never_pays_off`, `test_req_s48_bad_input_says_what_to_fix`, `test_req_s48_the_script_says_when_buying_a_computer_pays_off` | test |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
