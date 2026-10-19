@@ -6,10 +6,16 @@ MIT_TEXT = ('Portions ... resides under the "enterprise/" directory of this repo
             "MIT License\n\nPermission is hereby granted, free of charge, to any person")
 
 
-def fake(arena="cc-by-4.0", litellm=MIT_TEXT, pytest="MIT", down=()):
+EIA_TEXT = ("<h1>Copyrights and Reuse</h1><h2>Public domain and use of EIA content</h2>\n<p>U.S. government "
+            "publications are in the public domain and are not subject to copyright\nprotection.</p>")
+
+
+def fake(arena="cc-by-4.0", litellm=MIT_TEXT, pytest="MIT", eia=EIA_TEXT, down=()):
     def get(url):
         if any(part in url for part in down):
             raise OSError("down")
+        if "eia.gov" in url:
+            return eia
         if "litellm" in url:
             return litellm
         if "huggingface" in url:
@@ -38,14 +44,14 @@ def test_req_s26_litellm_file_must_stay_in_the_mit_part():
 
 def test_req_s26_all_open_means_everything_is_used():
     report, allowed = licences.check(fake(), pins, plugin=lambda: [("fastmcp", "4.1.0")])
-    assert [r["status"] for r in report] == ["open", "open", "open", "open", "open"]
-    assert allowed == {"data": True, "ratings": True, "trends": True}
+    assert [r["status"] for r in report] == ["open"] * 6
+    assert allowed == {"data": True, "ratings": True, "trends": True, "electricity": True}
     assert licences.problems(report) == []
 
 
 def test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported():
     report, allowed = licences.check(fake(arena="cc-by-nc-4.0"), pins)
-    assert allowed == {"data": True, "ratings": False, "trends": False}
+    assert allowed == {"data": True, "ratings": False, "trends": False, "electricity": True}
     assert "Arena leaderboard" in licences.problems(report)[0]
 
 
@@ -57,7 +63,7 @@ def test_req_s26_a_closed_data_licence_stops_publishing():
 
 def test_req_s26_unreachable_ratings_are_left_out_not_failed():
     report, allowed = licences.check(fake(down=("huggingface",)), pins)
-    assert allowed == {"data": True, "ratings": False, "trends": False}
+    assert allowed == {"data": True, "ratings": False, "trends": False, "electricity": True}
     assert report[1]["status"] == "unchecked"
 
 
@@ -69,7 +75,7 @@ def test_req_s26_the_plugin_packages_are_checked_and_a_closed_one_is_reported():
     report, allowed = licences.check(get, pins, plugin=lambda: [("fastmcp", "4.1.0")])
     row = next(r for r in report if r["source"] == "fastmcp 4.1.0")
     assert row["role"] == "plug-in" and row["status"] == "not open"
-    assert allowed == {"data": True, "ratings": True, "trends": True}    # the page is not affected
+    assert allowed == {"data": True, "ratings": True, "trends": True, "electricity": True}   # the page is not affected
     assert any("plug-in (mcp/)" in line for line in licences.problems(report))
 
 
@@ -90,7 +96,19 @@ def test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_
     row = next(r for r in report if r["source"] == "pyarrow 25.0.1")
     assert row["role"] == "pipeline" and row["status"] == "not open"
     assert next(r for r in report if r["source"] == "pytest 9.1.1")["role"] == "tests"
-    assert allowed == {"data": True, "ratings": True, "trends": False}
+    assert allowed == {"data": True, "ratings": True, "trends": False, "electricity": True}
     assert any("trend charts were left out" in line for line in licences.problems(report))
     report, allowed = licences.check(fake(), with_pyarrow, plugin=lambda: [])
     assert allowed["trends"] is True
+
+
+def test_req_s48_electricity_prices_are_used_only_while_eia_says_public_domain():
+    report, allowed = licences.check(fake(eia="<p>Copyright 2027 EIA. All rights reserved.</p>"), pins)
+    row = next(r for r in report if r["role"] == "electricity")
+    assert row == {"source": "EIA electricity prices", "role": "electricity", "licence": "not public domain any more",
+                   "status": "not open"}
+    assert allowed["electricity"] is False and allowed["data"] is True
+    assert any("electricity prices were left out" in line for line in licences.problems(report))
+    report, allowed = licences.check(fake(down=("eia.gov",)), pins)
+    assert allowed["electricity"] is False
+    assert any("electricity prices on the live page were kept" in line for line in licences.problems(report))

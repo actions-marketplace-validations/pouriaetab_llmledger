@@ -49,7 +49,8 @@ def test_req_s41_skill_md_follows_the_agent_skills_format():
     assert f'version: "{VERSION}"' in head
     assert body.count("\n") < 500 and len(body) / 4 < 5000          # well under the format's limits
     assert "—" not in (SKILL / "SKILL.md").read_text()
-    for command in ("suggest", "compare", "cost", "find", "history", "unpriced", "time", "log", "forecast", "tasks"):
+    for command in ("suggest", "compare", "cost", "find", "history", "unpriced", "time", "log", "forecast", "local",
+                    "tasks"):
         assert f"`{command}" in body
 
 
@@ -123,6 +124,17 @@ def test_req_s47_the_script_quotes_a_job_from_a_promptfoo_sample(tmp_path, monke
     assert sol["time"]["usual_seconds"] == 10.5 * 200 and sol["right"]["right"] == 10
     code, out = run("forecast", str(tmp_path / "nothing.json"), "--items", "10")
     assert code == 1 and out["error"].startswith("Not a promptfoo results file")
+
+
+def test_req_s48_the_script_says_when_buying_a_computer_pays_off(tmp_path, monkeypatch):
+    monkeypatch.setenv("LLMLEDGER_RUNS", str(tmp_path / "runs.jsonl"))
+    for n in (100, 300, 500, 700, 900):
+        run("log", "llama3.1:8b", "--input", "2000", "--output", str(n), "--seconds", str(1 + n / 50), "--way", "ollama")
+    code, out = run("local", "llama3.1:8b", "gpt-6.1-sol", "--input", "2000", "--output", "500",
+                    "--calls-per-month", "30000", "--hardware-price", "2000", "--watts", "150", "--kwh-price", "0.2")
+    power = 30000 * 11 / 3600 * 0.15 * 0.2
+    assert code == 0 and out["local"]["electricity_a_month"]["usual"] == round(power, 4)
+    assert out["cloud"][0]["buying_pays_off_after_months"]["usual"] == round(2000 / (270 - power), 1)
 
 
 def test_req_s41_the_script_says_what_went_wrong(tmp_path):

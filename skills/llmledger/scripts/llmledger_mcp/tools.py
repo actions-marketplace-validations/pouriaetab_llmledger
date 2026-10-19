@@ -613,3 +613,131 @@ def _forecast_headline(rows, pick, items, at_once, wrong_answer_cost, priced=Tru
     if pick["time"]:
         line += f" and takes {pick['time']['usual']} usually, {pick['time']['slow_day']} on a slow day"
     return line + "."
+
+
+HOURS_A_MONTH = 365 * 24 / 12
+LOCAL_NOTES = [
+    "The computer's price is yours: no openly licensed table of computer prices with dates exists, so none is used.",
+    "The local model's speed comes only from your own timed runs of it (log_run, or a promptfoo run of an ollama: "
+    "provider); no public speed table is used, because the open ones do not measure your computer.",
+    "A local model answers one call at a time here, so its hours of work a month are calls times the time of a call.",
+    "Not counted: what the computer is worth later, its other uses, your time, and cloud price changes (each "
+    "cloud listing's 90-day chance of one is shown).",
+    "A local model is often smaller than a cloud one: compare both on a sample with forecast_job before you buy.",
+]
+
+
+def _power_price(s, electricity_price, state):
+    """(dollars per kWh, where it is from) or (None, why not)."""
+    if electricity_price is not None:
+        return electricity_price, "the price you gave"
+    power = (s.data.get("electricity") if s else None) or {}
+    if not power:
+        return None, "this data has no electricity prices"
+    if state:
+        found = next((k for k in power["states"] if k.lower() == state.strip().lower()), None)
+        if found is None:
+            raise NotFound(f"Unknown state {state!r}; use a US state name such as Texas, or give electricity_price.")
+        return power["states"][found], f"{found} homes, {power['label']}. {power['credit']}"
+    return power["us"], f"the US average for homes, {power['label']}. {power['credit']}"
+
+
+def local_or_cloud(s, local_model, cloud_models, input_tokens, output_tokens, calls_per_month, hardware_price,
+                   watts=None, electricity_price=None, state=None, months=36, cached_tokens=0, local_way="ollama",
+                   thinking=False):
+    """Pay a cloud model per call, or buy a computer and run an open model at home: the monthly cost each way, the
+    month buying pays off, and whether the computer keeps up. Speed from your own timed runs; electricity from EIA
+    (public domain) or your own price; the computer's price is yours."""
+    if not 1 <= len(cloud_models) <= 5:
+        raise NotFound("Give 1 to 5 cloud models to compare with.")
+    if calls_per_month <= 0 or hardware_price < 0 or months < 1:
+        raise NotFound("calls_per_month must be more than 0, hardware_price 0 or more, and months 1 or more.")
+    if watts is not None and watts <= 0:
+        raise NotFound("watts must be more than 0: the power the computer draws while it answers.")
+    if local_way not in speed.WAYS:
+        raise NotFound(f"Unknown way {local_way!r}; use one of: " + ", ".join(speed.WAYS))
+    kwh_price, power_from = _power_price(s, electricity_price, state)
+    timed = speed.estimate_time(local_model, input_tokens, output_tokens, 1, local_way, thinking, 1,
+                                resolve=_resolver(s))
+    local = {"model": timed["model"], "way": local_way, "runs_used": timed["runs_used"], "hardware_price":
+             money(hardware_price), "watts": watts, "electricity_per_kwh": kwh_price, "electricity_from": power_from}
+    per_month = None
+    if timed.get("per_call_seconds"):
+        usual, slow = timed["per_call_seconds"]["usual"], timed["per_call_seconds"]["slow_day"]
+        hours = {"usual": calls_per_month * usual / 3600, "slow_day": calls_per_month * slow / 3600}
+        local["per_call_seconds"] = timed["per_call_seconds"]
+        local["hours_of_work_a_month"] = {k: round(v, 1) for k, v in hours.items()}
+        local["keeps_up"] = hours["slow_day"] <= HOURS_A_MONTH
+        if not local["keeps_up"]:
+            local["note"] = (f"At {calls_per_month:,} calls a month this computer needs {hours['slow_day']:,.0f} hours "
+                             f"of work on a slow day, more than the {HOURS_A_MONTH:.0f} hours in a month.")
+        if watts is not None and kwh_price is not None:
+            per_month = {k: v * watts / 1000 * kwh_price for k, v in hours.items()}
+            local["electricity_a_month"] = {k: money(v) for k, v in per_month.items()}
+        if timed.get("rough"):
+            local["rough"] = timed["rough"]
+    else:
+        local["note"] = (f"No timed runs of {timed['model']} called through {speed.WAY_TEXT[local_way]} yet: time a "
+                         "few calls and log them (log_run) to count electricity and check the computer keeps up.")
+    missing = []
+    if not timed.get("per_call_seconds"):
+        missing.append(f"timed runs of {timed['model']} (log_run)")
+    if watts is None:
+        missing.append("watts (the power the computer draws while it answers: its spec sheet or a plug-in power meter)")
+    if kwh_price is None:
+        missing.append("electricity_price (this data has no electricity prices)")
+    if missing:
+        local["missing"] = missing
+    rows = []
+    for group in resolve_all(s, cloud_models):
+        hit = listing(s, group, input_tokens=input_tokens, output_tokens=output_tokens, cached_tokens=cached_tokens)
+        if not hit:
+            rows.append({"model": group, "note": "no text price listed"})
+            continue
+        m, call = hit
+        monthly = call * calls_per_month
+        row = {"model": group, "listing": m["key"], "host": m["host"], "price_per_1m": prices(m),
+               "per_call": money(call), "per_month": money(monthly), "over_months": money(monthly * months),
+               "price_change_90_days": _outlook(m)}
+        pays_off = {}
+        for case in ("usual", "slow_day"):
+            power = per_month[case] if per_month else 0.0
+            saving = monthly - power
+            pays_off[case] = round(hardware_price / saving, 1) if saving > 0 else None
+        row["buying_pays_off_after_months"] = pays_off if per_month else {"before_electricity": pays_off["usual"]}
+        local_total = hardware_price + (per_month["usual"] if per_month else 0.0) * months
+        row["saving_over_months"] = money(monthly * months - local_total)
+        rows.append(row)
+    rows.sort(key=lambda r: r.get("per_month") if r.get("per_month") is not None else float("inf"))
+    return {"headline": _local_headline(local, rows, months, per_month), "months": months,
+            "calls_per_month": calls_per_month, "local": local, "cloud": rows, "notes": LOCAL_NOTES,
+            **footer(s)}
+
+
+def _months(x):
+    return "never" if x is None else f"{x:g} months"
+
+
+def _local_headline(local, rows, months, per_month):
+    priced = [r for r in rows if r.get("per_month") is not None]
+    if not priced:
+        return "None of these cloud models has a text price listed."
+    cheap = priced[0]
+    name, cost = cheap["model"].split(" / ", 1)[-1], forecast.dollars(cheap["per_month"])
+    when = cheap["buying_pays_off_after_months"]
+    if per_month is None:
+        if when["before_electricity"] is None:
+            return f"{name} costs nothing a month here, so buying never pays off."
+        return (f"Against {name} at {cost} a month, the computer pays for itself after "
+                f"{_months(when['before_electricity'])} at the earliest; electricity is not counted yet, for that give "
+                + " and ".join(local["missing"]) + ".")
+    if when["usual"] is None:
+        return f"Running it at home costs more each month than {name} ({cost} a month), so buying never pays off."
+    line = (f"Against {name} at {cost} a month, the computer pays for itself after about {_months(when['usual'])} "
+            f"({_months(when['slow_day'])} on slow days), with {forecast.dollars(per_month['usual'])} of electricity a "
+            "month")
+    if when["usual"] > months:
+        line += f": later than the {months} months asked about"
+    if not local.get("keeps_up", True):
+        line += "; but it cannot keep up with this many calls"
+    return line + "."

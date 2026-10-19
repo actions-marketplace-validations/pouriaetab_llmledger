@@ -5,8 +5,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from llmledger import (arena, catalog, corrections, events, guard, history, licences, page, route_eval, sql, survival,
-                       trends, unpriced)
+from llmledger import (arena, catalog, corrections, electricity, events, guard, history, licences, page, route_eval,
+                       sql, survival, trends, unpriced)
 
 SOURCE = "https://github.com/BerriAI/litellm.git"
 UPSTREAM = Path("data/upstream")
@@ -82,6 +82,13 @@ def main():
         if data["unpriced"]:
             print(f"Not yet priced: {len(data['unpriced']['models'])} recent Arena models, "
                   f"{data['unpriced']['timing']['models']} timed")
+    # EIA's prices: fresh while its reuse page says public domain; the live page's while that cannot be read
+    eia = next((row["status"] for row in report if row["role"] == "electricity"), None)
+    if eia in ("open", "unchecked"):
+        data["electricity"] = (electricity.fetch() if eia == "open" else None) or electricity.previous(LIVE + "data.js")
+        if data["electricity"]:
+            print(f"Electricity: {data['electricity']['label']}, US average "
+                  f"${data['electricity']['us']:.4f} a kWh, {len(data['electricity']['states'])} states")
     info = {
         "models": sizes["main"],
         "since": versions[0][1],

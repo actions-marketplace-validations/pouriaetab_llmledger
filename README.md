@@ -14,7 +14,7 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.16. The data and the page refresh every day.
+**Status:** version 1.17. The data and the page refresh every day.
 
 Paste a prompt on the live page to see the best value model for it, the top rated one and the
 cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
@@ -131,6 +131,12 @@ replays two years of Arena's leaderboards and what top quality has cost.
     time and a slow day, cost at the cheapest listing next to the one used, the
     chance of a price change within 90 days, how often it was right with a 95%
     range, and what a wrong answer must cost for the dearer model to pay off.
+24. **Local or cloud?** Pay a cloud model per call, or buy a computer and run
+    an open model at home: the cost a month each way, the month the computer
+    pays for itself, and whether it keeps up. The local model's speed comes from
+    your own timed runs, electricity from the U.S. Energy Information
+    Administration (public domain) or your own price, and the computer's price
+    is yours.
 
 ## First results
 
@@ -238,12 +244,12 @@ and stops if the new build is a step back (fewer models, a quarter fewer
 listed, or older data). Set `LLMLEDGER_SKIP_LIVE_CHECK=1` to publish anyway,
 for example after LiteLLM rewrites its history.
 
-Tests (174 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+Tests (181 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
 Arena matching, task guess, model comparison, plug-in parity, trends, licences,
 the check against the live page, the Agent Skill, models not yet priced, the
-promptfoo answer keys, page and version checks; the prompt cost, task guess,
-comparison, trends drawing and parity tests need Node.js and are skipped without
-it; the plug-in has 28 more in `mcp/tests`),
+promptfoo answer keys, electricity prices, page and version checks; the prompt
+cost, task guess, comparison, trends drawing and parity tests need Node.js and
+are skipped without it; the plug-in has 32 more in `mcp/tests`),
 with the exact versions pinned in `requirements.txt`:
 
 ```bash
@@ -253,10 +259,11 @@ python -m pytest
 
 ## Use it inside Claude
 
-The plug-in `llmledger-mcp` (in [`mcp/`](mcp/)) gives Claude and other AI apps nine tools:
+The plug-in `llmledger-mcp` (in [`mcp/`](mcp/)) gives Claude and other AI apps ten tools:
 suggest a model and effort for a project, compare models, estimate a budget, find models,
 a model's price history with its outlook, new models not priced yet, how long a job
-takes (learned from runs you log), and a quote for a whole job from a promptfoo sample. It runs on your computer and reads the daily
+takes (learned from runs you log), a quote for a whole job from a promptfoo sample, and
+whether buying a computer to run an open model pays off. It runs on your computer and reads the daily
 `data.json`; no keys, nothing to host.
 
 ```bash
@@ -302,6 +309,12 @@ its full history of past leaderboards from the same dataset. The task guess is
 measured on prompts from Arena's
 [human preference dataset](https://huggingface.co/datasets/lmarena-ai/arena-human-preference-140k),
 also CC BY 4.0. llmledger is not affiliated with or endorsed by LMArena.
+
+Electricity prices for the plug-in's local or cloud answer come from the U.S.
+Energy Information Administration's
+[Electric Power Monthly](https://www.eia.gov/electricity/monthly/), Table 5.6.A
+(average price for homes, by state), a U.S. government work in the public
+domain, read once a day with its month in the credit line.
 
 ## Layout
 

@@ -11,6 +11,8 @@ The pipeline calls check() before building:
   without them;
 - pyarrow reads Arena's past leaderboards for the Trends view, so if it is not open the page
   is built without the trend charts;
+- EIA's electricity prices (a U.S. government work in the public domain) are optional, so if
+  EIA's reuse page stops saying so they are left out;
 - the test tools are only used to run the tests, and the plug-in's packages (mcp/) only by
   the plug-in, so a change to either is reported.
 Every problem is written to data/licence-problems.txt, and the daily refresh
@@ -22,8 +24,10 @@ import sys
 import urllib.request
 from pathlib import Path
 
+from llmledger import electricity
+
 OPEN = {"mit", "apache-2.0", "bsd-2-clause", "bsd-3-clause", "isc", "cc-by-4.0",
-        "cc0-1.0", "unlicense", "0bsd", "psf-2.0", "python-2.0"}
+        "cc0-1.0", "unlicense", "0bsd", "psf-2.0", "python-2.0", "public-domain"}
 CLASSIFIERS = {"MIT License": "mit", "Apache Software License": "apache-2.0",
                "BSD License": "bsd-3-clause", "ISC License (ISCL)": "isc"}
 LITELLM_LICENSE = "https://raw.githubusercontent.com/BerriAI/litellm/main/LICENSE"
@@ -34,6 +38,8 @@ PYPI = "https://pypi.org/pypi/{name}/{version}/json"
 # Packages in requirements.txt that the daily build itself uses; the rest only run the tests.
 PIPELINE = {"pyarrow"}
 PROBLEMS = Path("data/licence-problems.txt")
+UNCHECKED = {"ratings": " The ratings were left out.",
+             "electricity": " The electricity prices on the live page were kept."}
 
 
 def is_open(expression):
@@ -100,6 +106,7 @@ def sources(get=_text, requirements=_requirements, plugin=_plugin_requirements):
          attempt(lambda: (json.loads(get(ARENA)).get("cardData") or {}).get("license"))),
         ("Arena prompts", "measuring",
          attempt(lambda: (json.loads(get(ARENA_PROMPTS)).get("cardData") or {}).get("license"))),
+        ("EIA electricity prices", "electricity", attempt(lambda: electricity.licence(get(electricity.REUSE)))),
     ]
     pins = [("pipeline" if name in PIPELINE else "tests", name, version) for name, version in requirements()]
     pins += [("plug-in", name, version) for name, version in plugin()]
@@ -118,8 +125,9 @@ def check(get=_text, requirements=_requirements, plugin=_plugin_requirements):
         else:
             status = "open" if is_open(licence) else "not open"
         report.append({"source": name, "role": role, "licence": licence, "status": status})
-    roles = {row["role"]: row["status"] for row in report if row["role"] in ("data", "ratings")}
-    allowed = {"data": roles.get("data") != "not open", "ratings": roles.get("ratings") == "open"}
+    roles = {row["role"]: row["status"] for row in report if row["role"] in ("data", "ratings", "electricity")}
+    allowed = {"data": roles.get("data") != "not open", "ratings": roles.get("ratings") == "open",
+               "electricity": roles.get("electricity") == "open"}
     allowed["trends"] = allowed["ratings"] and all(row["status"] != "not open" for row in report
                                                    if row["role"] == "pipeline")
     return report, allowed
@@ -132,6 +140,7 @@ def problems(report):
             action = {"data": "Nothing was published.",
                       "ratings": "The page was built without them.",
                       "measuring": "Measure the task guess on another dataset.",
+                      "electricity": "The electricity prices were left out.",
                       "tests": "Find an open replacement for the tests.",
                       "pipeline": "The trend charts were left out; find an open replacement.",
                       "plug-in": "Find an open replacement for the plug-in (mcp/) before its next release."}[row["role"]]
@@ -139,7 +148,7 @@ def problems(report):
                          f"which is not open for business use. {action}")
         elif row["status"] == "unchecked" and row["role"] not in ("tests", "plug-in", "pipeline"):
             lines.append(f"- {row['source']}: the licence could not be checked today."
-                         + (" The ratings were left out." if row["role"] == "ratings" else ""))
+                         + UNCHECKED.get(row["role"], ""))
     return lines
 
 
