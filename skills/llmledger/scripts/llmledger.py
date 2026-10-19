@@ -71,16 +71,27 @@ def parser():
     g.add_argument("--input", type=int)
     g.add_argument("--output", type=int)
     g.add_argument("--seconds", type=float)
-    g.add_argument("--way", choices=speed.WAYS, default="api")
+    g.add_argument("--way", choices=speed.WAYS, help="default api; for a promptfoo file, read from each provider")
     g.add_argument("--thinking", action="store_true")
     g.add_argument("--task")
     g.add_argument("--promptfoo", help="a promptfoo results file: promptfoo eval -o results.json")
+
+    q = sub.add_parser("forecast", help="quote a whole job (time, cost, how often right) from a promptfoo sample run")
+    q.add_argument("promptfoo", help="the sample's results file: promptfoo eval --filter-sample 20 -o sample.json")
+    q.add_argument("--items", type=int, required=True, help="how many tests the whole job has")
+    q.add_argument("--at-once", type=int, help="calls running at the same time (default: as the sample ran)")
+    q.add_argument("--way", choices=speed.WAYS, help="how the models are called (default: read from each provider)")
+    q.add_argument("--thinking", action="store_true")
+    q.add_argument("--wrong-cost", type=float, help="dollars a wrong answer costs to catch and fix")
 
     sub.add_parser("tasks", help="the kinds of work Arena rates, and what the data holds today")
     return p
 
 
 def run(args, shelf):
+    if args.command == "forecast":
+        return tools.forecast_job(shelf, args.promptfoo, args.items, concurrency=args.at_once, way=args.way,
+                                  thinking=args.thinking, wrong_answer_cost=args.wrong_cost)
     if args.command == "time":
         return tools.estimate_time(shelf, args.model, args.input, args.output, calls=args.calls, way=args.way,
                                    thinking=args.thinking, concurrency=args.at_once)
@@ -113,9 +124,9 @@ def main(argv=None):
         try:
             shelf = data.Shelf(*data.load())
         except RuntimeError:
-            if args.command not in ("time", "log"):
+            if args.command not in ("time", "log", "forecast"):
                 raise
-            shelf = None                                # timing a local model needs no prices
+            shelf = None                                # timing needs no prices
         out = run(args, shelf)
     except (tools.NotFound, RuntimeError) as error:
         print(json.dumps({"error": str(error)}))

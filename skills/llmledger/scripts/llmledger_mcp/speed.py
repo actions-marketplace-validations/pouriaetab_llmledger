@@ -86,43 +86,126 @@ def log(model, input_tokens, output_tokens, seconds, way="api", thinking=False, 
     return run
 
 
-def _model_of(result):
+# promptfoo provider ids: "anthropic:messages:claude-opus-5-5", "openai:chat:gpt-6.1-sol", "ollama:chat:llama3.1:8b",
+# "bedrock:us.anthropic.claude-opus-5-5-v1:0". The first part is the host; a second part like these names the API.
+API_PARTS = {"chat", "messages", "completion", "completions", "responses", "converse", "invoke", "text"}
+CLAUDE_CODE = ("anthropic:claude-agent-sdk", "anthropic:claude-code")
+NOT_API = ("exec:", "python:", "file:", "http:", "https:", "echo", "mcp", "webhook:", "script:", "golang:", "ruby:")
+
+
+def provider_of(result):
     provider = result.get("provider") or {}
     if isinstance(provider, str):
         provider = {"id": provider}
-    label = (provider.get("label") or "").strip()
-    return label or str(provider.get("id") or "").split(":")[-1]
+    return str(provider.get("id") or ""), (provider.get("label") or "").strip()
 
 
-def from_promptfoo(results_path, way="api", thinking=False, resolve=None, path=None):
-    """Every result of a promptfoo results file as a run, once: (runs added, results skipped and why)."""
-    check(way, 0, 0)
+def model_part(provider_id):
+    """The model in a promptfoo provider id: everything after the host and the API part, colons kept."""
+    parts = provider_id.split(":")
+    rest = parts[1:]
+    if rest and rest[0] in API_PARTS:
+        rest = rest[1:]
+    return ":".join(rest) or provider_id
+
+
+def model_of(result, resolve=None):
+    """One name for the model behind a promptfoo result: its label when the catalogue knows it, else the model in
+    its provider id when the catalogue knows that, else the label (or that model) as written."""
+    provider_id, label = provider_of(result)
+    tried = [label, model_part(provider_id)] if label else [model_part(provider_id)]
+    if resolve:
+        for text in tried:
+            group = resolve(text)
+            if group:
+                return group
+    return tried[0].lower()
+
+
+def way_of(provider_id):
+    """How a promptfoo provider calls its model: Claude Code, a local model in Ollama, a script, or an API."""
+    text = provider_id.lower()
+    if text.startswith(CLAUDE_CODE):
+        return "claude-code"
+    if text.startswith("ollama:"):
+        return "ollama"
+    if text.startswith(NOT_API) or ":" not in text:
+        return "other"
+    return "api"
+
+
+def usage_of(result):
+    """The token counts of one promptfoo result: prompt (cache reads and writes included), answer (thinking
+    included), and of the prompt, how much was read from and written to the provider's cache."""
+    response = result.get("response") or {}
+    usage = result.get("tokenUsage") or response.get("tokenUsage") or {}
+    details = usage.get("completionDetails") or {}
+    return {"input": int(usage.get("prompt") or 0), "output": int(usage.get("completion") or 0),
+            "cache_read": int(details.get("cacheReadInputTokens") or 0),
+            "cache_write": int(details.get("cacheCreationInputTokens") or 0),
+            "thinking_tokens": int(details.get("reasoning") or 0)}
+
+
+def failed(result):
+    """The call did not run: promptfoo's failureReason 2. A failed check (failureReason 1) sets the result's error
+    to the check's reason too, so that text alone does not mean the call failed."""
+    reason = result.get("failureReason")
+    if reason is not None:
+        return reason == 2
+    response = result.get("response") or {}
+    return bool(response.get("error")) or (bool(result.get("error")) and not result.get("gradingResult"))
+
+
+def skip_reason(result):
+    """Why a promptfoo result is not a timed model call, or None when it is one."""
+    response = result.get("response") or {}
+    tokens = usage_of(result)
+    if response.get("cached"):
+        return "cached"
+    if failed(result) or not (result.get("latencyMs") or 0) > 0:
+        return "failed or no time"
+    if not (tokens["input"] or tokens["output"]):
+        return "no tokens (not a model call)"
+    return None
+
+
+def read_promptfoo(results_path):
+    """(the report, its results, its eval id) from a promptfoo results file."""
     try:
         report = json.loads(Path(results_path).read_text())
         results = report["results"]["results"]
-        eval_id = report.get("evalId") or Path(results_path).name
+        if not isinstance(results, list):
+            raise TypeError("results is not a list")
+        return report, results, report.get("evalId") or Path(results_path).name
     except (OSError, ValueError, KeyError, TypeError) as error:
         raise SpeedError(f"Not a promptfoo results file ({error}); write one with promptfoo eval -o results.json.")
+
+
+def as_run(result, source, at, way=None, thinking=False, resolve=None):
+    """A timed promptfoo result as a run. The way comes from its provider unless given; thinking is on when given,
+    or when the result counts thinking tokens."""
+    provider_id, _ = provider_of(result)
+    tokens = usage_of(result)
+    return {"at": at, "model": model_of(result, resolve), "way": way or way_of(provider_id),
+            "thinking": bool(thinking) or tokens["thinking_tokens"] > 0, "task": None, "input": tokens["input"],
+            "output": tokens["output"], "seconds": round(result["latencyMs"] / 1000, 3), "source": source}
+
+
+def from_promptfoo(results_path, way=None, thinking=False, resolve=None, path=None):
+    """Every result of a promptfoo results file as a run, once: (runs added, results skipped and why)."""
+    if way is not None:
+        check(way, 0, 0)
+    report, results, eval_id = read_promptfoo(results_path)
+    at = report["results"].get("timestamp") or datetime.now(timezone.utc).isoformat()
     seen = {run.get("source") for run in load(path)}
     added, skipped = [], {"cached": 0, "failed or no time": 0, "no tokens (not a model call)": 0, "already logged": 0}
     for index, result in enumerate(results):
         source = f"promptfoo:{eval_id}:{index}"
-        response = result.get("response") or {}
-        usage = result.get("tokenUsage") or response.get("tokenUsage") or {}
-        if source in seen:
-            skipped["already logged"] += 1
-        elif response.get("cached"):
-            skipped["cached"] += 1
-        elif result.get("error") or response.get("error") or not (result.get("latencyMs") or 0) > 0:
-            skipped["failed or no time"] += 1
-        elif not (usage.get("prompt") or usage.get("completion")):
-            skipped["no tokens (not a model call)"] += 1
+        reason = "already logged" if source in seen else skip_reason(result)
+        if reason:
+            skipped[reason] += 1
         else:
-            added.append({"at": report["results"].get("timestamp") or datetime.now(timezone.utc).isoformat(),
-                          "model": name(_model_of(result), resolve), "way": way, "thinking": bool(thinking),
-                          "task": None, "input": int(usage.get("prompt") or 0),
-                          "output": int(usage.get("completion") or 0),
-                          "seconds": round(result["latencyMs"] / 1000, 3), "source": source})
+            added.append(as_run(result, source, at, way, thinking, resolve))
     _save(added, path)
     return added, {k: v for k, v in skipped.items() if v}
 
@@ -159,7 +242,7 @@ def estimate(runs, output_tokens):
     return usual, slow
 
 
-def _short(seconds):
+def short(seconds):
     if seconds < 90:
         return f"{seconds:.1f} seconds"
     if seconds < 5400:
@@ -188,8 +271,8 @@ def estimate_time(model, input_tokens, output_tokens, calls=1, way="api", thinki
     usual, slow = estimate(runs, output_tokens)
     rounds = -(-calls // concurrency)
     out["per_call_seconds"] = {"usual": round(usual, 2), "slow_day": round(slow, 2)}
-    out["job"] = {"calls": calls, "at_once": concurrency, "usual": _short(usual * rounds),
-                  "slow_day": _short(slow * rounds), "usual_seconds": round(usual * rounds, 1),
+    out["job"] = {"calls": calls, "at_once": concurrency, "usual": short(usual * rounds),
+                  "slow_day": short(slow * rounds), "usual_seconds": round(usual * rounds, 1),
                   "slow_day_seconds": round(slow * rounds, 1)}
     start, slope = fit(runs)
     out["based_on"] = (f"Your {len(runs)} run{'s' if len(runs) != 1 else ''} of this model this way: about "

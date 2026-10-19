@@ -1,10 +1,11 @@
 """llmledger as a plug-in (an MCP server) for Claude and other AI apps.
 
-Five tools answer "which model, and what will it cost?" from the same data as the llmledger
-page: LiteLLM's price catalogue (MIT), Arena's ratings (CC BY 4.0), and every price change
-since 2023 with how likely a price is to change next. Runs on the user's own computer over
-stdio; reads the day's data.json, cached for a day. The answers themselves are in tools.py,
-which the Agent Skill (skills/llmledger) runs too.
+Nine tools answer "which model, what will it cost, and how long will it take?" from the same
+data as the llmledger page: LiteLLM's price catalogue (MIT), Arena's ratings (CC BY 4.0), and
+every price change since 2023 with how likely a price is to change next; times come from the
+user's own timed runs. Runs on the user's own computer over stdio; reads the day's data.json,
+cached for a day. The answers themselves are in tools.py, which the Agent Skill
+(skills/llmledger) runs too.
 """
 import time
 from typing import Annotated, Literal
@@ -31,8 +32,9 @@ mcp = FastMCP(
         "Arena's votes, and each price's full history from llmledger. Use suggest_for_project for 'which model "
         "for this', compare_models to put 2 to 6 models side by side, estimate_cost for a budget, find_models to "
         "browse, price_history for one model (or its price on a date), not_yet_priced for new models without a "
-        "price, and estimate_time for how long a job takes (it learns from runs given to log_run). Costs and "
-        "ratings are estimates; pass on the credits line."),
+        "price, estimate_time for how long a job takes (it learns from runs given to log_run), and forecast_job to "
+        "quote a whole job from a promptfoo run of a sample of it. Costs and ratings are estimates; pass on the "
+        "credits line."),
     version=__version__,
 )
 
@@ -175,8 +177,8 @@ def log_run(
     input_tokens: Annotated[int | None, Field(description="Prompt tokens of the call", ge=0)] = None,
     output_tokens: Annotated[int | None, Field(description="Answer tokens of the call, hidden thinking included", ge=0)] = None,
     seconds: Annotated[float | None, Field(description="How long the call took", gt=0)] = None,
-    way: Annotated[Way, Field(description="How the model was called")] = "api",
-    thinking: Annotated[bool, Field(description="Thinking was on")] = False,
+    way: Annotated[Way | None, Field(description="How the model was called (default api; for a promptfoo file, read from each provider)")] = None,
+    thinking: Annotated[bool, Field(description="Thinking was on (a promptfoo result that counts thinking tokens is marked on by itself)")] = False,
     task: Annotated[str | None, Field(description="The kind of work, if known")] = None,
     promptfoo_results: Annotated[str | None, Field(description="Path of a promptfoo results file (promptfoo eval -o results.json): every result becomes a run")] = None,
 ) -> dict:
@@ -186,6 +188,26 @@ def log_run(
         return tools.log_run(shelf_if_any(), model=model, input_tokens=input_tokens, output_tokens=output_tokens,
                              seconds=seconds, way=way, thinking=thinking, task=task,
                              promptfoo_results=promptfoo_results)
+    except tools.NotFound as error:
+        raise ToolError(str(error)) from None
+
+
+@mcp.tool(annotations=READ_ONLY)
+def forecast_job(
+    promptfoo_results: Annotated[str, Field(description="Path of a promptfoo results file from a sample of the job (promptfoo eval --filter-sample 20 -o sample.json)")],
+    items: Annotated[int, Field(description="How many tests the whole job has", ge=1)],
+    concurrency: Annotated[int | None, Field(description="Calls running at once in the whole job (default: as the sample ran)", ge=1)] = None,
+    way: Annotated[Way | None, Field(description="How the models are called (default: read from each provider)")] = None,
+    thinking: Annotated[bool, Field(description="Thinking turned on")] = False,
+    wrong_answer_cost: Annotated[float | None, Field(description="Dollars a wrong answer costs you to catch and fix; the pick then counts it", ge=0)] = None,
+) -> dict:
+    """The whole job quoted from a promptfoo run of a sample of it. For each model in the sample: the time as a
+    usual time and a slow day, the cost at its cheapest listing next to the one the sample used, the chance of a
+    price change in 90 days, how often it was right (Wilson 95% range) and the break-even against the pick."""
+    try:
+        return tools.forecast_job(shelf_if_any(), promptfoo_results=promptfoo_results, items=items,
+                                  concurrency=concurrency, way=way, thinking=thinking,
+                                  wrong_answer_cost=wrong_answer_cost)
     except tools.NotFound as error:
         raise ToolError(str(error)) from None
 

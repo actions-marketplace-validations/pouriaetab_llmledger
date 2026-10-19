@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "llmledger-mcp"
-version = "0.1.5"
+version = "0.1.6"
 description = "Which AI model, and what it costs: LiteLLM prices, Arena ratings and price history, inside Claude and other AI apps."
 readme = "README.md"
 license = "MIT"

@@ -14,7 +14,7 @@ removed, within 30 days to 2 years.
 
 **Live results, rebuilt every day:** https://pouriaetab.github.io/llmledger/
 
-**Status:** version 1.15. The data and the page refresh every day.
+**Status:** version 1.16. The data and the page refresh every day.
 
 Paste a prompt on the live page to see the best value model for it, the top rated one and the
 cheapest rated one, with what each costs and the chance its price changes in the next 90 days.
@@ -126,6 +126,11 @@ replays two years of Arena's leaderboards and what top quality has cost.
     kept on your computer, including promptfoo's results files; and promptfoo
     can check the plug-in's answers against the data. See
     [docs/promptfoo.md](docs/promptfoo.md).
+23. **Quotes a whole job from a sample.** Run 20 of a job's tests in promptfoo,
+    and the plug-in quotes the whole job on each model in it: time as a usual
+    time and a slow day, cost at the cheapest listing next to the one used, the
+    chance of a price change within 90 days, how often it was right with a 95%
+    range, and what a wrong answer must cost for the dearer model to pay off.
 
 ## First results
 
@@ -233,12 +238,12 @@ and stops if the new build is a step back (fewer models, a quarter fewer
 listed, or older data). Set `LLMLEDGER_SKIP_LIVE_CHECK=1` to publish anyway,
 for example after LiteLLM rewrites its history.
 
-Tests (173 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
+Tests (174 tests: known answer, simulation, naming, corrections, SQL, prompt cost,
 Arena matching, task guess, model comparison, plug-in parity, trends, licences,
 the check against the live page, the Agent Skill, models not yet priced, the
 promptfoo answer keys, page and version checks; the prompt cost, task guess,
 comparison, trends drawing and parity tests need Node.js and are skipped without
-it; the plug-in has 21 more in `mcp/tests`),
+it; the plug-in has 28 more in `mcp/tests`),
 with the exact versions pinned in `requirements.txt`:
 
 ```bash
@@ -248,10 +253,10 @@ python -m pytest
 
 ## Use it inside Claude
 
-The plug-in `llmledger-mcp` (in [`mcp/`](mcp/)) gives Claude and other AI apps eight tools:
+The plug-in `llmledger-mcp` (in [`mcp/`](mcp/)) gives Claude and other AI apps nine tools:
 suggest a model and effort for a project, compare models, estimate a budget, find models,
-a model's price history with its outlook, new models not priced yet, and how long a job
-takes (learned from runs you log). It runs on your computer and reads the daily
+a model's price history with its outlook, new models not priced yet, how long a job
+takes (learned from runs you log), and a quote for a whole job from a promptfoo sample. It runs on your computer and reads the daily
 `data.json`; no keys, nothing to host.
 
 ```bash
@@ -318,11 +323,12 @@ src/llmledger/       history.py, events.py, flags.py (corrections),
 tests/               known answer, simulation, naming, page and version tests
 mcp/                 the plug-in (llmledger-mcp): FastMCP server, tests, server.json
 skills/llmledger/    the Agent Skill: SKILL.md and a script with a copy of the
-                     plug-in's code (tools.py, logic.py, data.py)
+                     plug-in's code (tools.py, logic.py, data.py, speed.py, forecast.py)
 .claude-plugin/      the Claude Code marketplace entry for the skill
 docs/SPEC.md         definitions, requirements, limitations, traceability
 docs/corrections/    labelling guide and the labelled sample (issue #7)
-docs/promptfoo.md    checking the plug-in with promptfoo, and timing jobs from its runs
+docs/promptfoo.md    checking the plug-in with promptfoo, timing jobs from its runs,
+                     and quoting a whole job from a sample
 .github/workflows/   tests on every pull request; refresh rebuilds and
                      publishes the results page every day, and opens an
                      issue when it fails

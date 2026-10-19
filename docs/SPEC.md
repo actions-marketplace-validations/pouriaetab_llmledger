@@ -458,8 +458,10 @@ today's data could not be downloaded. Verified by: automated tests.
 **REQ-S45 Time learned from the user's runs.** The plug-in and the skill
 shall keep timed runs (model, way of calling it, thinking on or off, prompt
 and answer tokens, seconds) in a file on the user's computer, from a single
-run or a promptfoo results file (each result once; cached, failed and
-tokenless results skipped), and shall estimate the time of one call and of
+run or a promptfoo results file (each result once; cached results, calls
+that did not run and tokenless results skipped, a failed check kept; the way
+read from each provider and thinking from its thinking tokens unless given),
+and shall estimate the time of one call and of
 a whole job (calls over the number running at once) as a usual time and a
 slow day, from the newest 50 runs of that model and way only: a Theil-Sen
 fit of seconds on answer tokens, times the median and the 90th percentile
@@ -477,6 +479,30 @@ tools through promptfoo's MCP provider, with answer keys worked out from
 Verified by: automated tests of the answer keys, a run on the day's data
 (30 of 30 pass with plug-in 0.1.5; 28 of 30 with 0.1.2, which had the
 listing slip).
+
+**REQ-S47 A whole job quoted from a sample.** The plug-in and the skill
+shall read a promptfoo results file of a sample of a job and, given the
+number of tests in the whole job, give for each model (and prompt, when a
+model tried more than one): the job's calls (tests times calls a test in the
+sample); its time as a usual time and a slow day, per REQ-S45, from the
+sample's timed calls and the user's logged runs of the same model and way
+(the sample's calls once), at the sample's calls at once unless given; its
+cost from the sample's average tokens (cache reads and writes included) at
+the cheapest listing, and at the cheapest listing on the host the sample
+used with the sample's own cost at those prices; promptfoo's figure for the
+sample and the job at that rate, saying why they may differ when they do by
+more than a tenth; the 90-day chance of a price change of the cheapest
+listing; how often it was right (passed checks over checked results, calls
+that did not run counted apart) with a Wilson 95% range; and a line against
+the pick with the break-even cost of a wrong answer (the cost difference an
+item over the difference in the share right). The pick shall be the cheapest
+model whose range overlaps the most often right, or with a cost of a wrong
+answer, the lowest cost an item counting wrong answers at it; with no checks,
+the cheapest. Nothing shall be called or sent. Verified by: automated tests
+of the Wilson ranges, the provider names, a sample with a cached answer, a
+failed call and a local model, the cost of a wrong answer, logged runs,
+prompts, repeats, another host and Claude Code, a sample without checks, bad
+input, and the skill.
 
 ## 5. Known limitations
 
@@ -561,6 +587,13 @@ listing slip).
   top 10), and a catalogue price, not what a provider charged that day.
   "Open" means Arena lists a licence other than proprietary, which includes
   some licences that do not allow business use.
+- **L19** A job quoted from a sample (REQ-S47) holds only as well as the
+  sample's tests stand for the whole job, and a sample of 20 tells two
+  models apart only when they differ a lot. Its times assume the whole job
+  meets the rate limits and load the sample met. Its costs use the tokens
+  the results list; a provider that bills more (cache writes it does not
+  report, or extra calls Claude Code makes) costs more, which promptfoo's own
+  figure may show.
 
 ## 6. Known-answer example
 
@@ -625,6 +658,7 @@ listing slip).
 | REQ-S44 | `test_cache_reads_and_writes_and_the_saving`, `test_offline_answers_say_so_with_the_date` in `mcp/tests` | test |
 | REQ-S45 | `test_a_straight_line_is_found_exactly`, `test_one_slow_run_barely_moves_the_usual_time`, `test_few_runs_give_a_rough_range`, `test_logging_and_estimating_through_the_tools`, `test_a_promptfoo_results_file_counts_as_runs_once`, `test_bad_input_says_what_to_fix` in `mcp/tests/test_speed.py`; `test_req_s45_the_script_times_a_job_from_logged_runs` | test |
 | REQ-S46 | `test_req_s46_answer_keys_come_from_the_data`, `test_req_s46_the_keys_agree_with_the_plugin_on_its_test_data`, `test_req_s46_the_config_runs_the_repository_plugin_through_the_mcp_provider`; a promptfoo run on the day's data | test, demonstration |
+| REQ-S47 | `test_req_s47_wilson_ranges`, `test_req_s47_promptfoo_names_ways_and_hosts`, `test_req_s47_a_sample_becomes_a_quote_for_the_whole_job`, `test_req_s47_the_cost_of_a_wrong_answer_can_decide_the_pick`, `test_req_s47_logged_runs_add_to_the_sample_which_counts_once`, `test_req_s47_prompts_repeats_hosts_and_plans`, `test_req_s47_no_checks_and_bad_input`, `test_req_s47_the_script_quotes_a_job_from_a_promptfoo_sample` | test |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |

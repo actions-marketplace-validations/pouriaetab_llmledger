@@ -47,6 +47,7 @@ In Claude Code: `/plugin marketplace add pouriaetab/llmledger`, then `/plugin in
 | `not_yet_priced` | "Which new models on Arena have no price yet, and how long does a price usually take?" |
 | `estimate_time` | "How long will 5,000 calls of 2K tokens in and 600 out take on Opus 5.5 through the API, 4 at a time?" Learned from your own runs |
 | `log_run` | "I timed this call: 2,100 in, 640 out, 9.2 seconds", or a promptfoo results file; kept on your computer only |
+| `forecast_job` | "Here is a promptfoo run of 20 of my 5,000 tests: what will the whole job cost and take on each model, and which should I pick?" Reads the file only |
 
 Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, `pick_a_model`.
 
@@ -61,6 +62,9 @@ Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, 
   about 6 in 10 first price changes. `price_history` says what each flag on a change means (a likely
   correction, a unit fix, a change undone) and how often such changes were corrections.
 - Every answer carries the date of its data. When the data is 3 or more days old, the answer says so.
+- Times come only from your own runs (and the sample's own timed calls for `forecast_job`), always as a
+  usual time and a slow day. How often a model was right is the share of a sample's checks it passed, with
+  a 95% range; with 20 tests the range is wide, and the answer says when two models cannot be told apart.
 - Set `LLMLEDGER_DATA` to a local data.json or another address to use your own copy.
 
 ## Data and licences
