@@ -305,8 +305,11 @@ Arena ratings by task, the sources and their licences. Verified by:
 estimate_cost, price_history, suggest_for_project), a snapshot resource
 and a prompt, reading `data.json` once a day with a bundled copy for the
 first run. Its task guess and comparison shall give the same answers as
-the page's route.js and pick.js. Verified by: the parity tests in the
-repository and the plug-in's own tests through FastMCP's in-memory client.
+the page's route.js and pick.js. A model shall be priced at its cheapest
+listing for the tokens asked about; when the tokens do not decide, at the
+lower list price, then the maker's own host, then the name, never by the
+order of the listings. Verified by: the parity tests in the repository and
+the plug-in's own tests through FastMCP's in-memory client.
 
 **REQ-S33 Trends.** A Trends view shall replay Arena's past overall
 leaderboards (the dataset's full history, CC BY 4.0) as a moving line
@@ -404,6 +407,19 @@ automated tests of the page and of the plug-in.
 publish, the workflow shall open one issue about it (not one a day), and
 shall close it when a later refresh is published. Verified by: an
 automated test of the workflow file, and demonstration.
+
+**REQ-S41 Agent Skill.** The folder `skills/llmledger` shall hold an Agent
+Skill (agentskills.io format: `SKILL.md` with a name matching the folder, a
+description of what it does and when to use it, under 500 lines) and a
+script that gives the plug-in's five answers as JSON with the standard
+library only, from an exact copy of the plug-in's `tools.py`, `logic.py`
+and `data.py`, so both give the same answers from the same data. The
+repository shall be a Claude Code marketplace whose one plugin is that
+skill. With no data saved and none to download, the script shall say so
+instead of failing. Verified by: automated tests that the copy is exact,
+that `SKILL.md` and the marketplace files follow their formats, of the
+script's answers on the plug-in's test data and of its errors; Claude
+Code's own `plugin validate` and an install in a fresh profile.
 
 ## 5. Known limitations
 
@@ -538,7 +554,7 @@ automated test of the workflow file, and demonstration.
 | D13, REQ-S29 | `test_req_s29_records_carry_cache_price_and_effort_levels`, `test_req_s29_effort_is_clamped_to_the_levels_a_model_takes`, `test_req_s29_effort_suggestion_known_answers`, `test_req_s29_effort_suggestion_says_why_and_respects_the_model`, `test_req_s29_plan_use_is_relative_to_the_least`, `test_req_s29_verdict_known_answer`, `test_req_s29_verdict_on_a_plan_and_without_ratings`, `test_req_s29_the_pick_is_the_cheapest_the_votes_cannot_tell_from_the_top`, `test_req_s29_headline_and_notes_say_why`, `test_req_s29_page_compares_models_side_by_side`; the page in a browser | test, demonstration |
 | REQ-S30 | `test_req_s30_arena_is_explained_on_the_page`; the page in a browser | test, demonstration |
 | REQ-S31 | `test_req_s31_data_json_lists_listed_models_with_prices_and_outlook`, `test_req_s31_data_json_explains_the_tags_and_carries_the_corrections_measured` | test |
-| REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (10 tests) | test |
+| REQ-S32 | `test_req_s32_plugin_guesses_the_same_task_as_the_page`, `test_req_s32_plugin_compares_the_same_way_as_the_page`; `mcp/tests/test_server.py` (11 tests) | test |
 | REQ-S33 | `test_req_s33_renamed_arena_models_keep_one_line`, `test_req_s33_a_price_is_rolled_back_to_the_day`, `test_req_s33_a_likely_correction_is_not_rolled_back`, `test_req_s33_lines_makers_and_the_price_race`, `test_req_s33_no_history_means_no_trends`, `test_req_s33_yesterdays_trends_are_kept_when_arena_is_down`, `test_req_s33_a_rating_gap_in_plain_odds`, `test_req_s33_a_line_is_drawn_between_its_points_and_ends_after_a_month`, `test_req_s33_labels_never_overlap_and_stay_inside`, `test_req_s33_round_ticks`, `test_req_s33_trends_view_replays_the_leaderboards`, `test_req_s33_the_trends_package_is_checked_and_a_closed_one_drops_the_trend_charts`; the page in a browser at 1366 and 390 pixels wide, light and dark | test, demonstration |
 | REQ-S34 | `test_req_s34_the_edge_keeps_only_models_nobody_beats_on_both`, `test_req_s34_cost_vs_quality_sits_on_ask`; the page in a browser | test, demonstration |
 | REQ-S35 | `test_req_s35_new_arrivals_are_new_groups_with_a_text_price`, `test_req_s35_latest_changes_fold_batches_and_join_price_fields` | test |
@@ -546,6 +562,7 @@ automated test of the workflow file, and demonstration.
 | REQ-S38 | `test_req_s38_a_normal_day_passes`, `test_req_s38_a_step_back_is_named`, `test_req_s38_a_broken_build_is_not_published`, `test_req_s38_no_live_page_means_nothing_to_compare`, `test_req_s38_the_pipeline_checks_before_it_writes_the_page`; the "Live check" line in every daily run | test, demonstration |
 | REQ-S39 | `test_req_s39_old_data_is_named_on_the_page`; `test_old_data_says_how_old_it_is` in `mcp/tests` | test |
 | REQ-S40 | `test_req_s40_a_failed_refresh_opens_one_issue_and_a_good_one_closes_it`; the `report` job of the `refresh` workflow | test, demonstration |
+| REQ-S41 | `test_req_s41_the_skill_carries_an_exact_copy_of_the_plugin_code`, `test_req_s41_skill_md_follows_the_agent_skills_format`, `test_req_s41_the_repository_is_a_claude_code_marketplace_for_the_skill`, `test_req_s41_the_script_gives_the_plugins_answers`, `test_req_s41_the_script_says_what_went_wrong`; `claude plugin validate .` and an install in a fresh profile | test, demonstration |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
