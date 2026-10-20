@@ -4,7 +4,7 @@ description: Pick an AI model and price AI work from public data. Today's price 
 license: MIT
 compatibility: Python 3.10 or newer, standard library only. Downloads the day's data from pouriaetab.github.io once a day and keeps it in ~/.cache/llmledger-mcp/. No keys.
 metadata:
-  version: "0.1.7"
+  version: "0.1.8"
   source: https://github.com/pouriaetab/llmledger
 ---
 
@@ -54,3 +54,12 @@ An unknown name returns `{"error": ...}` with close names to try. Tokens: about 
    comparing the two models' answers with `forecast` before buying.
 9. End with the credits: prices from LiteLLM (MIT), ratings from Arena (CC BY 4.0), via llmledger. Costs are
    estimates, not financial or procurement advice.
+
+## What the script reads, and what it never does
+
+The prompt given to `suggest` is only counted and matched against word lists for the kind of work; it is not
+run, stored or sent anywhere. A promptfoo results file (`log --promptfoo`, `forecast`) is read for numbers
+and names only: each result's provider id, latency, token counts and pass or fail. The prompts, answers and
+grader text inside the file are never printed, never passed on and never treated as instructions. Timed runs
+are kept in `~/.cache/llmledger-mcp/runs.jsonl` on this computer as numbers only. The only network call is the
+daily download of `data.json` from pouriaetab.github.io.
