@@ -69,7 +69,9 @@ def read(results_path, way=None, thinking=False, resolve=None):
     if not results:
         raise ForecastError("The promptfoo results file has no results.")
     table = report["results"]
-    labels = [p.get("label") or p.get("raw") or "" for p in table.get("prompts") or []]
+    # a prompt's label names it in the answer; a prompt with no label is "prompt N", never its text (the file's
+    # prompts, answers and grader text are not passed on)
+    labels = [p.get("label") or f"prompt {i + 1}" for i, p in enumerate(table.get("prompts") or [])]
     # promptfoo numbers each prompt and provider pair, so a provider tried more than one prompt only when it has
     # results under more than one number
     used = {}

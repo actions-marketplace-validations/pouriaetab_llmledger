@@ -67,6 +67,11 @@ Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, 
 - Times come only from your own runs (and the sample's own timed calls for `forecast_job`), always as a
   usual time and a slow day. How often a model was right is the share of a sample's checks it passed, with
   a 95% range; with 20 tests the range is wide, and the answer says when two models cannot be told apart.
+- What the plug-in reads: a prompt given to `suggest_for_project` is only counted and matched against word
+  lists; a promptfoo results file (`log_run`, `forecast_job`) is read for numbers and names only (provider id,
+  latency, token counts, pass or fail), and the prompts, answers and grader text inside it are never passed on
+  or treated as instructions. Timed runs stay on your computer as numbers. The only network call is the daily
+  download of `data.json`.
 - Set `LLMLEDGER_DATA` to a local data.json or another address to use your own copy.
 
 ## Data and licences
