@@ -76,6 +76,47 @@
       "</tr></thead><tbody>" + body + "</tbody></table></div>";
   }
 
+  /* ---------- by maker, and the guard (REQ-S53, REQ-S54) ---------- */
+  (function byMaker() {
+    const M = D.makers, el = $("makers-table");
+    if (!M || !el) return;
+    const cell = v => v ? pct(v[0]) + ' <span class="muted">(' + range(v[1], v[2]) + ")</span>" : "–";
+    const rows = M.rows.map(r => [r.maker === "all makers" ? "<b>all makers</b>" : esc(r.maker), r.models.toLocaleString(),
+      r.year ? r.year.followed.toLocaleString() : "–", cell(r.year && r.year.price), cell(r.year && r.year.retirement),
+      cell(r.year && r.year.removed), cell(r.year && r.year.none)]);
+    el.innerHTML = table(["Maker", "Models added", "Still followed at 1 year", "Price change", "Retirement announced", "Removed",
+      "None of these"], rows, "makers");
+    const named = M.rows.filter(r => r.year && !["other makers", "all makers"].includes(r.maker));
+    if (named.length > 1) {
+      const hi = named.reduce((a, r) => (r.year.price[0] > a.year.price[0] ? r : a)), lo = named.reduce((a, r) => (r.year.price[0] < a.year.price[0] ? r : a));
+      $("makers-line").innerHTML = "Within a year of being listed, <b>" + esc(hi.maker) + "</b> models had their price changed most often (" +
+        pct(hi.year.price[0]) + ") and <b>" + esc(lo.maker) + "</b> models least (" + pct(lo.year.price[0]) + "); the ranges tell which gaps the data can support.";
+    }
+    const G = D.guard, g = $("guard-line");
+    if (!G || !g) return;
+    const d = G.difference, o = G.step_odds_ratio;
+    g.innerHTML = "<b>" + esc(G.reading.charAt(0).toUpperCase() + G.reading.slice(1)) + "</b>: " + pct(G.share_before) + " of " +
+      G.changes_before.toLocaleString() + " price changes carried a correction tag in the 26 weeks before the guard (" + esc(G.guard_day) +
+      "), " + pct(G.share_after) + " of " + G.changes_after.toLocaleString() + " after; difference " + (100 * d[0]).toFixed(1) +
+      " points (95% interval " + (100 * d[1]).toFixed(1) + " to " + (100 * d[2]).toFixed(1) + "); the step in the segmented model is an odds ratio of " +
+      o[0] + " (" + o[1] + " to " + o[2] + "). <a href=\"" + esc(G.guard) + "\">The guard</a>.";
+  })();
+
+  /* ---------- the price index: what top quality costs against a year ago (REQ-S50) ---------- */
+  (function priceIndex() {
+    const T = D.trends, el = $("race-index");
+    if (!T || !T.race || !el) return;
+    const row = [...T.race].reverse().find(r => r[6] != null && r[9]);
+    if (!row) return;
+    const times = row[9] / row[6];
+    const when = T.dates[row[0]];
+    el.innerHTML = "<b>" + (times >= 10 ? Math.round(times) : times.toFixed(1)) + "\u00d7 cheaper</b> than a year ago: a model as good as last year's #1 (" +
+      esc(T.names[row[8]]) + ", then $" + row[9].toLocaleString("en-US", { maximumFractionDigits: 2 }) + " per 1M tokens) is " +
+      esc(T.names[row[7]]) + " at $" + row[6].toLocaleString("en-US", { maximumFractionDigits: 2 }) +
+      ' <span class="muted">(3 tokens read for 1 written, cheapest host, Arena leaderboard of ' + esc(when) + ")</span>";
+    el.hidden = false;
+  })();
+
   /* ---------- old data (REQ-S39) ---------- */
   // The page is rebuilt every day. If that stops, say so instead of showing old prices as today's.
   const STALE_DAYS = 3;
@@ -118,7 +159,7 @@
   /* ---------- tabs ---------- */
   const TABS = ["ask", "race", "models", "trends", "about"];
   const OLD = { lookup: "models", cost: "ask", value: "ask", week: "trends", top: "trends", overview: "trends",
-    unpriced: "trends" };
+    unpriced: "trends", makers: "trends" };
   let currentTab = "ask";
   function showTab(name) {
     name = OLD[name] || name;
@@ -134,7 +175,18 @@
     b.addEventListener("click", () => {
       history.replaceState(null, "", "#" + b.dataset.tab); showTab(b.dataset.tab); remember();
     }));
+  // #find=<text> opens Models with that search (a link from elsewhere to one model's listings; REQ-S18)
+  function findFromHash() {
+    const h = decodeURIComponent(location.hash.slice(1));
+    if (!h.startsWith("find=")) return false;
+    showTab("models");
+    $("search").value = h.slice(5);
+    if (typeof renderResults === "function") renderResults();
+    return true;
+  }
   showTab(location.hash.slice(1) || saved.tab);
+  window.addEventListener("hashchange", findFromHash);
+  window.addEventListener("load", findFromHash);
   function showPanel(name) {
     for (const b of document.querySelectorAll("[data-panel]")) {
       b.setAttribute("aria-pressed", b.dataset.panel === name);
@@ -145,12 +197,12 @@
     showPanel(b.dataset.panel);
     try { localStorage.setItem(STORE + ":panel", b.dataset.panel); } catch (e) { /* not remembered */ }
   }));
-  showPanel(({ week: "week", top: "top", unpriced: "unpriced" })[location.hash.slice(1)] ||
+  showPanel(({ week: "week", top: "top", unpriced: "unpriced", makers: "makers" })[location.hash.slice(1)] ||
     (() => { try { return localStorage.getItem(STORE + ":panel"); } catch (e) { return null; } })() || "overview");
   window.addEventListener("hashchange", () => {
     const h = location.hash.slice(1);
     showTab(h);
-    if (["week", "top", "overview", "unpriced"].includes(h)) showPanel(h);
+    if (["week", "top", "overview", "unpriced", "makers"].includes(h)) showPanel(h);
   });
   // About fits one screen: a part added to it with a heading of its own (a copy of this page may add its scope
   // note) becomes one more row that opens on a click, like the rows already there; a link marked data-scope opens it.

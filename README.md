@@ -41,6 +41,33 @@ plug-in's tools) and needs only Python:
 
 or `npx skills add pouriaetab/llmledger`, or copy [skills/llmledger](skills/llmledger) into your agent's skills folder.
 
+## Watch the models you use
+
+A GitHub Action that fails a check (or just reports) when a model your project uses changes price, gets a retirement
+date or leaves the catalogue. Add to a workflow that runs on a schedule:
+
+```yaml
+- uses: pouriaetab/llmledger@main
+  with:
+    models: gpt-5, claude-sonnet-4-5, deepseek/deepseek-chat
+    days: 7            # a price change within this many days counts
+    fail: "true"       # "false" only reports; the report is in the step's outputs
+```
+
+Keys are LiteLLM's (`gpt-5`, not `openai/gpt-5`; the Action finds the bare key when a prefix is given). The same check
+from a shell: `python action/watch.py --models "gpt-5,claude-sonnet-4-5"`.
+
+A badge for a model, for any README, refreshed every day:
+
+```markdown
+![gpt-5](https://img.shields.io/endpoint?url=https://pouriaetab.github.io/llmledger/badge/gpt-5.json)
+```
+
+![gpt-5](https://img.shields.io/endpoint?url=https://pouriaetab.github.io/llmledger/badge/gpt-5.json)
+
+The address is the key with `/` as `--` and `:` as `-` (`badge/azure--eu--gpt-5.json`). It shows the prices per 1M
+tokens and the chance of a price change in 90 days (amber from 10%), or the retirement date (orange).
+
 ## What you get
 
 - **Ask.** Paste a prompt, see the best value model, the top rated and the cheapest rated for its task (coding, math,
@@ -51,11 +78,15 @@ or `npx skills add pouriaetab/llmledger`, or copy [skills/llmledger](skills/llml
 - **Models.** Every model in the catalogue, as LiteLLM lists it or grouped by model, with its price history, every
   change linked to the LiteLLM commit behind it, and its outlook.
 - **Trends.** Two years of Arena leaderboards replayed: the best open model against the best closed one, the top
-  makers, and what top quality has cost.
+  makers, and what top quality has cost, with one line on top: how many times cheaper a model as good as last year's
+  #1 is today.
 - **Price history.** How likely a newly listed model is to have its price changed, get a retirement date or be removed,
-  within 30 days to 2 years, with and without the catalogue's own corrections.
-- **A feed.** [feed.xml](https://pouriaetab.github.io/llmledger/feed.xml): every price change and retirement date, one
-  entry a day. The data behind everything: [data.json](https://pouriaetab.github.io/llmledger/data.json).
+  within 30 days to 2 years, with and without the catalogue's own corrections; the same by maker (which makers' models
+  change first); and whether LiteLLM's CI guard changed the share of corrections, as an interrupted time series.
+- **A feed and a weekly post.** [feed.xml](https://pouriaetab.github.io/llmledger/feed.xml): every price change and
+  retirement date, one entry a day. [digest.md](https://pouriaetab.github.io/llmledger/digest.md): this week in LLM
+  prices, written from the data, ready to paste. The data behind everything:
+  [data.json](https://pouriaetab.github.io/llmledger/data.json), with `index`: what top quality costs against a year ago.
 
 The full list, one line per feature: [docs/FEATURES.md](docs/FEATURES.md).
 

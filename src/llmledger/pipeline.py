@@ -5,8 +5,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from llmledger import (arena, catalog, corrections, electricity, events, guard, history, licences, page, route_eval,
-                       sql, survival, trends, unpriced)
+from llmledger import (arena, catalog, corrections, electricity, events, flags, guard, guard_effect, history,
+                       licences, makers, page, route_eval, sql, survival, trends, unpriced)
 
 SOURCE = "https://github.com/BerriAI/litellm.git"
 UPSTREAM = Path("data/upstream")
@@ -48,6 +48,10 @@ def main():
         rows = list(csv.DictReader(f))
     print(f"SQL check: all {sql.check(rows):,} models agree")
     data = catalog.build(rows, last, catalog.end_of(rows))
+    marked = flags.mark(rows)
+    data["makers"] = makers.build(marked, catalog.end_of(rows))
+    data["guard"] = guard_effect.build(marked)
+    print(f"By maker: {len(data['makers']['rows']) - 1} rows; guard: {data['guard']['reading'] if data['guard'] else 'not measured'}")
     tables = arena.fetch() if allowed["ratings"] else None
     data["arena"] = arena.build(tables, data["models"]) if tables else None
     if data["arena"] is None and allowed["ratings"]:

@@ -1,0 +1,45 @@
+name: "llmledger watch"
+description: "Fail a check, or open an issue, when a model your project uses changes price, gets a retirement date or leaves LiteLLM's catalogue."
+author: "pouriaetab"
+branding:
+  icon: "activity"
+  color: "blue"
+inputs:
+  models:
+    description: "The models to watch, as LiteLLM keys, comma separated (for example openai/gpt-5, anthropic/claude-sonnet-4-5)."
+    required: true
+  days:
+    description: "A price change within this many days counts."
+    required: false
+    default: "7"
+  watch:
+    description: "Which changes count: any of price, retirement, removed."
+    required: false
+    default: "price,retirement,removed"
+  fields:
+    description: "Price fields that count: the four token prices (input, output, cache read, cache write) by default, or all."
+    required: false
+    default: ""
+  fail:
+    description: "Fail the step when a watched change is found (true), or only report it (false)."
+    required: false
+    default: "true"
+outputs:
+  changed:
+    description: "true when a watched change was found."
+    value: ${{ steps.watch.outputs.changed }}
+  report:
+    description: "The report, one line per model, ready for an issue or a message."
+    value: ${{ steps.watch.outputs.report }}
+runs:
+  using: "composite"
+  steps:
+    - id: watch
+      shell: bash
+      run: |
+        set +e
+        python3 "${{ github.action_path }}/action/watch.py" --models "${{ inputs.models }}" --days "${{ inputs.days }}" --watch "${{ inputs.watch }}" --fields "${{ inputs.fields }}"
+        code=$?
+        if [ "$code" = "2" ]; then exit 2; fi
+        if [ "$code" = "1" ] && [ "${{ inputs.fail }}" = "true" ]; then exit 1; fi
+        exit 0

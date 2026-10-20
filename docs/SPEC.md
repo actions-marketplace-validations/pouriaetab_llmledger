@@ -544,8 +544,71 @@ another site can drop them.
 Verified by: automated tests of the feed's entries, window, flags and the
 empty case, and of the page's markers.
 
+**REQ-S50 Price index and the weekly digest.** data.json shall carry
+`index`: from the latest leaderboard that has both, what a model as good as
+last year's #1 costs now against what that model cost then (the price race
+of REQ-S33: per 1M tokens, 3 read for 1 written, cheapest host that day),
+with the two models, the two prices and the ratio; the Trends view shall
+show it as one line. Each build shall also write `digest.md`: the last 7 days
+in plain words, with how many models were added, repriced, got a retirement
+date or were removed (every change, corrections included), the five largest
+token price cuts and rises with corrections left out and one line per
+model, the retirement dates set, the newest models Arena already ranks (one
+per grouped name) and the index line, and it shall read with no events.
+Verified by: automated tests of the index and of the digest's counts, moves,
+arrivals and the quiet week.
+
+**REQ-S51 Watch.** The repository shall offer a GitHub Action (`action.yml`,
+`action/watch.py`, standard library) that reads the day's data.json and, for
+each model named by its LiteLLM key (a provider prefix LiteLLM does not use
+is dropped; one key that ends with what was asked is taken; two or more are
+not guessed), reports whether it is still listed, its token price changes
+within a number of days (the four token prices by default, every price field
+on request), its retirement date and its 90-day chance of a price change;
+exits 1 when a watched change is found, 0 otherwise and 2 when the data
+cannot be read; and writes the report to the step's outputs and summary.
+Verified by: automated tests of the check, the key resolution, the report,
+the exit codes and the Action's inputs.
+
+**REQ-S52 Badges.** Each build shall write, for every listed model, a badge in
+shields.io's endpoint format at `badge/<slug>.json` (the key with `/` as `--`
+and `:` as `-`): the input and output prices per 1M tokens and either the
+retirement date (orange) or the 90-day chance of a price change (amber from
+10%, blue below).
+Verified by: automated tests of the badge's text and colours and of the slug.
+
+**REQ-S53 By maker.** Each build shall split the main result's subjects by
+the maker the naming rules give each model (REQ-S18) and, for every maker
+with at least 100 subjects (others pooled as "other makers"), estimate the
+one-year cumulative incidence of each first exit (REQ-S7) with a 95%
+bootstrap interval (REQ-S8), reported while at least 20 of the maker's
+models are still followed, with the main result as the reference row; the
+Price history view shall show the table and name the makers whose models
+had their price changed most and least often.
+Verified by: automated tests on a catalogue of two makers with known exits,
+small makers pooled, and a maker followed too briefly.
+
+**REQ-S54 The guard.** Each build shall measure whether LiteLLM's cost map
+guard (merged 2026-09-04, PR #39835) changed the share of price changes
+that carry a correction tag (D11, D12, D14): one observation per week, the
+26 weeks before the guard and every week after, in a segmented logistic
+regression of the tagged share on time, a step at the guard and a change of
+slope, weighted by the week's price changes, with the step reported as an
+odds ratio and the plain difference of shares reported next to it, both
+with 95% intervals from a bootstrap that resamples whole weeks; the reading
+shall be "no change the data can show" when the difference's interval
+covers zero, and nothing shall be reported with fewer than two weeks on a
+side.
+Verified by: automated tests of the weekly series, a known drop, no change,
+and too few weeks.
+
 ## 5. Known limitations
 
+- **L0** The guard's effect (REQ-S54) is measured on weeks that are far
+  from alike: LiteLLM's provider-sync bot began in July 2026 and changed
+  hundreds of rows in some weeks after the guard. The weekly bootstrap allows
+  for that, at the cost of wide intervals; the result says what the data
+  can show, not that the guard has no effect.
 - **L1** Times are when LiteLLM edited its catalogue, not
   when a provider changed a price. The lag is unknown.
 - **L2** Many price changes correct the catalogue rather than reprice the
@@ -706,6 +769,11 @@ empty case, and of the page's markers.
 | REQ-S47 | `test_req_s47_wilson_ranges`, `test_req_s47_promptfoo_names_ways_and_hosts`, `test_req_s47_a_sample_becomes_a_quote_for_the_whole_job`, `test_req_s47_the_cost_of_a_wrong_answer_can_decide_the_pick`, `test_req_s47_logged_runs_add_to_the_sample_which_counts_once`, `test_req_s47_prompts_repeats_hosts_and_plans`, `test_req_s47_no_checks_and_bad_input`, `test_req_s47_the_script_quotes_a_job_from_a_promptfoo_sample` | test |
 | REQ-S48 | `test_req_s48_residential_prices_by_state_from_eia`, `test_req_s48_a_changed_table_gives_nothing_rather_than_wrong_prices`, `test_req_s48_the_live_pages_prices_are_kept_when_eia_cannot_be_read`, `test_req_s48_the_reuse_page_must_still_say_public_domain`, `test_req_s48_electricity_prices_are_used_only_while_eia_says_public_domain`, `test_req_s48_data_json_carries_the_electricity_prices_and_their_credit`, `test_req_s48_before_any_local_run_it_says_what_is_missing`, `test_req_s48_with_runs_watts_and_a_state_it_counts_electricity`, `test_req_s48_when_home_power_costs_more_buying_never_pays_off`, `test_req_s48_bad_input_says_what_to_fix`, `test_req_s48_the_script_says_when_buying_a_computer_pays_off` | test |
 | REQ-S49 | `test_req_s49_one_entry_a_day_newest_first_with_counts_and_commit_links`, `test_req_s49_only_the_last_14_days_and_a_flag_is_shown`, `test_req_s49_the_feed_is_well_formed_without_events`, `test_req_s36_about_rows_and_the_prompt_box` | test |
+| REQ-S50 | `test_req_s50_the_digest_counts_moves_arrivals_and_the_index`, `test_req_s50_the_index_comes_from_the_latest_leaderboard_with_both_prices`, `test_req_s50_a_quiet_week_still_reads` | test |
+| REQ-S51 | `test_req_s51_each_watched_model_is_checked_for_the_three_changes`, `test_req_s51_a_key_without_litellms_prefix_is_found_and_batch_prices_do_not_count`, `test_req_s51_the_report_names_the_changes_and_says_when_nothing_changed`, `test_req_s51_the_script_exits_1_on_a_change_0_otherwise_2_without_data`, `test_req_s51_the_action_runs_the_script_with_its_inputs` | test |
+| REQ-S52 | `test_req_s52_a_badge_per_listed_model_with_prices_outlook_and_retirement`, `test_req_s52_the_slug_is_safe_for_a_file_and_an_address` | test |
+| REQ-S53 | `test_req_s53_incidence_by_maker_with_small_makers_pooled`, `test_req_s53_a_maker_row_needs_20_models_still_followed` | test |
+| REQ-S54 | `test_req_s54_the_guard_series_counts_each_weeks_changes_and_tags`, `test_req_s54_a_real_drop_is_found_and_no_change_is_called_no_change`, `test_req_s54_too_few_weeks_gives_nothing` | test |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
