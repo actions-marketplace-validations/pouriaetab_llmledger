@@ -39,6 +39,19 @@ def outlook(model, curves, horizons=("90", "365")):
     return {"group": group, "age_days": round(model["age"]), **found} if found else None
 
 
+def price_index(trends):
+    """What a model as good as last year's #1 costs now against then (REQ-S50), from the latest
+    leaderboard that has both, or None."""
+    if not trends or not trends.get("race"):
+        return None
+    row = next((r for r in reversed(trends["race"]) if r[6] is not None and r[9]), None)
+    if row is None:
+        return None
+    return {"date": trends["dates"][row[0]], "now_model": trends["names"][row[7]], "now_price": row[6],
+            "then_model": trends["names"][row[8]], "then_price": row[9], "times": round(row[9] / row[6], 1),
+            "unit": "dollars per 1M tokens, 3 read for 1 written, cheapest host that day"}
+
+
 def machine(data, info):
     """The dictionary written to data.json."""
     models, events = [], {}
@@ -70,6 +83,9 @@ def machine(data, info):
         "corrections": data.get("corrections"),
         "unpriced": data.get("unpriced"),
         "electricity": data.get("electricity"),
+        "index": price_index(data.get("trends")),
+        "makers": data.get("makers"),
+        "guard": data.get("guard"),
         "models": models,
         "events": events,
         "sources": data.get("sources"),

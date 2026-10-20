@@ -300,6 +300,8 @@ select.pill { border-radius: 999px; padding: 4px 12px; background: var(--card); 
 .page-head { padding: 34px 0 6px; }
 .page-head h1 { font-size: 1.6rem; letter-spacing: -0.02em; margin: 0 0 6px; }
 .page-head p { color: var(--muted); max-width: 680px; }
+.page-head .index { color: var(--text); max-width: none; margin-top: 8px; }
+.page-head .index b { font-size: 1.5rem; letter-spacing: -0.02em; margin-right: 6px; }
 .seg { display: inline-flex; background: var(--raised); border-radius: 999px; padding: 3px; gap: 2px; margin: 8px 0 4px; }
 .seg button { border: 0; background: none; border-radius: 999px; padding: 5px 14px; color: var(--muted); }
 .seg button[aria-pressed="true"] { background: var(--card); color: var(--text); box-shadow: var(--shadow); font-weight: 600; }
@@ -572,6 +574,7 @@ footer { font-size: 0.75rem; }
 <div class="page-head">
   <h1>How the top models move</h1>
   <p>Two years of Arena's leaderboards, replayed, and what top quality costs.</p>
+  <p id="race-index" class="index" hidden></p>
 </div>
 <div class="tlayout">
 <div class="tcard">
@@ -660,6 +663,7 @@ $likely_line</p>
   <button type="button" data-panel="week">Last 7 days</button>
   <button type="button" data-panel="top">Top lists</button>
   <button type="button" data-panel="unpriced">Not yet priced</button>
+  <button type="button" data-panel="makers">By maker</button>
 </div>
 
 <div id="panel-overview">
@@ -720,6 +724,22 @@ likely corrections are not counted.</p>
 <div id="top-hosts"></div>
 </div>
 
+<div id="panel-makers" hidden>
+<h2>Which makers' models change first</h2>
+<p class="muted" id="makers-line"></p>
+<div id="makers-table"></div>
+<p class="muted">The same model and method as Over time, split by the maker the naming rules give each model: for every
+maker with at least 100 models added since September 2023, the estimated share whose first change within a year was
+each one, with a 95% bootstrap interval, while at least 20 of its models are still followed. Makers with fewer models
+are pooled. A model's maker can be wrong where the naming rules are.</p>
+<h2>Did LiteLLM's guard change the share of corrections?</h2>
+<p class="muted" id="guard-line"></p>
+<p class="muted">An interrupted time series: each week's price changes and how many of them carry a correction tag (unit
+fix, reverted, likely correction), 26 weeks before the guard and every week after, in a segmented logistic regression
+(a trend, a step at the guard, a change of slope) weighted by the week's changes. The interval resamples whole weeks,
+because one bot sync can change hundreds of rows in a week. The guard checks that the price file and its backup match
+and that the file fits a schema, not that a price is right, so no change is the expected answer; measuring it is the point.</p>
+</div>
 <div id="panel-unpriced" hidden>
 <h2>Seen on Arena, not yet priced</h2>
 <div id="unpriced-list"></div>
@@ -765,8 +785,9 @@ change $data_date. Page built $built with Python $python.</p>
 <p class="muted">The same answers come as a plug-in (<code>llmledger-mcp</code> on PyPI and the MCP Registry) and as an
 Agent Skill, both free, running on your computer from the day's data. In Claude Code:</p>
 <p class="muted"><code>claude mcp add llmledger -- uvx llmledger-mcp</code></p>
-<p class="muted">Every price change and retirement, as a feed: <a href="feed.xml">feed.xml</a>. The data behind the page:
-<a href="data.json">data.json</a>. Setup for other apps, and the skill: <a href="$repo#use-it-inside-claude">on GitHub</a>.</p>
+<p class="muted">Every price change and retirement, as a feed: <a href="feed.xml">feed.xml</a>. This week in LLM prices, ready
+to paste: <a href="digest.md">digest.md</a>. The data behind the page: <a href="data.json">data.json</a>. Setup for other
+apps, and the skill: <a href="$repo#use-it-inside-claude">on GitHub</a>.</p>
 </details>
 <!-- home:end -->
 </section>

@@ -148,6 +148,8 @@ def test_req_s36_about_rows_and_the_prompt_box(tmp_path):
     # and a link marked data-scope opens it
     assert 'document.querySelectorAll("#tab-about > section")' in app
     assert 'closest("a[data-scope]")' in app and "row.open = true" in app
+    # #find=<text> opens Models with that search, so another page can link to one model's listings
+    assert 'h.startsWith("find=")' in app and 'showTab("models")' in app
     # the prompt box grows with the prompt (up to 40% of the window), and nothing is hidden to make room
     assert "ta.style.height = Math.min(ta.scrollHeight + 2" in app
     assert "tight" not in app and "tight" not in page
