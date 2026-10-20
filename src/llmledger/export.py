@@ -79,5 +79,7 @@ def machine(data, info):
 
 
 def write(path, data, info):
+    out = machine(data, info)
     with open(path, "w") as f:
-        json.dump(machine(data, info), f, separators=(",", ":"))
+        json.dump(out, f, separators=(",", ":"))
+    return out
