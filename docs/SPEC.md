@@ -167,7 +167,13 @@ name, and shall also offer a grouped view in which naming rules map
 the same model on different hosts to one name (for example,
 `snowflake/claude-3-5-sonnet` and
 `eu.anthropic.claude-3-5-sonnet-20241022-v2:0` both map to
-anthropic / claude-3.5-sonnet).
+anthropic / claude-3.5-sonnet). A vendor glued to the front of a name
+(`databricks-claude-opus-4`, `Meta-Llama-3-70B`, `openai-gpt-4o`, `ft:gpt-4o`)
+is not the model and shall be dropped when what is left names a maker, and a
+vendor segment of the key shall name the maker when the name does not
+(`bedrock/us-east-1/deepseek.v3.2` is deepseek); a name that carries its
+maker's own name keeps it (`deepseek-v4-flash`). Before a search, the view
+shall show the newest listings rather than nothing.
 Verified by: automated tests on named examples.
 
 **REQ-S19 Last 7 days.** The page shall list every addition, removal,
@@ -526,6 +532,18 @@ page's prices, the licence check, data.json, the tool before and after runs,
 a state, a computer that cannot keep up, power that costs more, bad input
 and the skill.
 
+**REQ-S49 Feed and share data.** Each build shall publish an Atom feed
+(`feed.xml`) with one entry a day for the last 14 days: how many models were
+added, repriced, given a retirement date or removed that day, then one line
+per model and kind with the LiteLLM commits behind the changes (at most 60
+lines a kind), newest day first, well formed with no events. The page shall
+carry share data (Open Graph and Twitter card tags, a canonical address and
+a link to the feed) and a share image, and a short way to get the same
+answers inside an MCP app, both inside markers so that a copy of the page on
+another site can drop them.
+Verified by: automated tests of the feed's entries, window, flags and the
+empty case, and of the page's markers.
+
 ## 5. Known limitations
 
 - **L1** Times are when LiteLLM edited its catalogue, not
@@ -656,7 +674,7 @@ and the skill.
 | REQ-S15 | `test_req_s15_page_names_the_data_it_was_built_from`; the daily `refresh` workflow | test, demonstration |
 | REQ-S16 | `test_req_s16_versions_are_pinned_exactly`; the version line in every run log | test, inspection |
 | REQ-S17 | `test_req_s17_outlook_known_answer` | test |
-| REQ-S18 | `test_req_s18_one_model_on_many_hosts_is_grouped`, `test_req_s18_naming_rules` | test |
+| REQ-S18 | `test_req_s18_one_model_on_many_hosts_is_grouped`, `test_req_s18_naming_rules`, `test_req_s18_a_vendor_in_the_name_is_not_the_model` | test |
 | REQ-S19 | `test_req_s19_last_seven_days_lists_every_change` | test |
 | D10 | `test_req_s20_bulk_clean_up_starts_at_50_removals_in_a_day` | test |
 | D11 | `test_req_s20_unit_fix_is_100_times_either_way` | test |
@@ -687,6 +705,7 @@ and the skill.
 | REQ-S46 | `test_req_s46_answer_keys_come_from_the_data`, `test_req_s46_the_keys_agree_with_the_plugin_on_its_test_data`, `test_req_s46_the_config_runs_the_repository_plugin_through_the_mcp_provider`; a promptfoo run on the day's data | test, demonstration |
 | REQ-S47 | `test_req_s47_wilson_ranges`, `test_req_s47_promptfoo_names_ways_and_hosts`, `test_req_s47_a_sample_becomes_a_quote_for_the_whole_job`, `test_req_s47_the_cost_of_a_wrong_answer_can_decide_the_pick`, `test_req_s47_logged_runs_add_to_the_sample_which_counts_once`, `test_req_s47_prompts_repeats_hosts_and_plans`, `test_req_s47_no_checks_and_bad_input`, `test_req_s47_the_script_quotes_a_job_from_a_promptfoo_sample` | test |
 | REQ-S48 | `test_req_s48_residential_prices_by_state_from_eia`, `test_req_s48_a_changed_table_gives_nothing_rather_than_wrong_prices`, `test_req_s48_the_live_pages_prices_are_kept_when_eia_cannot_be_read`, `test_req_s48_the_reuse_page_must_still_say_public_domain`, `test_req_s48_electricity_prices_are_used_only_while_eia_says_public_domain`, `test_req_s48_data_json_carries_the_electricity_prices_and_their_credit`, `test_req_s48_before_any_local_run_it_says_what_is_missing`, `test_req_s48_with_runs_watts_and_a_state_it_counts_electricity`, `test_req_s48_when_home_power_costs_more_buying_never_pays_off`, `test_req_s48_bad_input_says_what_to_fix`, `test_req_s48_the_script_says_when_buying_a_computer_pays_off` | test |
+| REQ-S49 | `test_req_s49_one_entry_a_day_newest_first_with_counts_and_commit_links`, `test_req_s49_only_the_last_14_days_and_a_flag_is_shown`, `test_req_s49_the_feed_is_well_formed_without_events`, `test_req_s36_about_rows_and_the_prompt_box` | test |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |

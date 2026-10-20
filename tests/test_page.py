@@ -138,8 +138,11 @@ def test_req_s36_about_rows_and_the_prompt_box(tmp_path):
     page = page_for(tmp_path)
     about = page[page.index('id="tab-about"'):page.index("</main>")]
     # About is a short line and rows that open on a click, all closed at first
-    assert about.count("<details") == about.count("<summary>") == 3
+    assert about.count("<details") == about.count("<summary>") == 4
     assert "<details open" not in about and "<section" not in about[1:]
+    # the last row is how to get the same answers inside Claude; a copy of the page elsewhere drops it (home markers)
+    assert about.index("<!-- home:start") < about.index('id="get-it"') < about.index("<!-- home:end -->")
+    assert "claude mcp add llmledger -- uvx llmledger-mcp" in about
     app = (Path(page_module.__file__).parent / "app.js").read_text()
     # a part a copy of the page adds to About (with a heading of its own) becomes one more closed row,
     # and a link marked data-scope opens it

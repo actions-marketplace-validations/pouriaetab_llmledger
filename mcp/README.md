@@ -32,7 +32,8 @@ A LiteLLM proxy can offer it to a whole team through its MCP gateway, as a stdio
 command.
 
 The same answers also come as an Agent Skill, which takes far less of an agent's context until it is used
-and needs only Python: [skills/llmledger](https://github.com/pouriaetab/llmledger/tree/main/skills/llmledger).
+and needs only Python: the folder `skills/llmledger` in the repository,
+https://github.com/pouriaetab/llmledger/tree/main/skills/llmledger
 In Claude Code: `/plugin marketplace add pouriaetab/llmledger`, then `/plugin install llmledger@llmledger`.
 
 ## What you can ask

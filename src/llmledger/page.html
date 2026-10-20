@@ -5,6 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>llmledger: which AI model, and what it costs</title>
 <meta name="description" content="Paste a prompt and get the best value AI model and what it costs. Built on LiteLLM's price catalogue and Arena ratings, rebuilt daily, with the history of every price change.">
+<!-- share:start (a copy of this page on another site drops this block and adds its own) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="llmledger">
+<meta property="og:title" content="llmledger: which AI model, and what it costs">
+<meta property="og:description" content="Paste a prompt, see the best value model for it and what it costs, and how likely each price is to change. Every price change in LiteLLM's catalogue since 2023, rebuilt daily.">
+<meta property="og:url" content="https://pouriaetab.github.io/llmledger/">
+<meta property="og:image" content="https://pouriaetab.github.io/llmledger/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="llmledger: which AI model, and what it costs">
+<meta name="twitter:description" content="Paste a prompt, see the best value model for it and what it costs, and how likely each price is to change. Rebuilt daily from LiteLLM's catalogue and Arena ratings.">
+<meta name="twitter:image" content="https://pouriaetab.github.io/llmledger/og.png">
+<link rel="canonical" href="https://pouriaetab.github.io/llmledger/">
+<link rel="alternate" type="application/atom+xml" title="llmledger: price changes and retirements" href="https://pouriaetab.github.io/llmledger/feed.xml">
+<!-- share:end -->
 <style>
 :root {
   color-scheme: light;
@@ -68,6 +84,9 @@ code { font-size: 0.85em; }
   padding: 6px 14px; cursor: pointer; white-space: nowrap; }
 .tabs button:hover { color: var(--text); }
 .tabs button[aria-selected="true"] { background: var(--raised); color: var(--text); font-weight: 600; }
+.get { margin-left: auto; font-size: 0.82rem; font-weight: 600; color: var(--accent); text-decoration: none;
+  border: 1px solid var(--accent); border-radius: 999px; padding: 5px 11px; white-space: nowrap; }
+.get:hover { background: var(--accent-soft); }
 
 main { max-width: 1040px; margin: 0 auto; padding: 0 16px 32px; }
 
@@ -393,7 +412,8 @@ footer { font-size: 0.75rem; }
 #tab-race .page-head, #tab-models .page-head, #tab-trends .page-head, #tab-about .page-head { padding: 22px 0 4px; }
 @media (max-width: 760px) {
   .bar-in { flex-wrap: wrap; row-gap: 2px; padding: 8px 12px 6px; }
-  .brand { flex: 1 0 100%; }
+  .brand { flex: 1 1 auto; }
+  .get { margin-left: 0; font-size: 0.78rem; padding: 4px 9px; }
   .tabs { flex-wrap: wrap; width: 100%; justify-content: space-between; }
   .tabs button { padding: 5px 8px; font-size: 0.88rem; }
   .ask-top { padding-top: 14px; }
@@ -421,6 +441,9 @@ footer { font-size: 0.75rem; }
     <button type="button" role="tab" data-tab="trends">Price history</button>
     <button type="button" role="tab" data-tab="about">About</button>
   </nav>
+  <!-- home:start (a copy of this page on another site drops this block) -->
+  <a class="get" href="$repo#use-it-inside-claude" title="The same answers inside Claude, Cursor or any app that speaks MCP">Use it inside Claude</a>
+  <!-- home:end -->
 </div></header>
 
 <main>
@@ -737,6 +760,15 @@ change $data_date. Page built $built with Python $python.</p>
 <p class="muted" id="licences"></p>
 <p class="muted">Method, specification and tests: <a href="$repo">llmledger on GitHub</a>. MIT licence.</p>
 </details>
+<!-- home:start (a copy of this page on another site drops this block) -->
+<details class="sub" id="get-it"><summary>Use it inside Claude, Cursor or any MCP app</summary>
+<p class="muted">The same answers come as a plug-in (<code>llmledger-mcp</code> on PyPI and the MCP Registry) and as an
+Agent Skill, both free, running on your computer from the day's data. In Claude Code:</p>
+<p class="muted"><code>claude mcp add llmledger -- uvx llmledger-mcp</code></p>
+<p class="muted">Every price change and retirement, as a feed: <a href="feed.xml">feed.xml</a>. The data behind the page:
+<a href="data.json">data.json</a>. Setup for other apps, and the skill: <a href="$repo#use-it-inside-claude">on GitHub</a>.</p>
+</details>
+<!-- home:end -->
 </section>
 </main>
 <div id="detail" role="dialog" aria-label="Model details"></div>

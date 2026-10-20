@@ -18,7 +18,7 @@
   }
   const compare = [];
   const MAX_COMPARE = 5;
-  const SHOWN = 100;
+  const SHOWN = 100, NEWEST = 12;
   const STEP = 7;
   const $ = id => document.getElementById(id);
 
@@ -197,13 +197,17 @@
   function renderResults() {
     const words = norm($("search").value).split(" ").filter(Boolean);
     const maker = $("maker").value, host = $("host").value, status = $("status").value;
-    if (!words.length && !maker && !host && !browseAll && !grouped()) {
-      $("results").innerHTML = '<div class="suggest"><span class="muted">Try</span>' + SUGGEST.map(s =>
+    const fresh = !words.length && !maker && !host && !browseAll && !grouped();
+    let lead = "";
+    if (fresh) {
+      lead = '<div class="suggest"><span class="muted">Try</span>' + SUGGEST.map(s =>
         '<button type="button" class="chip" data-suggest="' + esc(s) + '">' + esc(s) + "</button>").join("") +
         '<button type="button" class="chip" data-suggest="">Browse all ' + models.filter(m => m.status === status || !status).length.toLocaleString() + "</button></div>";
-      return;
     }
-    const hits = models.filter(m => matches(m, words, maker, host, status));
+    // Before a search: the newest listings, so the view is never empty (REQ-S18).
+    const hits = fresh
+      ? models.filter(m => m.status === "listed" && m.added).sort((a, b) => (b.added > a.added) - (b.added < a.added) || a.key.localeCompare(b.key)).slice(0, NEWEST)
+      : models.filter(m => matches(m, words, maker, host, status));
     let html;
     if (grouped()) {
       const ids = [...new Set(hits.map(m => m.maker + " / " + m.name))];
@@ -225,15 +229,16 @@
         ' aria-label="Compare ' + esc(m.key) + '">',
         modelLink(m), esc(m.host), esc(m.maker), m.status, money(m.input), money(m.output),
         chance(m, "90"), chance(m, "365"), m.repriced, m.last]);
-      html = '<p class="muted">' + hits.length.toLocaleString() + " listings match" +
-        (hits.length > SHOWN ? "; showing the first " + SHOWN + ". Narrow the search to see more." : ".") + "</p>" +
+      html = '<p class="muted">' + (fresh ? "The " + hits.length + " newest listings. Search, or pick a maker or host, to see others"
+        : hits.length.toLocaleString() + " listings match" +
+        (hits.length > SHOWN ? "; showing the first " + SHOWN + ". Narrow the search to see more" : "")) + ".</p>" +
         table(["Compare", "Model as listed", "Host", "Maker", "Status", "Input $/1M", "Output $/1M",
           "Price change chance, 90 days", "Price change chance, 1 year", "Price changes", "Last change"],
         rows, "results-listed") +
         '<p class="muted">The chances are shown for listed models that have not changed since they were added; ' +
         "click a model for the full outlook with ranges.</p>";
     }
-    $("results").innerHTML = html;
+    $("results").innerHTML = lead + html;
   }
 
   // How many first price changes were corrections, from the labelled sample (corrections_eval.json).
@@ -627,7 +632,7 @@
           facts(best, rank(best) + cheaper(best))) +
         (second ? card(best === top ? "Runner up" : "Top rated", "", second,
           (best === top ? "Next highest Arena rating for " : "Highest Arena rating for ") + esc(taskLabel(task).toLowerCase()) +
-          " (" + second.rating.toFixed(0) + ").", q.calls, facts(second, rank(second))) : "") +
+          ", rated " + second.rating.toFixed(0) + ".", q.calls, facts(second, rank(second))) : "") +
         (low && low !== best ? card("Cheapest rated", "", low, "Arena rating " + low.rating.toFixed(0) + " for this task, against " +
           top.rating.toFixed(0) + " for the top.", q.calls, facts(low, "cheapest of " + rated.toLocaleString() + " rated")) : "");
       lastPicks = [...new Set([best, second, low].filter(Boolean).map(r => r.id))];
