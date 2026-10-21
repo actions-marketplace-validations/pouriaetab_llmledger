@@ -41,6 +41,35 @@ def test_the_tools_a_resource_and_a_prompt_are_listed():
     assert "MIT" in snap["credits"]["prices"]
 
 
+def test_req_s56_every_tool_says_when_to_use_it_and_names_a_sibling():
+    """Glama's quality score (20 Oct 2026: B, 3.4) marked nearly every tool down for not saying when to use it
+    over its siblings. Every description now opens with a verb, says "Use when", and names at least one other
+    tool to use instead (log_run, which stores, says "Not a query")."""
+    async def go():
+        async with Client(mcp) as client:
+            return {t.name: t.description for t in await client.list_tools()}
+    descriptions = asyncio.run(go())
+    for name, text in descriptions.items():
+        first = text.split()[0]
+        assert first[0].isupper() and first.rstrip(":").lower() in (
+            "list", "compare", "price", "show", "suggest", "estimate", "record", "price"), (name, first)
+        assert "Use " in text, name
+        others = [n for n in descriptions if n != name and n in text]
+        assert others, (name, "names no other tool")
+        assert len(text) < 700, (name, len(text))
+
+
+def test_req_s56_find_models_looks_one_model_up_by_name():
+    out = call("find_models", name="opus 5.5")
+    assert out["model"] == "anthropic / claude-opus-5.5" and out["cheapest_listing"] == "claude-opus-5-5"
+    assert [x["listing"] for x in out["listings"]] == ["claude-opus-5-5", "bedrock/claude-opus-5-5"]
+    assert out["listings"][0]["price_per_1m"]["input"] == 4.0 and out["rating"]["score"] == 1548.0
+    out = call("find_models", task="coding", limit=200)
+    assert out["matching_models"] == len(out["models"]) >= 4            # the whole catalogue in one call
+    with pytest.raises(ToolError, match="Not found"):
+        call("find_models", name="no-such-model")
+
+
 def test_find_models_ranks_by_rating_and_applies_limits():
     out = call("find_models", task="coding", limit=5)
     assert [m["model"] for m in out["models"]] == [
