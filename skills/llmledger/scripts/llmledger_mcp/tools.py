@@ -170,10 +170,22 @@ def _check(task=None, pay=None, needs=()):
         raise NotFound("Unknown needs " + ", ".join(map(repr, wrong)) + "; use any of: " + ", ".join(NEEDS))
 
 
-def find_models(s, task="overall", max_output_price=None, min_context=None, needs=(), maker=None, limit=5):
+def find_models(s, task="overall", max_output_price=None, min_context=None, needs=(), maker=None, limit=5, name=None):
     """The highest rated models for a kind of work that meet the limits, each at its cheapest listing,
-    with prices per 1M tokens, Arena rating and prompt size. Unrated models follow, cheapest first."""
+    with prices per 1M tokens, Arena rating and prompt size. Unrated models follow, cheapest first.
+    With a name: that one model, and every listing of it (host, mode, prices, prompt size)."""
     _check(task=task, needs=needs)
+    if name:
+        group = resolve_all(s, [name])[0]
+        r = s.rating_of(task, group)
+        hit = listing(s, group)
+        rows = sorted(s.groups[group], key=lambda m: ((m.get("input") or 0) + (m.get("output") or 0), m["key"]))
+        return {"task": task_label(task), "model": group, "cheapest_listing": hit[0]["key"] if hit else None,
+                "rating": {"score": r[2], "low": r[3], "high": r[4]} if r else None,
+                "listings": [{"listing": m["key"], "host": m["host"], "mode": m.get("mode"), "status": m.get("status"),
+                              "price_per_1m": prices(m), "prompt_size": m.get("context"),
+                              "effort_levels": m.get("effort")} for m in rows],
+                **footer(s)}
     found = {}
     for group in s.groups:
         if maker and not group.lower().startswith(maker.lower().strip() + " / "):

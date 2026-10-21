@@ -42,7 +42,8 @@ def parser():
     e.add_argument("--cache-write", type=int, default=0, help="prompt tokens written to the cache")
     e.add_argument("--calls-per-day", type=float, default=1)
 
-    f = sub.add_parser("find", help="the highest rated models for a kind of work, within limits")
+    f = sub.add_parser("find", help="the highest rated models for a kind of work, within limits; or one model by --name")
+    f.add_argument("--name", help="look one model up: every listing of it")
     f.add_argument("--task", choices=logic.TASKS, default="overall")
     f.add_argument("--needs", type=_names, default=[], help="comma separated: " + ",".join(tools.NEEDS))
     f.add_argument("--max-output-price", type=float, help="dollars per 1M answer tokens")
@@ -138,7 +139,7 @@ def run(args, shelf):
     if args.command == "find":
         return tools.find_models(shelf, task=args.task, max_output_price=args.max_output_price,
                                  min_context=args.min_context, needs=args.needs, maker=args.maker,
-                                 limit=max(1, min(args.limit, 20)))
+                                 limit=max(1, min(args.limit, 200)), name=args.name)
     if args.command == "history":
         return tools.price_history(shelf, args.model, date=args.date)
     if args.command == "unpriced":
