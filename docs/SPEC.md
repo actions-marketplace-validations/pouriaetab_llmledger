@@ -602,6 +602,27 @@ side.
 Verified by: automated tests of the weekly series, a known drop, no change,
 and too few weeks.
 
+**REQ-S55 Your usage on other models.** The plug-in and the skill shall
+read a coding agent's token export kept on the user's computer (`ccusage
+daily --json`, `ccusage session --json`, `codeburn export -f json`, or a
+plain list of token mixes) as units of one session (or day) and model, with
+input, output, cache read and cache write tokens, reading numbers, names
+and dates only; price each unit on every model rated for the kind of work,
+at the cheapest listing's prices on the unit's day (REQ-S43; a day before
+the listing at its first prices, said so), cache tokens at the input price
+where a listing has no cache price, said so; report what the user paid (each
+model used at its maker's own listing), the same work on every model with
+the saving against what was paid, the models whose rating's high end reaches
+the low end of the most used model's and that cost less, and for the cost
+per session a 95% bootstrap range over sessions (1,000 resamples, at least 5
+sessions); and for two models say "a real difference" only when the range
+of their difference per session leaves out zero (paired on the same
+sessions when both are priced on them; unpaired, and said to compare
+different work, when each model's own sessions are used), the same for
+one-shot rates from codeburn's per-model rows by Wilson ranges, else "not
+enough data". Verified by: automated tests of each reader, the statistics,
+the pricing by day, the shortlist, both tests and the error messages.
+
 ## 5. Known limitations
 
 - **L0** The guard's effect (REQ-S54) is measured on weeks that are far
@@ -703,6 +724,14 @@ and too few weeks.
   so far, takes the watts as given, and uses a month's average price for homes,
   not the user's tariff. It does not compare the two models' answers.
 
+- **L21** Your usage on other models (REQ-S55) prices another model at the
+  user's own token counts. Another model tokenises the same text a little
+  differently and may answer at another length, so the costs are the same
+  work at the same size, not a forecast of that model's bill. Comparing two
+  models the user actually used compares the sessions each got, which were
+  not the same work; the answer says so. One-shot rates come from codeburn's
+  own reading of a turn, not from checked answers.
+
 ## 6. Known-answer example
 
 | Subject | Days | Exit                 |
@@ -774,6 +803,7 @@ and too few weeks.
 | REQ-S52 | `test_req_s52_a_badge_per_listed_model_with_prices_outlook_and_retirement`, `test_req_s52_the_slug_is_safe_for_a_file_and_an_address` | test |
 | REQ-S53 | `test_req_s53_incidence_by_maker_with_small_makers_pooled`, `test_req_s53_a_maker_row_needs_20_models_still_followed` | test |
 | REQ-S54 | `test_req_s54_the_guard_series_counts_each_weeks_changes_and_tags`, `test_req_s54_a_real_drop_is_found_and_no_change_is_called_no_change`, `test_req_s54_too_few_weeks_gives_nothing` | test |
+| REQ-S55 | `test_req_s55_ccusage_daily_rows_become_units_per_day_and_model`, `test_req_s55_ccusage_sessions_are_the_units`, `test_req_s55_codeburn_records_are_summed_per_session_and_day_with_the_task`, `test_req_s55_a_plain_mix_and_bad_input`, `test_req_s55_bootstrap_ranges_and_the_verdict`, `test_req_s55_the_same_work_is_priced_on_every_rated_model_at_each_days_price`, `test_req_s55_cheaper_models_that_keep_the_rating_and_the_headline`, `test_req_s55_two_models_for_real_or_not_enough_data`, `test_req_s55_a_codeburn_export_brings_one_shot_rates`, `test_req_s55_a_model_listed_after_the_usage_is_priced_at_its_first_price`, `test_req_s55_unknown_models_and_bad_input`, `test_req_s55_through_the_tool` in `mcp/tests/test_usage.py`; `test_req_s55_the_script_prices_an_export` | test |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |

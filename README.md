@@ -26,10 +26,11 @@ The same answers inside Claude Code, Claude Desktop, Cursor or any app that spea
 claude mcp add llmledger -- uvx llmledger-mcp
 ```
 
-Ten tools: suggest a model and effort level for a project, compare models side by side, estimate a budget, find models
-within limits, a model's price history with its outlook, new models not priced yet, how long a job takes (learned from
-your own runs), a quote for a whole job from a promptfoo sample, and whether buying a computer to run an open model
-pays off. Other apps and details: [mcp/README.md](mcp/README.md).
+Eleven tools: suggest a model and effort level for a project, compare models side by side, estimate a budget, find
+models within limits, a model's price history with its outlook, new models not priced yet, how long a job takes (learned
+from your own runs), a quote for a whole job from a promptfoo sample, whether buying a computer to run an open model
+pays off, and what your own coding agent usage (a ccusage or codeburn export) would have cost on every other model.
+Other apps and details: [mcp/README.md](mcp/README.md).
 
 As an Agent Skill, which stays out of the context until it is used (about 150 tokens against well over 1,000 for the
 plug-in's tools) and needs only Python:
