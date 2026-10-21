@@ -1,6 +1,6 @@
 """llmledger as a plug-in (an MCP server) for Claude and other AI apps.
 
-Ten tools answer "which model, what will it cost, and how long will it take?" from the same
+Eleven tools answer "which model, what will it cost, and how long will it take?" from the same
 data as the llmledger page: LiteLLM's price catalogue (MIT), Arena's ratings (CC BY 4.0), every
 price change since 2023 with how likely a price is to change next, and EIA's electricity prices
 (public domain); times come from the user's own timed runs. Runs on the user's own computer over stdio; reads the day's data.json,
@@ -34,7 +34,9 @@ mcp = FastMCP(
         "browse, price_history for one model (or its price on a date), not_yet_priced for new models without a "
         "price, estimate_time for how long a job takes (it learns from runs given to log_run), forecast_job to "
         "quote a whole job from a promptfoo run of a sample of it, and local_or_cloud for whether buying a computer "
-        "to run an open model pays off. Costs and ratings are estimates; pass on the credits line."),
+        "to run an open model pays off, and price_my_usage to price the user's own coding agent usage (a ccusage or "
+        "codeburn export) on every rated model at each day's prices. Costs and ratings are estimates; pass on the "
+        "credits line."),
     version=__version__,
 )
 
@@ -237,6 +239,24 @@ def local_or_cloud(
                                     calls_per_month=calls_per_month, hardware_price=hardware_price, watts=watts,
                                     electricity_price=electricity_price, state=state, months=months,
                                     cached_tokens=cached_tokens, local_way=local_way, thinking=thinking)
+    except tools.NotFound as error:
+        raise ToolError(str(error)) from None
+
+
+@mcp.tool(annotations=READ_ONLY)
+def price_my_usage(
+    export: Annotated[str | None, Field(description="Path of a token export on this computer: `ccusage daily --json > f.json`, `ccusage session --json > f.json`, or `codeburn export -f json -o f.json`")] = None,
+    mix: Annotated[list[dict] | None, Field(description="Instead of a file: token mixes as {model, date, input, output, cache_read, cache_write, session?}", min_length=1, max_length=5000)] = None,
+    task: Annotated[Task | None, Field(description="The kind of work the sessions were (default: codeburn's categories, else coding)")] = None,
+    compare: Annotated[list[str] | None, Field(description="Two models to test against each other on the same sessions", min_length=2, max_length=2)] = None,
+    limit: Annotated[int, Field(description="How many models to list in every_model (the cheapest first)", ge=1, le=200)] = 25,
+) -> dict:
+    """Your own coding agent usage priced on every rated model, not only the ones you used: each session at the
+    price of its day, with Arena ratings for that kind of work, a 95% range for the cost per session, the models
+    that keep the rating and cost less, and whether two models differ for real or the data cannot tell. Reads token
+    counts, names and dates only; nothing leaves the computer."""
+    try:
+        return tools.price_my_usage(shelf(), export=export, mix=mix, task=task, compare=compare, limit=limit)
     except tools.NotFound as error:
         raise ToolError(str(error)) from None
 

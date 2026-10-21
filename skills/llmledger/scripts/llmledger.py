@@ -98,6 +98,12 @@ def parser():
     lc.add_argument("--cached", type=int, default=0, help="prompt tokens read from the cloud model's cache")
     lc.add_argument("--way", choices=speed.WAYS, default="ollama", help="how the local model is called")
 
+    us = sub.add_parser("usage", help="your own coding agent usage (ccusage or codeburn export) priced on every rated model")
+    us.add_argument("export", help="the export file: ccusage daily --json, ccusage session --json, or codeburn export -f json")
+    us.add_argument("--task", help="the kind of work (default: codeburn's categories, else coding)")
+    us.add_argument("--compare", nargs=2, metavar="MODEL", help="two models to test on the same sessions")
+    us.add_argument("--limit", type=int, default=25)
+
     sub.add_parser("tasks", help="the kinds of work Arena rates, and what the data holds today")
     return p
 
@@ -111,6 +117,9 @@ def run(args, shelf):
     if args.command == "forecast":
         return tools.forecast_job(shelf, args.promptfoo, args.items, concurrency=args.at_once, way=args.way,
                                   thinking=args.thinking, wrong_answer_cost=args.wrong_cost)
+    if args.command == "usage":
+        return tools.price_my_usage(shelf, export=args.export, task=args.task, compare=args.compare,
+                                    limit=max(1, min(args.limit, 200)))
     if args.command == "time":
         return tools.estimate_time(shelf, args.model, args.input, args.output, calls=args.calls, way=args.way,
                                    thinking=args.thinking, concurrency=args.at_once)

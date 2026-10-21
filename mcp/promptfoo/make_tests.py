@@ -7,7 +7,9 @@ Checks, for the most rated text models of the day:
 1. estimate_cost prices a model at the cheapest of its listings for those tokens (a listing with both token
    prices 0 is a free tier and does not count);
 2. compare_models gives the same cost per task as estimate_cost for the same tokens;
-3. price_history lists every listing of the model that data.json lists.
+3. price_history lists every listing of the model that data.json lists;
+4. price_my_usage prices 5 sessions of the same tokens on the data's build day at 5 times estimate_cost's cheapest
+   listing (the same work on every model row for that model).
 """
 import json
 import re
@@ -54,6 +56,14 @@ def cases(data, count=12):
                     "vars": {"prompt": json.dumps({"tool": "price_history", "args": {"model": group}}),
                              "expected": len(groups[group])},
                     "assert": [{"type": "javascript", "value": "file://check.js:listingsInTotal"}]})
+    day = (data.get("built") or "")[:10]
+    for group in picked[:3]:
+        cost = cheapest(groups[group], *TOKENS)
+        mix = [{"model": group, "date": day, "input": TOKENS[0], "output": TOKENS[1], "session": f"s{i}"} for i in range(5)]
+        out.append({"description": f"price_my_usage: 5 sessions on {group.split(' / ', 1)[1]} cost 5 times estimate_cost",
+                    "vars": {"prompt": json.dumps({"tool": "price_my_usage", "args": {"mix": mix, "task": "overall"}}),
+                             "expected": [group, 5 * cost]},
+                    "assert": [{"type": "javascript", "value": "file://check.js:usageCost"}]})
     for first, second in zip(picked[::2], picked[1::2]):
         costs = [cheapest(groups[g], *TOKENS) for g in (first, second)]
         out.append({"description": f"compare_models: {first} and {second} cost what estimate_cost says",

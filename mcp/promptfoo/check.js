@@ -23,3 +23,9 @@ module.exports.costPerTask = (output, context) => {
   const got = body(output).models.map(m => m.cost_per_task);
   return verdict(got.every((g, i) => near(g, want[i])), `cost_per_task ${got}, estimate_cost ${want}`);
 };
+module.exports.usageCost = (output, context) => {
+  const want = typeof context.vars.expected === 'string' ? JSON.parse(context.vars.expected) : context.vars.expected;
+  const row = body(output).every_model.find(m => m.model === want[0]);
+  const got = row ? row.cost : null;
+  return verdict(row !== undefined && near(got, want[1]), `${want[0]} cost ${got}, 5 x estimate_cost ${want[1]}`);
+};

@@ -31,7 +31,8 @@ def test_the_tools_a_resource_and_a_prompt_are_listed():
             return tools, resources, prompts, snap
     tools, resources, prompts, snap = asyncio.run(go())
     assert sorted(tools) == ["compare_models", "estimate_cost", "estimate_time", "find_models", "forecast_job",
-                             "local_or_cloud", "log_run", "not_yet_priced", "price_history", "suggest_for_project"]
+                             "local_or_cloud", "log_run", "not_yet_priced", "price_history", "price_my_usage",
+                             "suggest_for_project"]
     # every tool only reads, except log_run, which adds a line to a file on this computer
     assert [n for n, t in tools.items() if not t.annotations.read_only_hint] == ["log_run"]
     assert tools["log_run"].annotations.destructive_hint is False

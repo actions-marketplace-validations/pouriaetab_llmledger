@@ -111,4 +111,11 @@ The long list, one entry per feature, in the order they were added. The short ve
     your own timed runs, electricity from the U.S. Energy Information
     Administration (public domain) or your own price, and the computer's price
     is yours.
+25. **Your usage on other models.** Hand the plug-in your coding agent's own
+    token export (`ccusage daily --json`, `ccusage session --json` or
+    `codeburn export -f json`) and it prices the same work on every model
+    rated for that kind of work, each session at the price of its day, with
+    Arena ratings, the models that keep the rating and cost less, a 95% range
+    for the cost per session, and whether two models differ for real or the
+    data cannot tell. Token counts only; nothing leaves your computer.
 

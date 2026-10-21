@@ -6,7 +6,7 @@ small command line script, with a copy of this file. Same data, same answers.
 import re
 from datetime import datetime, timezone
 
-from llmledger_mcp import forecast, logic, speed
+from llmledger_mcp import forecast, logic, speed, usage
 
 PLANS = {"claude": ("anthropic", "anthropic", "Claude"), "chatgpt": ("openai", "openai", "ChatGPT")}
 PAYS = ("api", "claude", "chatgpt")
@@ -741,3 +741,225 @@ def _local_headline(local, rows, months, per_month):
     if not local.get("keeps_up", True):
         line += "; but it cannot keep up with this many calls"
     return line + "."
+
+
+# ---------- your usage on other models (REQ-S55) ----------
+USAGE_NOTES = (
+    "Every model is priced at your token counts. Another model would tokenise the same work a little differently "
+    "(usually within 10 to 20%) and might answer in more or fewer tokens, so read the costs as the same work at the "
+    "same size.",
+    "A model with no cache read or cache write price in the catalogue has those tokens counted at its input price; "
+    "its row says so.",
+)
+
+
+def _own_listing(s, group, tokens):
+    """The listing the user most likely paid: the maker's own host when it has a text price, else the cheapest."""
+    hit = listing(s, group, hosts=(group.split(" / ", 1)[0],), **tokens)
+    return hit or listing(s, group, **tokens)
+
+
+def _priced_on(s, m, day, cache_days):
+    """A copy of listing m with the prices it had at the end of `day` (its first prices for days before it was
+    listed), per 1M tokens, in the shape cost_of reads."""
+    key = (m["key"], day)
+    if key not in cache_days:
+        p = price_on(s, m, day)
+        before = not p["listed"]
+        if before:
+            p = price_on(s, m, m.get("added") or (s.data.get("built") or "")[:10])
+        prices_ = p.get("price_per_1m") or {}
+        cache_days[key] = ({"input": prices_.get("input"), "output": prices_.get("output"),
+                            "cache_read": prices_.get("cache_read"), "cache_write": prices_.get("cache_write")}, before)
+    return cache_days[key]
+
+
+def _unit_cost(model, u):
+    prompt = u["input"] + u["cache_read"] + u["cache_write"]
+    return logic.cost_of(model, prompt, u["output"], u["cache_read"], u["cache_write"])
+
+
+def price_my_usage(s, export=None, mix=None, task=None, compare=None, limit=25):
+    """Your own coding agent usage, read from a ccusage or codeburn export (or a plain token mix), priced on every
+    comparable model at the price of each day, with Arena ratings for the kind of work and a bootstrap range for
+    the cost per session. Lists the models that keep the rating (their rating's high end reaches the low end of
+    your most used model's) and cost less than you paid in all, and says whether two models differ for real or the
+    data cannot tell. Token counts only; nothing is sent anywhere."""
+    if (export is None) == (mix is None):
+        raise NotFound("Give either export (a path to a ccusage or codeburn JSON export) or mix (a list of token mixes).")
+    if task is not None:
+        _check(task=task)
+    if compare is not None and len(compare) != 2:
+        raise NotFound("compare takes exactly two model names.")
+    if not 1 <= limit <= 200:
+        raise NotFound("limit must be between 1 and 200.")
+    try:
+        read = usage.read(export if export is not None else mix)
+    except usage.BadExport as error:
+        raise NotFound(str(error)) from None
+    units = [u for u in read["units"] if u["input"] + u["output"] + u["cache_read"] + u["cache_write"] > 0]
+    if not units:
+        raise NotFound(f"Nothing to price in {read['source']}: no model rows with tokens." + " ".join(read["notes"]))
+    notes = list(read["notes"])
+
+    # the models used, by grouped name
+    groups_of, unknown = {}, {}
+    for name in sorted({u["model"] for u in units}):
+        group, _ = s.resolve(name)
+        if group is None:
+            unknown[name] = sum(u["input"] + u["output"] + u["cache_read"] + u["cache_write"] for u in units if u["model"] == name)
+        else:
+            groups_of[name] = group
+    units = [u for u in units if u["model"] in groups_of]
+    if not units:
+        raise NotFound("None of the models in the export is in the catalogue: " + ", ".join(unknown) +
+                       ". Pass the names as LiteLLM lists them, or use find_models to see them.")
+    if unknown:
+        notes.append("Not in the catalogue, so left out: " + ", ".join(f"{n} ({t:,} tokens)" for n, t in unknown.items()) + ".")
+    today = (s.data.get("built") or "")[:10]
+    undated = sum(1 for u in units if not u["day"])
+    if undated:
+        for u in units:
+            u["day"] = u["day"] or today
+        notes.append(f"{undated} of {len(units)} rows carry no date; they are priced at today's prices ({today}).")
+    if task is None:
+        tasks = [u["task"] for u in units if u["task"]]
+        task = max(set(tasks), key=tasks.count) if tasks else "coding"
+    sessions = sorted({u["session"] for u in units})
+    days = sorted({u["day"] for u in units if u["day"]})
+    totals = {"input": sum(u["input"] for u in units), "output": sum(u["output"] for u in units),
+              "cache_read": sum(u["cache_read"] for u in units), "cache_write": sum(u["cache_write"] for u in units)}
+    tokens = {"input_tokens": totals["input"] + totals["cache_read"] + totals["cache_write"],
+              "output_tokens": totals["output"], "cached_tokens": totals["cache_read"],
+              "written_tokens": totals["cache_write"]}
+    cache_days = {}
+
+    # what the user paid: each used model on the maker's own host, at each day's prices
+    used = []
+    for group in sorted({groups_of[u["model"]] for u in units}):
+        mine = [u for u in units if groups_of[u["model"]] == group]
+        hit = _own_listing(s, group, tokens)
+        if not hit:
+            notes.append(f"{group} has no text price listed, so what you paid for it cannot be priced.")
+            continue
+        m = hit[0]
+        by_session = {}
+        for u in mine:
+            model, _ = _priced_on(s, m, u["day"], cache_days)
+            by_session[u["session"]] = by_session.get(u["session"], 0.0) + (_unit_cost(model, u) or 0.0)
+        r = s.rating_of(task, group)
+        used.append({"model": group, "listing": m["key"], "host": m["host"], "sessions": len(by_session),
+                     "tokens": {k: sum(u[k] for u in mine) for k in ("input", "output", "cache_read", "cache_write")},
+                     "cost": money(sum(by_session.values())),
+                     "per_session": _range(list(by_session.values())),
+                     "rating": {"score": r[2], "low": r[3], "high": r[4]} if r else None,
+                     "one_shot": next((x for x in (usage.one_shot(read["efficiency"], n) for n, g in groups_of.items() if g == group) if x), None),
+                     "_sessions": by_session})
+    if not used:
+        raise NotFound("None of the models used has a text price in the catalogue.")
+    used.sort(key=lambda r: -(r["tokens"]["input"] + r["tokens"]["output"] + r["tokens"]["cache_read"] + r["tokens"]["cache_write"]))
+    main = used[0]
+    paid = sum(r["cost"] for r in used)
+
+    # the same work on every rated model, each at its cheapest listing, at each day's prices
+    rated = {r[0]: r for r in s.ratings.get(task, [])}
+    candidates = sorted(set(rated) | {r["model"] for r in used} | set(resolve_all(s, compare) if compare else ()))
+    rows = []
+    for group in candidates:
+        hit = listing(s, group, **tokens)
+        if not hit:
+            continue
+        m = hit[0]
+        by_session, before = {}, 0
+        for u in units:
+            model, early = _priced_on(s, m, u["day"], cache_days)
+            before += early
+            by_session[u["session"]] = by_session.get(u["session"], 0.0) + (_unit_cost(model, u) or 0.0)
+        total = sum(by_session.values())
+        r = rated.get(group)
+        row = {"model": group, "listing": m["key"], "host": m["host"],
+               "rating": {"score": r[2], "low": r[3], "high": r[4]} if r else None,
+               "cost": money(total), "per_session": _range(list(by_session.values())),
+               "versus_yours": {"saving": money(paid - total), "share": round((paid - total) / paid, 4) if paid else None},
+               "keeps_rating": bool(r and main["rating"] and r[4] >= main["rating"]["low"]),
+               "cache_priced": m.get("cache_read") is not None or not totals["cache_read"],
+               "_sessions": by_session}
+        if before:
+            row["note"] = (f"Listed since {m.get('added')}: {before} of your {len(units)} rows are from before that "
+                           "and are priced at its first prices.")
+        if totals["cache_read"] and m.get("cache_read") is None:
+            row["note"] = (row.get("note", "") + " No cache price listed: cache tokens counted at the input price.").strip()
+        rows.append(row)
+    rows.sort(key=lambda r: r["cost"])
+    cheaper = [r for r in rows if r["keeps_rating"] and r["cost"] < paid and r["model"] not in {x["model"] for x in used}]
+
+    # two models, for real or luck
+    tests = []
+    if compare:
+        a, b = resolve_all(s, compare)
+        ra, rb = ({r["model"]: r for r in rows}.get(a), {r["model"]: r for r in rows}.get(b))
+        if not (ra and rb):
+            raise NotFound("Both models to compare need a text price; " + ", ".join(n for n, r in ((a, ra), (b, rb)) if not r) + " has none.")
+        diffs = [ra["_sessions"][k] - rb["_sessions"][k] for k in sessions if k in ra["_sessions"] and k in rb["_sessions"]]
+        got = usage.bootstrap_mean(diffs)
+        tests.append({"kind": "same work", "models": [a, b], "sessions": len(diffs),
+                      "difference_per_session": _triple(got),
+                      "verdict": usage.verdict(got[1], got[2], "cost per session") if got else
+                      f"not enough sessions: {len(diffs)} of the {usage.MIN_SESSIONS} needed",
+                      "note": f"The same {len(diffs)} sessions priced on both, so this is the price gap at your token counts."})
+    elif len(used) >= 2:
+        a, b = used[0], used[1]
+        got = usage.bootstrap_difference(list(a["_sessions"].values()), list(b["_sessions"].values()))
+        test = {"kind": "as used", "models": [a["model"], b["model"]], "sessions": [a["sessions"], b["sessions"]],
+                "difference_per_session": _triple(got),
+                "verdict": usage.verdict(got[1], got[2], "cost per session") if got else
+                f"not enough sessions: {a['sessions']} and {b['sessions']}, {usage.MIN_SESSIONS} each needed",
+                "note": ("Different sessions went to each model, so a gap here is partly the work you gave each, "
+                         "not only the price.")}
+        if a["one_shot"] and b["one_shot"]:
+            oa, ob = (a["one_shot"]["low"], a["one_shot"]["high"]), (b["one_shot"]["low"], b["one_shot"]["high"])
+            test["one_shot"] = {"rates": [a["one_shot"], b["one_shot"]],
+                                "verdict": ("not enough data to tell the two apart on one-shot rate: the 95% ranges overlap"
+                                            if forecast.overlap(oa, ob) else
+                                            "a real difference in one-shot rate: the 95% ranges do not overlap")}
+        tests.append(test)
+
+    for r in used + rows:
+        r.pop("_sessions", None)
+    shown = rows[:limit]
+    for r in used:
+        if r["model"] not in {x["model"] for x in shown}:
+            shown.append(next(x for x in rows if x["model"] == r["model"]))
+    return {"source": read["source"], "task": task_label(task), "days": [days[0], days[-1]] if days else None,
+            "sessions": len(sessions), "tokens": totals, "you_paid": {"cost": money(paid), "models": used},
+            "headline": _usage_headline(used, paid, cheaper, len(sessions), days),
+            "cheaper_and_as_good": [{k: v for k, v in r.items() if k != "cache_priced"} for r in cheaper[:10]],
+            "every_model": shown, "tests": tests, "notes": notes + list(USAGE_NOTES), **footer(s)}
+
+
+def _range(values):
+    got = usage.bootstrap_mean(values)
+    if got is None:
+        return {"mean": money(sum(values) / len(values)) if values else None, "low": None, "high": None,
+                "note": f"{len(values)} sessions; a range needs {usage.MIN_SESSIONS}"}
+    return {"mean": money(got[0]), "low": money(got[1]), "high": money(got[2])}
+
+
+def _triple(got):
+    return None if got is None else {"mean": money(got[0]), "low": money(got[1]), "high": money(got[2])}
+
+
+def _usage_headline(used, paid, cheaper, sessions, days):
+    span = f"{sessions} session{'s' if sessions != 1 else ''}" + (f" ({days[0]} to {days[-1]})" if days and days[0] != days[-1] else f" ({days[0]})" if days else "")
+    named = sorted(used, key=lambda r: -r["cost"])[:3]
+    on = used[0]["model"] if len(used) == 1 else " and ".join(
+        f"{r['model']} ({forecast.dollars(r['cost'])}, {r['sessions']} session{'s' if r['sessions'] != 1 else ''})" for r in named)
+    if len(used) > 3:
+        on += f" and {len(used) - 3} more model{'s' if len(used) > 4 else ''}"
+    paid = f"Your {span} on {on} cost {forecast.dollars(paid)} at each day's prices."
+    if not cheaper:
+        return paid + " No rated model would have done the same work for less while keeping the rating."
+    best = cheaper[0]
+    return (paid + f" {len(cheaper)} rated model{'s' if len(cheaper) != 1 else ''} would have done it for less while keeping "
+            f"the rating; the cheapest is {best['model']} at {forecast.dollars(best['cost'])}, "
+            f"{round(100 * best['versus_yours']['share'])}% less.")

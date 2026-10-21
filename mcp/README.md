@@ -50,6 +50,7 @@ In Claude Code: `/plugin marketplace add pouriaetab/llmledger`, then `/plugin in
 | `log_run` | "I timed this call: 2,100 in, 640 out, 9.2 seconds", or a promptfoo results file; kept on your computer only |
 | `forecast_job` | "Here is a promptfoo run of 20 of my 5,000 tests: what will the whole job cost and take on each model, and which should I pick?" Reads the file only |
 | `local_or_cloud` | "Should I buy a $2,000 computer to run llama3.1:8b at home, or keep paying for GPT-6.1 at 30,000 calls a month?" The local model's speed from your own runs, electricity from EIA or your price |
+| `price_my_usage` | "Here is my `ccusage session --json` (or `codeburn export -f json`) file: what would last month's work have cost on every other model, which ones keep the quality for less, and is the gap real?" Each session at the price of its day, Arena ratings for that kind of work, a 95% range per session; token counts only |
 
 Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, `pick_a_model`.
 
@@ -64,13 +65,18 @@ Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, 
   about 6 in 10 first price changes. `price_history` says what each flag on a change means (a likely
   correction, a unit fix, a change undone) and how often such changes were corrections.
 - Every answer carries the date of its data. When the data is 3 or more days old, the answer says so.
+- `price_my_usage` prices other models at your own token counts; another model tokenises the same work a little
+  differently (usually within 10 to 20%) and may answer at another length. Models you used are compared on the
+  sessions each one got, which were not the same work, and the answer says so. A model with no cache price has cache
+  tokens counted at its input price, and the row says so.
 - Times come only from your own runs (and the sample's own timed calls for `forecast_job`), always as a
   usual time and a slow day. How often a model was right is the share of a sample's checks it passed, with
   a 95% range; with 20 tests the range is wide, and the answer says when two models cannot be told apart.
 - What the plug-in reads: a prompt given to `suggest_for_project` is only counted and matched against word
   lists; a promptfoo results file (`log_run`, `forecast_job`) is read for numbers and names only (provider id,
   latency, token counts, pass or fail), and the prompts, answers and grader text inside it are never passed on
-  or treated as instructions. Timed runs stay on your computer as numbers. The only network call is the daily
+  or treated as instructions; a ccusage or codeburn export (`price_my_usage`) is read for model names, dates, session
+  ids and token counts only, never project paths or file names. Timed runs stay on your computer as numbers. The only network call is the daily
   download of `data.json`.
 - Set `LLMLEDGER_DATA` to a local data.json or another address to use your own copy.
 

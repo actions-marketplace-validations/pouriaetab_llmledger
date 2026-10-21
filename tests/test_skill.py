@@ -31,13 +31,13 @@ def frontmatter():
 
 
 def test_req_s41_the_skill_carries_an_exact_copy_of_the_plugin_code():
-    for name in ("__init__.py", "data.py", "logic.py", "tools.py", "speed.py", "forecast.py"):
+    for name in ("__init__.py", "data.py", "logic.py", "tools.py", "speed.py", "forecast.py", "usage.py"):
         assert (SKILL / "scripts" / "llmledger_mcp" / name).read_bytes() == (PLUGIN / name).read_bytes(), name
     # the shared code needs nothing outside the standard library
-    for name in ("data.py", "logic.py", "tools.py", "speed.py", "forecast.py"):
+    for name in ("data.py", "logic.py", "tools.py", "speed.py", "forecast.py", "usage.py"):
         imports = re.findall(r"^(?:from|import) (\w+)", (PLUGIN / name).read_text(), re.M)
         assert set(imports) <= {"gzip", "json", "os", "re", "tempfile", "time", "urllib", "importlib", "pathlib",
-                                "math", "datetime", "statistics", "llmledger_mcp"}, (name, imports)
+                                "math", "datetime", "statistics", "random", "llmledger_mcp"}, (name, imports)
 
 
 def test_req_s41_skill_md_follows_the_agent_skills_format():
@@ -135,6 +135,22 @@ def test_req_s48_the_script_says_when_buying_a_computer_pays_off(tmp_path, monke
     power = 30000 * 11 / 3600 * 0.15 * 0.2
     assert code == 0 and out["local"]["electricity_a_month"]["usual"] == round(power, 4)
     assert out["cloud"][0]["buying_pays_off_after_months"]["usual"] == round(2000 / (270 - power), 1)
+
+
+def test_req_s55_the_script_prices_an_export(tmp_path):
+    rows = [{"sessionId": f"s{i}", "lastActivity": "2026-10-10T10:00:00Z", "inputTokens": 1000, "outputTokens": 400,
+             "cacheCreationTokens": 0, "cacheReadTokens": 0, "totalTokens": 1400, "totalCost": 0.1,
+             "modelsUsed": ["claude-opus-5-5"],
+             "modelBreakdowns": [{"modelName": "claude-opus-5-5", "inputTokens": 1000, "outputTokens": 400,
+                                  "cacheCreationTokens": 0, "cacheReadTokens": 0, "cost": 0.1}]} for i in range(6)]
+    path = tmp_path / "sessions.json"
+    path.write_text(json.dumps({"sessions": rows, "totals": {}}))
+    code, out = run("usage", str(path), "--task", "coding", "--compare", "claude-opus-5.5", "gpt-6.1-sol")
+    assert code == 0 and out["source"] == "ccusage session" and out["sessions"] == 6
+    assert out["you_paid"]["cost"] == 6 * (1000 * 4 + 400 * 20) / 1e6
+    assert out["tests"][0]["kind"] == "same work" and "real difference" in out["tests"][0]["verdict"]
+    code, out = run("usage", str(tmp_path / "missing.json"))
+    assert code == 1 and "No file" in out["error"]
 
 
 def test_req_s41_the_script_says_what_went_wrong(tmp_path):
