@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from llmledger.catalog import model_records, recent, sources
+from llmledger.catalog import _long, model_records, recent, sources
 from llmledger.flags import mark
 
 
@@ -92,3 +92,24 @@ def test_req_s43_each_change_keeps_the_litellm_commit_and_cache_write_price():
     assert len(commits) == len({r["sha"][:12] for r in rows})
     assert sources(events) == []                                          # already numbers: nothing left to do
 
+
+
+def test_req_s57_prices_past_a_prompt_size_and_for_the_hour_long_cache():
+    entry = {"input_cost_per_token": 3e-06, "input_cost_per_token_above_200k_tokens": 6e-06,
+             "output_cost_per_token_above_200k_tokens": 2.25e-05, "cache_read_input_token_cost_above_200k_tokens": 6e-07,
+             "cache_creation_input_token_cost_above_200k_tokens": 7.5e-06, "cache_creation_input_token_cost_above_1hr": 6e-06,
+             "cache_creation_input_token_cost_above_1hr_above_200k_tokens": 1.2e-05,
+             "input_cost_per_token_above_200k_tokens_priority": 1.2e-05,       # a service tier: not a standard price
+             "input_cost_per_token_above_272k_tokens_batches": 1e-06}
+    assert _long(entry) == {"cache_write_1h": 6.0, "tiers": [{"above": 200000, "input": 6.0, "output": 22.5,
+                                                              "cache_read": 0.6, "cache_write": 7.5, "cache_write_1h": 12.0}]}
+    # two thresholds, smallest first, each with only what is listed
+    entry = {"input_cost_per_token_above_128k_tokens": 2e-06, "output_cost_per_token_above_128k_tokens": 1e-05,
+             "input_cost_per_token_above_512k_tokens": 4e-06}
+    assert _long(entry) == {"tiers": [{"above": 128000, "input": 2.0, "output": 10.0}, {"above": 512000, "input": 4.0}]}
+    assert _long({"input_cost_per_token": 3e-06}) is None
+    # the record carries it at the end, after the cache write price
+    rows = [dict(r, sha=f"{n:040x}") for n, r in enumerate(ROWS)]
+    last = {"a": {"cache_creation_input_token_cost": 3.75e-06, "input_cost_per_token_above_200k_tokens": 6e-06}, "b": {}}
+    records, _ = model_records(rows, last, END)
+    assert records[0][22] == {"tiers": [{"above": 200000, "input": 6.0}]} and records[1][22] is None

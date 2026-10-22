@@ -1,5 +1,5 @@
 name: "llmledger watch"
-description: "Fail a check when a model your project uses changes price, gets a retirement date or leaves LiteLLM's catalogue."
+description: "Fail a check when a model your project uses changes price, gets a retirement date or leaves the LiteLLM catalogue."
 author: "pouriaetab"
 branding:
   icon: "activity"

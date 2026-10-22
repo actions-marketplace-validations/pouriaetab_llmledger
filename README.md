@@ -45,7 +45,8 @@ or `npx skills add pouriaetab/llmledger`, or copy [skills/llmledger](skills/llml
 ## Watch the models you use
 
 A GitHub Action that fails a check (or just reports) when a model your project uses changes price, gets a retirement
-date or leaves the catalogue. Add to a workflow that runs on a schedule:
+date or leaves the catalogue. On the [GitHub Marketplace](https://github.com/marketplace/actions/llmledger-watch), or
+add it to a workflow that runs on a schedule:
 
 ```yaml
 - uses: pouriaetab/llmledger@main
