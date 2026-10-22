@@ -1,4 +1,5 @@
 import json
+import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -44,6 +45,35 @@ def _per_million(entry, field):
 
 def _day(text):
     return text[:10]
+
+
+TIER = re.compile(r"^(input_cost_per_token|output_cost_per_token|cache_read_input_token_cost|"
+                  r"cache_creation_input_token_cost)_above_(\d+)k_tokens$")
+TIER_1H = re.compile(r"^cache_creation_input_token_cost_above_1hr(?:_above_(\d+)k_tokens)?$")
+TIER_NAMES = {"input_cost_per_token": "input", "output_cost_per_token": "output",
+              "cache_read_input_token_cost": "cache_read", "cache_creation_input_token_cost": "cache_write"}
+
+
+def _long(entry):
+    """The prices that apply past a prompt size and for the hour long cache (REQ-S57), per 1M tokens:
+    {"tiers": [{"above": tokens, input, output, cache_read, cache_write, cache_write_1h}, ...] smallest first,
+    "cache_write_1h": price} with only what the listing has, or None when it has none. The service tiers
+    LiteLLM also lists (priority, batches, flex, ...) are not standard prices and are left out."""
+    tiers, out = {}, {}
+    for field in entry:
+        hit = TIER.match(field)
+        if hit:
+            tiers.setdefault(int(hit.group(2)) * 1000, {})[TIER_NAMES[hit.group(1)]] = _per_million(entry, field)
+            continue
+        hit = TIER_1H.match(field)
+        if hit and hit.group(1):
+            tiers.setdefault(int(hit.group(1)) * 1000, {})["cache_write_1h"] = _per_million(entry, field)
+        elif hit:
+            out["cache_write_1h"] = _per_million(entry, field)
+    if tiers:
+        out["tiers"] = [{"above": above, **{k: v for k, v in prices.items() if v is not None}}
+                        for above, prices in sorted(tiers.items())]
+    return out or None
 
 
 def _skills(entry):
@@ -148,6 +178,7 @@ def model_records(rows, last, end):
             _skills(entry), _size(entry), _media(entry),
             _per_million(entry, "cache_read_input_token_cost"), *_effort(entry),
             _per_million(entry, "cache_creation_input_token_cost"),
+            _long(entry),
         ])
         # each change keeps the LiteLLM version that made it (the first 12 characters of the commit)
         events[key] = [

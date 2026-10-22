@@ -7,7 +7,7 @@
   if (!D) return;
   const FIELDS = ["key", "maker", "name", "host", "mode", "status", "added",
     "removed", "retire", "input", "output", "repriced", "last", "exit", "age", "skills", "size", "media",
-    "cache", "effort", "effortDefault", "cacheWrite"];
+    "cache", "effort", "effortDefault", "cacheWrite", "long"];
   const models = D.models.map(r => Object.fromEntries(FIELDS.map((f, i) => [f, r[i]])));
   const byKey = new Map(models.map(m => [m.key, m]));
   const groups = new Map();

@@ -186,7 +186,7 @@ def test_req_s42_price_history_has_a_not_yet_priced_panel(tmp_path):
     assert 'id="unpriced-list"' in view and 'id="unpriced-timing"' in view
     app = (Path(page_module.__file__).parent / "app.js").read_text()
     assert "function renderUnpriced()" in app and "Arena could not be read for this build." in app
-    assert '"cacheWrite"]' in app
+    assert '"cacheWrite", "long"]' in app
     # each change in a model's timeline links the LiteLLM change behind it
     assert '"https://github.com/BerriAI/litellm/commit/" + esc(D.sources[e[6]])' in app.replace("'", '"')
     assert 'table(["Date", "Change", "Before", "After", "Source"], events, "timeline")' in app

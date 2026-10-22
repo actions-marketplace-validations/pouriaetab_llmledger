@@ -631,6 +631,15 @@ name and list every listing of it, and list up to 200 models. Verified by:
 an automated test over the descriptions the server publishes, and tests of
 the name lookup and the larger limit.
 
+**REQ-S57 Prices past a prompt size.** Each record and data.json shall
+carry, per listing, the standard prices LiteLLM lists for prompts above a
+size (`*_above_<N>k_tokens`: input, output, cache read and cache write, per
+1M tokens, as tiers from the smallest size up) and the hour long cache write
+price (`cache_creation_input_token_cost_above_1hr`, also per tier), leaving
+out the service tiers (priority, batches, flex, ultrafast, decisions), and
+nothing for a listing that has none. Verified by: automated tests of the
+parsing and of data.json.
+
 ## 5. Known limitations
 
 - **L0** The guard's effect (REQ-S54) is measured on weeks that are far
@@ -813,6 +822,7 @@ the name lookup and the larger limit.
 | REQ-S54 | `test_req_s54_the_guard_series_counts_each_weeks_changes_and_tags`, `test_req_s54_a_real_drop_is_found_and_no_change_is_called_no_change`, `test_req_s54_too_few_weeks_gives_nothing` | test |
 | REQ-S55 | `test_req_s55_ccusage_daily_rows_become_units_per_day_and_model`, `test_req_s55_ccusage_sessions_are_the_units`, `test_req_s55_codeburn_records_are_summed_per_session_and_day_with_the_task`, `test_req_s55_a_plain_mix_and_bad_input`, `test_req_s55_bootstrap_ranges_and_the_verdict`, `test_req_s55_the_same_work_is_priced_on_every_rated_model_at_each_days_price`, `test_req_s55_cheaper_models_that_keep_the_rating_and_the_headline`, `test_req_s55_two_models_for_real_or_not_enough_data`, `test_req_s55_a_codeburn_export_brings_one_shot_rates`, `test_req_s55_a_model_listed_after_the_usage_is_priced_at_its_first_price`, `test_req_s55_unknown_models_and_bad_input`, `test_req_s55_through_the_tool` in `mcp/tests/test_usage.py`; `test_req_s55_the_script_prices_an_export` | test |
 | REQ-S56 | `test_req_s56_every_tool_says_when_to_use_it_and_names_a_sibling`, `test_req_s56_find_models_looks_one_model_up_by_name` in `mcp/tests/test_server.py` | test |
+| REQ-S57 | `test_req_s57_prices_past_a_prompt_size_and_for_the_hour_long_cache`, `test_req_s57_data_json_carries_the_long_context_and_hour_long_cache_prices` | test |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
 | REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |

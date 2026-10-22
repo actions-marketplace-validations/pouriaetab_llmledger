@@ -59,3 +59,13 @@ def test_req_s48_data_json_carries_the_electricity_prices_and_their_credit():
     out = export.machine({**DATA, "electricity": power}, INFO)
     assert out["electricity"] == power and "public domain" in out["credits"]["electricity"]
     assert export.machine(DATA, INFO)["electricity"] is None
+
+
+def test_req_s57_data_json_carries_the_long_context_and_hour_long_cache_prices():
+    long = {"tiers": [{"above": 200000, "input": 6.0, "output": 22.5}], "cache_write_1h": 6.0}
+    models = [list(r) for r in DATA["models"]]
+    models[0] = models[0] + [None] * (22 - len(models[0])) + [long]       # after the cache write price
+    out = export.machine({**DATA, "models": models}, INFO)
+    assert out["models"][0]["long"] == long
+    assert all(m["long"] is None for m in out["models"][1:])
+    assert "tiers" in out["units"]["long"] and "cache_write_1h" in out["units"]["long"]

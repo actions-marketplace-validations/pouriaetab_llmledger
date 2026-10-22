@@ -12,7 +12,7 @@ from llmledger import flags
 SCHEMA = 1
 FIELDS = ("key", "maker", "name", "host", "mode", "status", "added", "removed", "retire",
           "input", "output", "repriced", "last", "exit", "age", "skills", "size", "media",
-          "cache", "effort", "effort_default", "cache_write")
+          "cache", "effort", "effort_default", "cache_write", "long")
 OUTCOMES = ("price", "retirement", "removed", "none")
 CREDITS = {
     "prices": "LiteLLM's model_prices_and_context_window.json (MIT), https://github.com/BerriAI/litellm",
@@ -62,7 +62,7 @@ def machine(data, info):
         models.append({
             "key": m["key"], "maker": m["maker"], "name": m["name"], "host": m["host"], "mode": m["mode"],
             "input": m["input"], "output": m["output"], "cache_read": m["cache"], "cache_write": m.get("cache_write"),
-            "context": m["size"],
+            "long": m.get("long"), "context": m["size"],
             "skills": m["skills"], "effort": m["effort"], "effort_default": m["effort_default"],
             "added": m["added"], "retire": m["retire"], "price_changes": m["repriced"], "last_change": m["last"],
             "outlook": outlook(m, data["curves"]),
@@ -75,6 +75,8 @@ def machine(data, info):
         "litellm": {"commit": info["sha"], "changed": info["when"].isoformat()},
         "credits": CREDITS,
         "units": {"prices": "dollars per 1M tokens",
+                  "long": "prices past a prompt size (tiers, above = tokens) and for the hour long cache (cache_write_1h); "
+                          "only what the listing has",
                   "events": ["day", "kind", "field", "old", "new", "flag", "source (a place in sources)"],
                   "sources": "the LiteLLM commit of each change: https://github.com/BerriAI/litellm/commit/<source>",
                   "ratings": ["model", "arena name", "rating", "low", "high", "votes", "arena rank"],
