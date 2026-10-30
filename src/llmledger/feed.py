@@ -4,7 +4,10 @@ One entry a day for the last DAYS days: how many models were added, repriced, gi
 retirement date or removed, then one line per model with the LiteLLM commits behind it. A feed reader, a Slack channel or a script can follow it; nothing to install.
 """
 import html
+import json
+import re
 from datetime import date, timedelta
+from decimal import Decimal
 
 DAYS = 14
 MAX_LINES = 60
@@ -18,11 +21,30 @@ FIELDS = {"input_cost_per_token": "input", "output_cost_per_token": "output",
           "cache_read_input_token_cost": "cache read", "cache_creation_input_token_cost": "cache write"}
 
 
+def is_token_price(field):
+    """A price per token of any kind (text, audio, image, video, reasoning), shown per 1M tokens; the page
+    uses the same test."""
+    return re.search(r"per_\w*token|token_cost", field) is not None
+
+
 def per_million(value):
     if value is None:
         return "none"
     v = float(value) * 1e6
     return f"${v:,.2f}" if v >= 0.1 else f"${v:,.4f}"
+
+
+def price(field, value):
+    """A price as the page shows it: a token price per 1M tokens, any other price as it is (per query,
+    per image, per second, as the field's name says), and a table of prices (search context sizes,
+    tiers, off peak hours) as written in LiteLLM's file."""
+    if value is None:
+        return "none"
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return json.dumps(value, separators=(", ", ": "))
+    if is_token_price(field):
+        return per_million(value)
+    return f"${value:,.2f}" if value >= 0.1 else f"${Decimal(str(value)):f}"
 
 
 def by_day(machine):
@@ -48,11 +70,14 @@ def describe(key, events, sources):
     links = " ".join(f'<a href="{LITELLM}{sha}">{html.escape(sha[:7])}</a>' for sha in shas)
     name = html.escape(key)
     if kind == "price":
+        tokens = all(is_token_price(e[2]) for e in events)
         bits = []
         for day, kind, field, old, new, flag, source in events:
             what = FIELDS.get(field, field.replace("_cost_per_token", "").replace("_", " "))
-            bits.append(f"{html.escape(what)} {per_million(old)} &rarr; {per_million(new)}" + (f" ({html.escape(flag)})" if flag else ""))
-        return f"<li>{name}: {', '.join(bits)} per 1M {links}</li>"
+            unit = "" if tokens or not is_token_price(field) else " per 1M tokens"
+            bits.append(f"{html.escape(what)} {html.escape(price(field, old))} &rarr; {html.escape(price(field, new))}{unit}"
+                        + (f" ({html.escape(flag)})" if flag else ""))
+        return f"<li>{name}: {', '.join(bits)}{' per 1M' if tokens else ''} {links}</li>"
     if kind == "deprecation":
         return f"<li>{name}: retirement date {html.escape(str(events[0][4]))} {links}</li>"
     return f"<li>{name} {links}</li>"
