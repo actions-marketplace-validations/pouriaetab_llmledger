@@ -536,13 +536,16 @@ and the skill.
 (`feed.xml`) with one entry a day for the last 14 days: how many models were
 added, repriced, given a retirement date or removed that day, then one line
 per model and kind with the LiteLLM commits behind the changes (at most 60
-lines a kind), newest day first, well formed with no events. The page shall
+lines a kind), newest day first, well formed with no events. A price line
+shall show a token price per 1M tokens, any other price as it is (per query,
+per image, per second) and a table of prices as LiteLLM writes it, so a
+build never stops on a price that is not one number. The page shall
 carry share data (Open Graph and Twitter card tags, a canonical address and
 a link to the feed) and a share image, and a short way to get the same
 answers inside an MCP app, both inside markers so that a copy of the page on
 another site can drop them.
-Verified by: automated tests of the feed's entries, window, flags and the
-empty case, and of the page's markers.
+Verified by: automated tests of the feed's entries, window, flags, price
+texts and the empty case, and of the page's markers.
 
 **REQ-S50 Price index and the weekly digest.** data.json shall carry
 `index`: from the latest leaderboard that has both, what a model as good as
@@ -814,7 +817,7 @@ parsing and of data.json.
 | REQ-S46 | `test_req_s46_answer_keys_come_from_the_data`, `test_req_s46_the_keys_agree_with_the_plugin_on_its_test_data`, `test_req_s46_the_config_runs_the_repository_plugin_through_the_mcp_provider`; a promptfoo run on the day's data | test, demonstration |
 | REQ-S47 | `test_req_s47_wilson_ranges`, `test_req_s47_promptfoo_names_ways_and_hosts`, `test_req_s47_a_sample_becomes_a_quote_for_the_whole_job`, `test_req_s47_the_cost_of_a_wrong_answer_can_decide_the_pick`, `test_req_s47_logged_runs_add_to_the_sample_which_counts_once`, `test_req_s47_prompts_repeats_hosts_and_plans`, `test_req_s47_no_checks_and_bad_input`, `test_req_s47_the_script_quotes_a_job_from_a_promptfoo_sample` | test |
 | REQ-S48 | `test_req_s48_residential_prices_by_state_from_eia`, `test_req_s48_a_changed_table_gives_nothing_rather_than_wrong_prices`, `test_req_s48_the_live_pages_prices_are_kept_when_eia_cannot_be_read`, `test_req_s48_the_reuse_page_must_still_say_public_domain`, `test_req_s48_electricity_prices_are_used_only_while_eia_says_public_domain`, `test_req_s48_data_json_carries_the_electricity_prices_and_their_credit`, `test_req_s48_before_any_local_run_it_says_what_is_missing`, `test_req_s48_with_runs_watts_and_a_state_it_counts_electricity`, `test_req_s48_when_home_power_costs_more_buying_never_pays_off`, `test_req_s48_bad_input_says_what_to_fix`, `test_req_s48_the_script_says_when_buying_a_computer_pays_off` | test |
-| REQ-S49 | `test_req_s49_one_entry_a_day_newest_first_with_counts_and_commit_links`, `test_req_s49_only_the_last_14_days_and_a_flag_is_shown`, `test_req_s49_the_feed_is_well_formed_without_events`, `test_req_s36_about_rows_and_the_prompt_box` | test |
+| REQ-S49 | `test_req_s49_one_entry_a_day_newest_first_with_counts_and_commit_links`, `test_req_s49_only_the_last_14_days_and_a_flag_is_shown`, `test_req_s49_the_feed_is_well_formed_without_events`, `test_req_s49_a_price_table_and_a_price_per_query_or_image_are_shown_as_they_are`, `test_req_s49_every_price_value_has_a_text`, `test_req_s36_about_rows_and_the_prompt_box` | test |
 | REQ-S50 | `test_req_s50_the_digest_counts_moves_arrivals_and_the_index`, `test_req_s50_the_index_comes_from_the_latest_leaderboard_with_both_prices`, `test_req_s50_a_quiet_week_still_reads` | test |
 | REQ-S51 | `test_req_s51_each_watched_model_is_checked_for_the_three_changes`, `test_req_s51_a_key_without_litellms_prefix_is_found_and_batch_prices_do_not_count`, `test_req_s51_the_report_names_the_changes_and_says_when_nothing_changed`, `test_req_s51_the_script_exits_1_on_a_change_0_otherwise_2_without_data`, `test_req_s51_the_action_runs_the_script_with_its_inputs` | test |
 | REQ-S52 | `test_req_s52_a_badge_per_listed_model_with_prices_outlook_and_retirement`, `test_req_s52_the_slug_is_safe_for_a_file_and_an_address` | test |

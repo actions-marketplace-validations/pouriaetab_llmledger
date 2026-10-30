@@ -41,3 +41,34 @@ def test_req_s49_the_feed_is_well_formed_without_events():
     root = ET.fromstring(feed.build({"built": "2026-10-20T00:00:00+00:00", "sources": [], "events": {}}))
     assert root.findall(ATOM + "entry") == []
     assert root.find(ATOM + "updated").text == "2026-10-20T00:00:00+00:00"
+
+
+def test_req_s49_a_price_table_and_a_price_per_query_or_image_are_shown_as_they_are():
+    # LiteLLM's change of 28 October 2026 (3afe779125) gave Azure rows a web search price as a table
+    # of context sizes; the refresh of 29 October stopped on it (issue #73).
+    table = {"search_context_size_high": 0.014, "search_context_size_low": 0.014, "search_context_size_medium": 0.014}
+    m = machine()
+    m["events"]["azure/eu/gpt-4.1"] = [["2026-10-19", "price", "search_context_cost_per_query", None, table, "", 1]]
+    m["events"]["openai/gpt-image-2"] = [["2026-10-19", "price", "input_cost_per_image", 0.04, 0.05, "", 1],
+                                         ["2026-10-19", "price", "input_cost_per_pixel", 2.5e-06, 3e-06, "", 1],
+                                         ["2026-10-19", "price", "input_cost_per_token", 5e-06, 4e-06, "", 1]]
+    root = ET.fromstring(feed.build(m))
+    content = root.findall(ATOM + "entry")[1].find(ATOM + "content").text
+    assert ("azure/eu/gpt-4.1: search context cost per query none &rarr; "
+            "{&quot;search_context_size_high&quot;: 0.014, &quot;search_context_size_low&quot;: 0.014, "
+            "&quot;search_context_size_medium&quot;: 0.014} <a") in content
+    assert ("openai/gpt-image-2: input cost per image $0.04 &rarr; $0.05, input cost per pixel $0.0000025 &rarr; "
+            "$0.000003, input $5.00 &rarr; $4.00 per 1M tokens <a") in content
+    assert "openai/gpt-5: input $1.25 &rarr; $1.00 per 1M" in content
+
+
+def test_req_s49_every_price_value_has_a_text():
+    assert feed.price("input_cost_per_token", 1.25e-06) == "$1.25"
+    assert feed.price("input_cost_per_token", None) == "none"
+    assert feed.price("output_cost_per_second", 0.1) == "$0.10"
+    assert feed.price("input_cost_per_query", 0) == "$0"
+    assert feed.price("tiered_pricing", [{"range": [0, 256000.0], "input_cost_per_token": 4e-07}]) == \
+        '[{"range": [0, 256000.0], "input_cost_per_token": 4e-07}]'
+    assert feed.price("input_cost_per_token", True) == "true"
+    assert feed.price("input_cost_per_audio_token", 4e-05) == "$40.00"
+    assert feed.price("output_cost_per_reasoning_token", 1.2e-05) == "$12.00"

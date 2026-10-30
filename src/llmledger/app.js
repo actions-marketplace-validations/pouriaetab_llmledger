@@ -33,7 +33,7 @@
     .replace(/(\d)[-_p](?=\d(?![\d.bkm]))/g, "$1.")   // 3-5 and 4p5 are versions: 3.5, 4.5
     .replace(/(?<!\d)\.|\.(?!\d)/g, " ")              // a dot that is not inside a version splits words
     .replace(/[-_:/@\s]+/g, " ").trim();
-  const isTokenPrice = f => /per_token|token_cost/.test(f);
+  const isTokenPrice = f => /per_\w*token|token_cost/.test(f);   // text, audio, image, video and reasoning tokens
 
   function value(field, v) {
     if (v == null) return "–";
