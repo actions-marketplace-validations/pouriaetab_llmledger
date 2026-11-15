@@ -64,7 +64,9 @@ Plus a resource, `llmledger://snapshot` (data dates and sources), and a prompt, 
 - Many price changes in the catalogue fix a wrong entry rather than change a price: in a labelled sample,
   about 6 in 10 first price changes. `price_history` says what each flag on a change means (a likely
   correction, a unit fix, a change undone) and how often such changes were corrections.
-- Every answer carries the date of its data. When the data is 3 or more days old, the answer says so.
+- Every answer carries the date of its data. When the data is 3 or more days old, the answer says so, and
+  whether the page has not been rebuilt or only the download failed. When the day's data cannot be downloaded,
+  the answer says why and since when, and the plug-in tries again after 15 minutes.
 - `price_my_usage` prices other models at your own token counts; another model tokenises the same work a little
   differently (usually within 10 to 20%) and may answer at another length. Models you used are compared on the
   sessions each one got, which were not the same work, and the answer says so. A model with no cache price has cache

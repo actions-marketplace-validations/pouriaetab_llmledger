@@ -1,18 +1,25 @@
 """The day's data: downloaded once a day from the llmledger page into a cache folder, so the
 plug-in works offline from the last copy, with a snapshot bundled in the package for the
-very first run. Standard library only."""
+very first run. Standard library only.
+
+When a download fails, why and since when are kept next to the copy (download.json), so an
+answer can say so, and the next try waits RETRY_AFTER instead of slowing every answer down."""
 import gzip
 import json
 import os
 import re
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from importlib import resources
 from pathlib import Path
 
 URL = "https://pouriaetab.github.io/llmledger/data.json"
 MAX_AGE = 24 * 3600
+TIMEOUT = 20                                            # seconds without an answer from the page
+DEADLINE = 60                                           # seconds for the whole download
+RETRY_AFTER = 15 * 60                                   # after a failed download, wait this long
 
 
 def cache_file():
@@ -20,11 +27,32 @@ def cache_file():
     return Path(base) / "llmledger-mcp" / "data.json"
 
 
+def status_file():
+    """Since when downloads fail, the last try and why; there only while they fail."""
+    return cache_file().with_name("download.json")
+
+
+def reason(error):
+    """Why a download failed, in a few words: 'HTTP Error 404: Not Found', 'timed out'."""
+    inner = error if isinstance(error, urllib.error.HTTPError) else getattr(error, "reason", None) or error
+    return (str(inner) or type(inner).__name__)[:200]
+
+
 def _download(url, dest):
-    request = urllib.request.Request(url, headers={"User-Agent": "llmledger-mcp"})
-    with urllib.request.urlopen(request, timeout=20) as response:
-        body = response.read()
-    json.loads(body)                                    # a broken download never replaces a good copy
+    request = urllib.request.Request(url, headers={"User-Agent": "llmledger-mcp", "Accept-Encoding": "gzip"})
+    start, parts = time.time(), []
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+        while chunk := response.read(1 << 16):
+            parts.append(chunk)
+            if time.time() - start > DEADLINE:
+                raise TimeoutError(f"the download took more than {DEADLINE} seconds")
+        body = b"".join(parts)
+        if response.headers.get("Content-Encoding") == "gzip":     # about 0.4 MB instead of 4.9 MB
+            body = gzip.decompress(body)
+    try:
+        json.loads(body)                                # a broken download never replaces a good copy
+    except ValueError:
+        raise ValueError("what came back was not the day's data") from None
     dest.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=dest.parent, delete=False) as f:
         f.write(body)
@@ -35,37 +63,57 @@ def _bundled():
     return json.loads(gzip.decompress(resources.files("llmledger_mcp").joinpath("snapshot.json.gz").read_bytes()))
 
 
+def _failing():
+    try:
+        status = json.loads(status_file().read_text())
+        return status if all(isinstance(status.get(k), (int, float)) for k in ("since", "tried")) else None
+    except (OSError, ValueError, AttributeError):       # none yet, or not what this version writes
+        return None
+
+
 def load(now=None):
-    """(data, where it came from). LLMLEDGER_DATA may name a local file or another address."""
+    """(data, where it came from, None or why it is not today's download: {"error", "since", "tried"}).
+    LLMLEDGER_DATA may name a local file or another address."""
     override = os.environ.get("LLMLEDGER_DATA", "")
     if override and not re.match(r"https?://", override):
-        return json.loads(Path(override).read_text()), "file " + override
+        return json.loads(Path(override).read_text()), "file " + override, None
     url, dest = override or URL, cache_file()
     now = now or time.time()
     fresh = dest.exists() and now - dest.stat().st_mtime < MAX_AGE
+    trouble = None
     if not fresh:
-        try:
-            _download(url, dest)
-            fresh = True
-        except Exception:                               # offline or the page is down: use what we have
-            pass
+        trouble = _failing()
+        if not (trouble and 0 <= now - trouble.get("tried", 0) < RETRY_AFTER):   # failed a moment ago: wait
+            try:
+                _download(url, dest)
+                fresh, trouble = True, None
+                status_file().unlink(missing_ok=True)
+            except Exception as error:                  # offline or the page is down: use what we have
+                trouble = {"error": reason(error), "since": (trouble or {}).get("since", now), "tried": now}
+                try:
+                    status_file().parent.mkdir(parents=True, exist_ok=True)
+                    status_file().write_text(json.dumps(trouble))
+                except OSError:
+                    pass
     if dest.exists():
         try:
-            return json.loads(dest.read_text()), "downloaded" if fresh else "the last download (could not refresh it)"
+            where = "downloaded" if fresh else "the last download (could not refresh it)"
+            return json.loads(dest.read_text()), where, trouble
         except ValueError:
             pass
     try:
-        return _bundled(), "the copy bundled with this version"
+        return _bundled(), "the copy bundled with this version", trouble
     except (FileNotFoundError, ModuleNotFoundError):    # the Agent Skill carries no copy
-        raise RuntimeError(f"No data yet: {url} could not be downloaded and no copy is saved. "
+        why = f" ({trouble['error']})" if trouble else ""
+        raise RuntimeError(f"No data yet: {url} could not be downloaded{why} and no copy is saved. "
                            "Check the internet connection and try again.") from None
 
 
 class Shelf:
     """The data, indexed: models by listing and by grouped name, ratings by task."""
 
-    def __init__(self, data, where=""):
-        self.data, self.where, self.loaded = data, where, time.time()
+    def __init__(self, data, where="", trouble=None):
+        self.data, self.where, self.trouble, self.loaded = data, where, trouble, time.time()
         self.models = [m for m in data["models"]]
         self.by_key = {m["key"]: m for m in self.models}
         self.groups = {}
