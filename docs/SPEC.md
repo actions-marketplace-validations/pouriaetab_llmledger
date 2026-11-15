@@ -251,9 +251,14 @@ reuse page, and the packages pinned in `requirements.txt` and
 not, the run shall stop before publishing. If Arena's is not, or cannot be
 read, the page shall be built without ratings or trends. If pyarrow's is
 not, the page shall be built without the trend charts. If EIA's data is no
-longer in the public domain, the electricity prices shall be left out. Every problem shall be written to
-`data/licence-problems.txt`, from which the daily refresh opens a GitHub
-issue, and the licences found shall be shown on the page.
+longer in the public domain, the electricity prices shall be left out; if
+EIA's reuse page cannot be read, the prices on the live page shall be kept.
+A source that cannot be read shall be read once more after a pause, and if
+it still fails, the reason (a timeout, an HTTP error) shall be reported with
+it. Every problem shall be written to `data/licence-problems.txt`, from
+which the daily refresh opens one GitHub issue (titled by whether a licence
+changed or a source could not be read) and closes it on the first run whose
+check finds no problem, and the licences found shall be shown on the page.
 Verified by: automated tests with each source open, closed and
 unreachable.
 
@@ -460,7 +465,11 @@ cache write tokens shall price them at those prices (at the input price,
 saying so, when one is not listed) and give the cost without the cache and
 the saving. Every plug-in answer shall give the day its prices are from,
 and say so when it comes from the bundled copy or an old download because
-today's data could not be downloaded. Verified by: automated tests.
+today's data could not be downloaded, with the reason and since when the
+download fails; old data shall be put down to the page not being rebuilt
+only when it was downloaded that day. The download shall ask for gzip, and
+after a failed one the next try shall wait 15 minutes. Verified by:
+automated tests against fake pages that fail, answer slowly and send gzip.
 
 **REQ-S45 Time learned from the user's runs.** The plug-in and the skill
 shall keep timed runs (model, way of calling it, thinking on or off, prompt
@@ -812,7 +821,7 @@ parsing and of data.json.
 | REQ-S41 | `test_req_s41_the_skill_carries_an_exact_copy_of_the_plugin_code`, `test_req_s41_skill_md_follows_the_agent_skills_format`, `test_req_s41_the_repository_is_a_claude_code_marketplace_for_the_skill`, `test_req_s41_the_script_gives_the_plugins_answers`, `test_req_s41_the_script_says_what_went_wrong`; `claude plugin validate .` and an install in a fresh profile | test, demonstration |
 | REQ-S42 | `test_req_s42_close_names_for_names_the_rules_cannot_match`, `test_req_s42_recent_models_without_a_price`, `test_req_s42_how_soon_a_price_comes`, `test_req_s42_estimates_on_enough_models`, `test_req_s42_no_arena_means_no_list`, `test_req_s42_price_history_has_a_not_yet_priced_panel`; `test_not_yet_priced_lists_new_models_and_the_wait` in `mcp/tests` | test |
 | REQ-S43 | `test_req_s43_each_change_keeps_the_litellm_commit_and_cache_write_price`, `test_req_s43_data_json_links_each_change_to_its_commit`, `test_req_s33_a_change_with_its_source_rolls_back_the_same`; `test_a_price_on_a_date_with_the_change_that_set_it` in `mcp/tests` | test |
-| REQ-S44 | `test_cache_reads_and_writes_and_the_saving`, `test_offline_answers_say_so_with_the_date` in `mcp/tests` | test |
+| REQ-S44 | `test_cache_reads_and_writes_and_the_saving`, `test_offline_answers_say_so_with_the_date` in `mcp/tests`; `test_the_download_asks_for_gzip_and_unpacks_it`, `test_a_failed_download_says_why_and_waits_before_the_next_try`, `test_a_page_that_is_not_the_data_never_replaces_the_copy`, `test_a_slow_page_times_out_and_the_bundled_copy_answers`, `test_no_copy_at_all_says_why_the_download_failed`, `test_a_broken_status_file_is_not_a_crash`, `test_answers_say_why_the_copy_is_old_and_do_not_blame_the_rebuild`, `test_the_plugin_looks_again_soon_when_it_answers_from_an_old_copy` in `mcp/tests/test_data.py` | test |
 | REQ-S45 | `test_a_straight_line_is_found_exactly`, `test_one_slow_run_barely_moves_the_usual_time`, `test_few_runs_give_a_rough_range`, `test_logging_and_estimating_through_the_tools`, `test_a_promptfoo_results_file_counts_as_runs_once`, `test_bad_input_says_what_to_fix` in `mcp/tests/test_speed.py`; `test_req_s45_the_script_times_a_job_from_logged_runs` | test |
 | REQ-S46 | `test_req_s46_answer_keys_come_from_the_data`, `test_req_s46_the_keys_agree_with_the_plugin_on_its_test_data`, `test_req_s46_the_config_runs_the_repository_plugin_through_the_mcp_provider`; a promptfoo run on the day's data | test, demonstration |
 | REQ-S47 | `test_req_s47_wilson_ranges`, `test_req_s47_promptfoo_names_ways_and_hosts`, `test_req_s47_a_sample_becomes_a_quote_for_the_whole_job`, `test_req_s47_the_cost_of_a_wrong_answer_can_decide_the_pick`, `test_req_s47_logged_runs_add_to_the_sample_which_counts_once`, `test_req_s47_prompts_repeats_hosts_and_plans`, `test_req_s47_no_checks_and_bad_input`, `test_req_s47_the_script_quotes_a_job_from_a_promptfoo_sample` | test |
@@ -828,7 +837,7 @@ parsing and of data.json.
 | REQ-S57 | `test_req_s57_prices_past_a_prompt_size_and_for_the_hour_long_cache`, `test_req_s57_data_json_carries_the_long_context_and_hour_long_cache_prices` | test |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
-| REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
+| REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`, `test_req_s26_a_failed_read_is_tried_again_and_its_reason_is_reported`, `test_req_s26_the_report_is_saved_so_the_refresh_knows_the_check_ran`, `test_req_s26_the_refresh_opens_one_licence_issue_and_closes_it_when_the_check_passes`; the licence line on the page | test, demonstration |
 | REQ-S25 | `test_req_s25_arena_names_are_tried_longest_first`, `test_req_s25_matching_prefers_the_arena_maker`, `test_req_s25_best_variant_kept_and_unmatched_left_out`, `test_req_s25_arena_down_means_no_ratings`, `test_req_s25_best_value_is_the_cheapest_tied_with_the_top`; the Best value tab | test, demonstration |
 
 All tests run on every pull request and before every daily refresh.

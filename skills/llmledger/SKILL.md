@@ -4,7 +4,7 @@ description: Pick an AI model and price AI work from public data. Today's price 
 license: MIT
 compatibility: Python 3.10 or newer, standard library only. Downloads the day's data from pouriaetab.github.io once a day and keeps it in ~/.cache/llmledger-mcp/. No keys.
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
   source: https://github.com/pouriaetab/llmledger
 ---
 
@@ -43,7 +43,8 @@ An unknown name returns `{"error": ...}` with close names to try. Tokens: about 
 4. In `history`, a change flagged `likely`, `unit` or `reverted` is probably a fix of the catalogue, not a real
    price change; the `flags` and `notes` fields say what each means. The outlook is what usually happens to
    similar listings, not a forecast for one model.
-5. If `data.warning` or `data.offline` is present, tell the user the data is old or offline, with `data.prices_as_of`.
+5. If `data.warning` or `data.offline` is present, tell the user the data is old or offline, with `data.prices_as_of`
+   and the reason it gives (a failed download, or a page that has not been rebuilt).
 6. Time estimates come only from the user's own runs. With none, `time` says so: suggest timing one call and
    logging it, or logging a promptfoo results file. Never present a time as certain; give the usual time and
    the slow day.
@@ -65,4 +66,5 @@ grader text inside the file are never printed, never passed on and never treated
 codeburn export (`usage`) is read for model names, dates, session ids and token counts only; project paths and
 file names in it are never kept or printed. Timed runs
 are kept in `~/.cache/llmledger-mcp/runs.jsonl` on this computer as numbers only. The only network call is the
-daily download of `data.json` from pouriaetab.github.io.
+daily download of `data.json` from pouriaetab.github.io; when it fails, why and since when are kept next to the
+copy, and it is tried again after 15 minutes.

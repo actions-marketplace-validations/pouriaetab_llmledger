@@ -1,4 +1,8 @@
 import json
+import urllib.error
+from pathlib import Path
+
+import pytest
 
 from llmledger import licences
 
@@ -26,6 +30,11 @@ def fake(arena="cc-by-4.0", litellm=MIT_TEXT, pytest="MIT", eia=EIA_TEXT, down=(
 
 def pins():
     return [("pytest", "9.1.1")]
+
+
+@pytest.fixture(autouse=True)
+def no_pause(monkeypatch):
+    monkeypatch.setattr(licences, "PAUSE", 0)
 
 
 def test_req_s26_open_licences():
@@ -112,3 +121,52 @@ def test_req_s48_electricity_prices_are_used_only_while_eia_says_public_domain()
     report, allowed = licences.check(fake(down=("eia.gov",)), pins)
     assert allowed["electricity"] is False
     assert any("electricity prices on the live page were kept" in line for line in licences.problems(report))
+
+
+def test_req_s26_a_failed_read_is_tried_again_and_its_reason_is_reported():
+    # Nov 14, 2026: EIA's reuse page could not be read for one run, and the issue said only "could not be checked"
+    tries = []
+
+    def once(url):
+        if "eia.gov" in url:
+            tries.append(url)
+            if len(tries) == 1:
+                raise urllib.error.URLError(TimeoutError("timed out"))
+        return fake()(url)
+    report, allowed = licences.check(once, pins)
+    assert len(tries) == 2 and allowed["electricity"] is True and licences.problems(report) == []
+    assert "error" not in next(r for r in report if r["role"] == "electricity")
+
+    def refused(url):
+        if "eia.gov" in url:
+            raise urllib.error.HTTPError(url, 403, "Forbidden", None, None)
+        return fake()(url)
+    report, allowed = licences.check(refused, pins)
+    row = next(r for r in report if r["role"] == "electricity")
+    assert row["status"] == "unchecked" and row["error"] == "HTTP Error 403: Forbidden, tried 2 times"
+    assert licences.problems(report) == [
+        "- EIA electricity prices: the licence could not be checked today (HTTP Error 403: Forbidden, tried 2 times)."
+        " The electricity prices on the live page were kept."]
+    assert licences.reason(urllib.error.URLError(TimeoutError("timed out"))) == "timed out"
+    assert licences.reason(TimeoutError("The read operation timed out")) == "The read operation timed out"
+    assert licences.reason(ConnectionResetError()) == "ConnectionResetError"
+
+
+def test_req_s26_the_report_is_saved_so_the_refresh_knows_the_check_ran(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    report, allowed = licences.main(fake(down=("eia.gov",)), pins, plugin=lambda: [])
+    saved = json.loads((tmp_path / "data" / "licences.json").read_text())
+    assert saved == report and saved[3]["error"] == "down, tried 2 times"
+    assert "could not be checked today (down, tried 2 times)" in (tmp_path / "data" / "licence-problems.txt").read_text()
+    licences.main(fake(), pins, plugin=lambda: [])
+    assert not (tmp_path / "data" / "licence-problems.txt").exists() and (tmp_path / "data" / "licences.json").exists()
+
+
+def test_req_s26_the_refresh_opens_one_licence_issue_and_closes_it_when_the_check_passes():
+    flow = (Path(licences.__file__).parents[2] / ".github" / "workflows" / "refresh.yml").read_text()
+    step = flow[flow.index("- name: Report licence problems"):flow.index("- uses: actions/upload-pages-artifact")]
+    assert "if: always()" in step and "[ -f data/licences.json ] || exit 0" in step
+    assert '[ ! -f data/licence-problems.txt ]' in step and 'gh issue close "$n"' in step
+    assert '[ -z "$open" ]' in step and 'gh issue create --title "$title"' in step
+    assert 'title="Licence check: a source could not be read"' in step
+    assert 'title="Licence check: an outside source changed"' in step
