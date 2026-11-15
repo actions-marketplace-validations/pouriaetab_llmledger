@@ -1,0 +1,27 @@
+# Dependabot keeps the pipeline's and the plug-in's Python packages and the workflows' actions current, once a month.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    groups:
+      pipeline:
+        patterns: ["*"]
+  - package-ecosystem: "pip"
+    directory: "/mcp"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    groups:
+      plug-in:
+        patterns: ["*"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    groups:
+      actions:
+        patterns: ["*"]
