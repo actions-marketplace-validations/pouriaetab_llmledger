@@ -44,9 +44,10 @@ _SHELF = None
 
 
 def shelf():
-    """The data, loaded once and refreshed after a day."""
+    """The data, loaded once and refreshed after a day; an old copy is looked at again after RETRY_AFTER."""
     global _SHELF
-    if _SHELF is None or time.time() - _SHELF.loaded > data.MAX_AGE:
+    old = _SHELF is not None and any(word in _SHELF.where for word in tools.OFFLINE)
+    if _SHELF is None or time.time() - _SHELF.loaded > (data.RETRY_AFTER if old else data.MAX_AGE):
         _SHELF = data.Shelf(*data.load())
     return _SHELF
 

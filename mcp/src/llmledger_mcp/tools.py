@@ -6,7 +6,7 @@ small command line script, with a copy of this file. Same data, same answers.
 import re
 from datetime import datetime, timezone
 
-from llmledger_mcp import forecast, logic, speed, usage
+from llmledger_mcp import data, forecast, logic, speed, usage
 
 PLANS = {"claude": ("anthropic", "anthropic", "Claude"), "chatgpt": ("openai", "openai", "ChatGPT")}
 PAYS = ("api", "claude", "chatgpt")
@@ -50,12 +50,22 @@ def footer(s):
                     "litellm_changed": (d.get("litellm") or {}).get("changed"),
                     "ratings_published": s.rating_date, "copy": s.where},
            "credits": d.get("credits")}
-    if any(word in (s.where or "") for word in OFFLINE):
+    offline = any(word in (s.where or "") for word in OFFLINE)
+    trouble = getattr(s, "trouble", None)
+    if offline:
         out["data"]["offline"] = f"Today's data could not be downloaded: answering from {s.where}, prices as of {as_of}."
+        if trouble:
+            since = datetime.fromtimestamp(trouble["since"], timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            out["data"]["offline"] += (f" The download has failed since {since}: {str(trouble['error']).rstrip('.')}. "
+                                       f"It is tried again after {data.RETRY_AFTER // 60} minutes.")
     days = age_days(d.get("built"))
     if days is not None and days >= STALE_DAYS:
-        out["data"]["warning"] = (f"This data is {days} days old: the daily rebuild has not run since, so prices, "
-                                  "ratings and changes may be out of date.")
+        # Nov 14, 2026: an answer from a 10 day old copy blamed the daily rebuild; the page was new, the download failed
+        out["data"]["warning"] = (
+            f"This copy is {days} days old because a newer one could not be downloaded, so prices, ratings and "
+            "changes may be out of date. The llmledger page itself may be newer." if offline else
+            f"This data is {days} days old: the llmledger page has not been rebuilt since, so prices, ratings and "
+            "changes may be out of date.")
     return out
 
 
