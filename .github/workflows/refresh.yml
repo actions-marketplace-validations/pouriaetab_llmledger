@@ -39,18 +39,28 @@ jobs:
       - run: python -m llmledger.pipeline
         env:
           PYTHONPATH: src
-      # The pipeline checks every outside source's licence and writes any
-      # problem to this file. Open one issue about it (not one a day).
+      # The pipeline checks every outside source's licence, writes the report
+      # to data/licences.json and any problem to data/licence-problems.txt.
+      # Open one issue about a problem (not one a day), and close it on the
+      # first run whose check finds nothing.
       - name: Report licence problems
         if: always()
         run: |
-          [ -f data/licence-problems.txt ] || exit 0
-          open=$(gh issue list --state open --search "Licence check in:title" --json number --jq length)
-          [ "$open" = "0" ] || exit 0
-          gh issue create --title "Licence check: an outside source changed" --body-file data/licence-problems.txt
+          [ -f data/licences.json ] || exit 0
+          open=$(gh issue list --state open --search "Licence check in:title" --json number --jq '.[].number')
+          if [ ! -f data/licence-problems.txt ]; then
+            for n in $open; do
+              gh issue close "$n" --comment "Fixed: today's licence check found no problem. $RUN"
+            done
+          elif [ -z "$open" ]; then
+            title="Licence check: an outside source changed"
+            grep -qv "could not be checked today" data/licence-problems.txt || title="Licence check: a source could not be read"
+            gh issue create --title "$title" --body-file data/licence-problems.txt
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site

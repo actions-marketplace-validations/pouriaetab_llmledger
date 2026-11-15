@@ -251,9 +251,14 @@ reuse page, and the packages pinned in `requirements.txt` and
 not, the run shall stop before publishing. If Arena's is not, or cannot be
 read, the page shall be built without ratings or trends. If pyarrow's is
 not, the page shall be built without the trend charts. If EIA's data is no
-longer in the public domain, the electricity prices shall be left out. Every problem shall be written to
-`data/licence-problems.txt`, from which the daily refresh opens a GitHub
-issue, and the licences found shall be shown on the page.
+longer in the public domain, the electricity prices shall be left out; if
+EIA's reuse page cannot be read, the prices on the live page shall be kept.
+A source that cannot be read shall be read once more after a pause, and if
+it still fails, the reason (a timeout, an HTTP error) shall be reported with
+it. Every problem shall be written to `data/licence-problems.txt`, from
+which the daily refresh opens one GitHub issue (titled by whether a licence
+changed or a source could not be read) and closes it on the first run whose
+check finds no problem, and the licences found shall be shown on the page.
 Verified by: automated tests with each source open, closed and
 unreachable.
 
@@ -828,7 +833,7 @@ parsing and of data.json.
 | REQ-S57 | `test_req_s57_prices_past_a_prompt_size_and_for_the_hour_long_cache`, `test_req_s57_data_json_carries_the_long_context_and_hour_long_cache_prices` | test |
 | REQ-S36 | `test_req_s36_one_page_or_natural_scrolling`, `test_req_s36_about_rows_and_the_prompt_box`; every view and panel in a browser at 1920 x 1080, 1440 x 900, 1366 x 768, 1269 x 746, 1024 x 700, 768 x 1024, 390 x 844, 390 x 664, 360 x 740 and 375 x 560, on the page and on the site copy | test, demonstration |
 | REQ-S27 | `test_req_s27_task_guess_known_answers`, `test_req_s27_attachments_decide_first`, `test_req_s27_the_guess_says_why`, `test_req_s27_wilson_interval_known_answer`, `test_req_s27_a_guess_is_right_when_it_is_one_of_the_tasks`, `test_req_s27_score_against_always_overall`; `route_eval.json` | test, analysis |
-| REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`; the licence line on the page | test, demonstration |
+| REQ-S26 | `test_req_s26_open_licences`, `test_req_s26_litellm_file_must_stay_in_the_mit_part`, `test_req_s26_all_open_means_everything_is_used`, `test_req_s26_a_closed_ratings_licence_drops_the_ratings_and_is_reported`, `test_req_s26_a_closed_data_licence_stops_publishing`, `test_req_s26_unreachable_ratings_are_left_out_not_failed`, `test_req_s26_a_failed_read_is_tried_again_and_its_reason_is_reported`, `test_req_s26_the_report_is_saved_so_the_refresh_knows_the_check_ran`, `test_req_s26_the_refresh_opens_one_licence_issue_and_closes_it_when_the_check_passes`; the licence line on the page | test, demonstration |
 | REQ-S25 | `test_req_s25_arena_names_are_tried_longest_first`, `test_req_s25_matching_prefers_the_arena_maker`, `test_req_s25_best_variant_kept_and_unmatched_left_out`, `test_req_s25_arena_down_means_no_ratings`, `test_req_s25_best_value_is_the_cheapest_tied_with_the_top`; the Best value tab | test, demonstration |
 
 All tests run on every pull request and before every daily refresh.
