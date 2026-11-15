@@ -15,12 +15,18 @@ The pipeline calls check() before building:
   EIA's reuse page stops saying so they are left out;
 - the test tools are only used to run the tests, and the plug-in's packages (mcp/) only by
   the plug-in, so a change to either is reported.
+A source that cannot be read is read again after a pause, and if it still
+fails, the reason (a timeout, an HTTP error) goes into the report.
 Every problem is written to data/licence-problems.txt, and the daily refresh
-opens a GitHub issue from that file. Results go on the page as licences.json.
+opens a GitHub issue from that file and closes it on the first run whose check
+finds nothing. The report goes on the page (data.js, licences) and into
+data/licences.json, which tells the refresh that the check ran.
 """
 import json
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -38,6 +44,10 @@ PYPI = "https://pypi.org/pypi/{name}/{version}/json"
 # Packages in requirements.txt that the daily build itself uses; the rest only run the tests.
 PIPELINE = {"pyarrow"}
 PROBLEMS = Path("data/licence-problems.txt")
+CHECKED = Path("data/licences.json")
+# A failed read is tried once more after a pause, so one slow answer does not open an issue.
+TRIES = 2
+PAUSE = 20
 UNCHECKED = {"ratings": " The ratings were left out.",
              "electricity": " The electricity prices on the live page were kept."}
 
@@ -74,8 +84,14 @@ def pypi_licence(info):
 
 def _text(url):
     request = urllib.request.Request(url, headers={"User-Agent": "llmledger"})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return response.read().decode()
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return response.read().decode("utf-8", "replace")
+
+
+def reason(error):
+    """Why a read failed, in a few words: 'HTTP Error 403: Forbidden', 'timed out'."""
+    inner = error if isinstance(error, urllib.error.HTTPError) else getattr(error, "reason", None) or error
+    return (str(inner) or type(inner).__name__)[:160]
 
 
 def _requirements(path="requirements.txt"):
@@ -93,25 +109,30 @@ def _plugin_requirements(path="mcp/pyproject.toml"):
 
 
 def sources(get=_text, requirements=_requirements, plugin=_plugin_requirements):
-    """(name, role, licence found) for every outside source; None if unreachable."""
+    """(name, role, licence found, why not) for every outside source; the licence is None if unreachable."""
     def attempt(read):
-        try:
-            return read()
-        except Exception:
-            return None
+        why = None
+        for n in range(TRIES):
+            if n:
+                time.sleep(PAUSE)
+            try:
+                return read(), None
+            except Exception as error:
+                why = reason(error)
+        return None, f"{why}, tried {TRIES} times"
     found = [
         ("LiteLLM price file", "data",
-         attempt(lambda: litellm_licence(get(LITELLM_LICENSE)))),
+         *attempt(lambda: litellm_licence(get(LITELLM_LICENSE)))),
         ("Arena leaderboard", "ratings",
-         attempt(lambda: (json.loads(get(ARENA)).get("cardData") or {}).get("license"))),
+         *attempt(lambda: (json.loads(get(ARENA)).get("cardData") or {}).get("license"))),
         ("Arena prompts", "measuring",
-         attempt(lambda: (json.loads(get(ARENA_PROMPTS)).get("cardData") or {}).get("license"))),
-        ("EIA electricity prices", "electricity", attempt(lambda: electricity.licence(get(electricity.REUSE)))),
+         *attempt(lambda: (json.loads(get(ARENA_PROMPTS)).get("cardData") or {}).get("license"))),
+        ("EIA electricity prices", "electricity", *attempt(lambda: electricity.licence(get(electricity.REUSE)))),
     ]
     pins = [("pipeline" if name in PIPELINE else "tests", name, version) for name, version in requirements()]
     pins += [("plug-in", name, version) for name, version in plugin()]
     for role, name, version in pins:
-        found.append((f"{name} {version}", role, attempt(
+        found.append((f"{name} {version}", role, *attempt(
             lambda n=name, v=version: pypi_licence(json.loads(get(PYPI.format(name=n, version=v)))["info"]))))
     return found
 
@@ -119,12 +140,13 @@ def sources(get=_text, requirements=_requirements, plugin=_plugin_requirements):
 def check(get=_text, requirements=_requirements, plugin=_plugin_requirements):
     """Returns (report, allowed): allowed says which optional parts may be used."""
     report = []
-    for name, role, licence in sources(get, requirements, plugin):
+    for name, role, licence, why in sources(get, requirements, plugin):
         if licence is None:
             status = "unchecked"
         else:
             status = "open" if is_open(licence) else "not open"
-        report.append({"source": name, "role": role, "licence": licence, "status": status})
+        row = {"source": name, "role": role, "licence": licence, "status": status}
+        report.append(row | {"error": why} if why else row)
     roles = {row["role"]: row["status"] for row in report if row["role"] in ("data", "ratings", "electricity")}
     allowed = {"data": roles.get("data") != "not open", "ratings": roles.get("ratings") == "open",
                "electricity": roles.get("electricity") == "open"}
@@ -147,20 +169,22 @@ def problems(report):
             lines.append(f"- {row['source']}: licence is now {row['licence']!r}, "
                          f"which is not open for business use. {action}")
         elif row["status"] == "unchecked" and row["role"] not in ("tests", "plug-in", "pipeline"):
-            lines.append(f"- {row['source']}: the licence could not be checked today."
+            why = f" ({row['error']})" if row.get("error") else ""
+            lines.append(f"- {row['source']}: the licence could not be checked today{why}."
                          + UNCHECKED.get(row["role"], ""))
     return lines
 
 
-def main():
+def main(get=_text, requirements=_requirements, plugin=_plugin_requirements):
     PROBLEMS.unlink(missing_ok=True)
-    report, allowed = check()
+    report, allowed = check(get, requirements, plugin)
     for row in report:
-        print(f"licence {row['status']:>9}: {row['source']} ({row['licence']})")
+        print(f"licence {row['status']:>9}: {row['source']} ({row.get('error') or row['licence']})")
     found = problems(report)
+    PROBLEMS.parent.mkdir(parents=True, exist_ok=True)
     if found:
-        PROBLEMS.parent.mkdir(parents=True, exist_ok=True)
         PROBLEMS.write_text("\n".join(found) + "\n")
+    CHECKED.write_text(json.dumps(report, indent=1) + "\n")
     return report, allowed
 
 
