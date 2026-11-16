@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling==1.32.4"]
+requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -17,7 +17,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = ["fastmcp==4.1.0"]
+dependencies = ["fastmcp==4.1.8"]
 
 [project.scripts]
 llmledger-mcp = "llmledger_mcp.server:main"
