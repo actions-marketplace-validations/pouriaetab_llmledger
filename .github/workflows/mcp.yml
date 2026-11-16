@@ -21,7 +21,7 @@ jobs:
       run:
         working-directory: mcp
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.1"
@@ -41,7 +41,7 @@ jobs:
       run:
         working-directory: mcp
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7.0.1
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.13.1"
@@ -50,6 +50,6 @@ jobs:
       - name: Bundle today's data
         run: python3 scripts/snapshot.py
       - run: uv build
-      - uses: pypa/gh-action-pypi-publish@v1.14.2
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
         with:
           packages-dir: mcp/dist
